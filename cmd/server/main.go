@@ -96,6 +96,8 @@ func main() {
 	// 플레이어 통계
 	api.Get("/players/:name/stats", handlers.GetPlayerStats) // 플레이어 통계 조회
 	api.Get("/users/suggest", handlers.GetUserSuggestions)
+	api.Get("/rankings/3v3", handlers.GetThreeVsThreeRankings)
+	api.Get("/analyzer/race-matchups", handlers.GetRaceMatchupAnalyzer)
 
 	// Web UI
 	app.Get("/", func(c *fiber.Ctx) error {

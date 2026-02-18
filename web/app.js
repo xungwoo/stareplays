@@ -7,9 +7,11 @@ const parsedUploaderSelectEl = document.getElementById("parsedUploaderSelect");
 const uploadWithSelectedBtnEl = document.getElementById("uploadWithSelectedBtn");
 const currentUserDisplayEl = document.getElementById("currentUserDisplay");
 const refreshGamesEl = document.getElementById("refreshGames");
+const refreshRankingsEl = document.getElementById("refreshRankings");
 const gamesPrevPageEl = document.getElementById("gamesPrevPage");
 const gamesNextPageEl = document.getElementById("gamesNextPage");
 const gamesPageInfoEl = document.getElementById("gamesPageInfo");
+const rankingsTableBodyEl = document.getElementById("rankingsTableBody");
 const playerQueryEl = document.getElementById("playerQuery");
 const playerSuggestionsEl = document.getElementById("playerSuggestions");
 const queryPlayerBtnEl = document.getElementById("queryPlayerBtn");
@@ -35,6 +37,7 @@ const state = {
   gamesPage: 1,
   gamesPageSize: 6,
   gamesTotal: 0,
+  rankings: [],
 };
 const chartPalette = ["#2D3139", "#275DAD", "#7B2CBF", "#C44536", "#0A8F6A", "#AF6E0D", "#5A4FCF", "#39424E"];
 
@@ -122,6 +125,7 @@ function setCurrentUser(name) {
     localStorage.removeItem("stareps_current_user");
   }
   renderCurrentUser();
+  renderRankingsTable(state.rankings || []);
 }
 
 function renderCurrentUser() {
@@ -419,6 +423,49 @@ function renderGamesTable(games, summaries) {
     `;
     tr.addEventListener("click", () => loadGameDetail(g.id));
     gamesTableBodyEl.appendChild(tr);
+  }
+}
+
+function renderRankingsTable(rankings) {
+  if (!rankingsTableBodyEl) return;
+  rankingsTableBodyEl.innerHTML = "";
+  if (!Array.isArray(rankings) || rankings.length === 0) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td colspan="7" class="p-3 text-center text-[11px] text-[#4A4F59]">NO_3V3_RANKINGS</td>`;
+    rankingsTableBodyEl.appendChild(tr);
+    return;
+  }
+
+  const current = getCurrentUser().trim().toLowerCase();
+  for (const row of rankings) {
+    const name = String(row.name || "-");
+    const isCurrent = current && name.trim().toLowerCase() === current;
+    const tr = document.createElement("tr");
+    tr.className = `border-b border-[#2D3139]/30 ${isCurrent ? "bg-white/40" : ""}`;
+    tr.innerHTML = `
+      <td class="p-3 border-r border-[#2D3139]/30">#${Number(row.rank || 0)}</td>
+      <td class="p-3 border-r border-[#2D3139]/30">${escapeHtml(name)}${isCurrent ? ' <span class="you-chip">YOU</span>' : ""}</td>
+      <td class="p-3 border-r border-[#2D3139]/30 text-right">${Number(row.win_rate || 0).toFixed(1)}%</td>
+      <td class="p-3 border-r border-[#2D3139]/30 text-right">${Number(row.wins || 0)}-${Number(row.losses || 0)}-${Number(row.draws || 0)}</td>
+      <td class="p-3 border-r border-[#2D3139]/30 text-right">${Number(row.games || 0)}</td>
+      <td class="p-3 border-r border-[#2D3139]/30 text-right">${Number(row.avg_apm || 0).toFixed(1)}</td>
+      <td class="p-3 text-right">${Number(row.avg_eapm || 0).toFixed(1)}</td>
+    `;
+    rankingsTableBodyEl.appendChild(tr);
+  }
+}
+
+async function loadRankings() {
+  if (!rankingsTableBodyEl) return;
+  try {
+    const data = await api("/api/v1/rankings/3v3?limit=100");
+    state.rankings = Array.isArray(data.rankings) ? data.rankings : [];
+    renderRankingsTable(state.rankings);
+    addLog(`LOADED_3V3_RANKINGS: ${state.rankings.length}`);
+  } catch (err) {
+    state.rankings = [];
+    rankingsTableBodyEl.innerHTML = `<tr><td colspan="7" class="p-3 text-center text-[11px] text-[#8a2f2f]">ERROR_LOAD_RANKINGS: ${escapeHtml(err.message)}</td></tr>`;
+    addLog(`ERROR_LOAD_RANKINGS: ${err.message}`);
   }
 }
 
@@ -918,6 +965,9 @@ parsedUploaderSelectEl.addEventListener("change", () => {
 });
 uploadWithSelectedBtnEl.addEventListener("click", uploadWithSelectedUser);
 refreshGamesEl.addEventListener("click", () => loadGames(false));
+if (refreshRankingsEl) {
+  refreshRankingsEl.addEventListener("click", loadRankings);
+}
 if (gamesPrevPageEl) {
   gamesPrevPageEl.addEventListener("click", () => {
     if (state.gamesPage <= 1) return;
@@ -1405,4 +1455,5 @@ if (getCurrentUser()) {
   playerQueryEl.value = getCurrentUser();
 }
 loadGames();
+loadRankings();
 renderActiveVisualization();

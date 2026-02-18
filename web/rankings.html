@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StaReplays Rankings</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="min-h-screen bg-[#E0E0E2] text-[#2D3139]">
+  <div class="min-h-screen flex flex-col">
+    <nav class="border-b border-[#2D3139] bg-[#E0E0E2] sticky top-0 z-50">
+      <div class="max-w-[1400px] mx-auto px-4 md:px-6 h-14 flex items-center justify-between">
+        <div class="flex items-center gap-6">
+          <div class="flex items-center gap-2">
+            <span class="font-bold tracking-tight text-sm md:text-base">StaReplays v1.0</span>
+          </div>
+          <div class="hidden md:flex items-center gap-4 text-[11px] font-bold uppercase">
+            <a href="/" class="text-[#2D3139] border border-[#2D3139] px-2 py-0.5 bg-white/30">[ Dashboard ]</a>
+            <a href="/" class="text-[#4A4F59] hover:text-[#2D3139]">Replay_Vault</a>
+            <a href="/analyzer.html" class="text-[#4A4F59] hover:text-[#2D3139]">Game_Analyzer</a>
+            <a href="/rankings.html" class="text-[#4A4F59] hover:text-[#2D3139]">Rankings</a>
+          </div>
+        </div>
+        <div class="text-[10px] md:text-[11px] font-bold uppercase text-[#4A4F59]">SYS_STATUS: ONLINE</div>
+      </div>
+    </nav>
+
+    <main class="max-w-[1400px] mx-auto w-full px-4 md:px-6 py-6 md:py-8 flex-grow">
+      <section class="mb-8">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-xs font-bold uppercase tracking-[0.18em] flex items-center gap-2">
+            <span class="w-2 h-2 bg-[#2D3139]"></span>
+            Rankings_3v3
+          </h2>
+          <div class="flex items-center gap-2">
+            <select id="rankingsSortBy" class="border border-[#2D3139] bg-white/60 px-2 py-1 text-[10px] font-bold uppercase">
+              <option value="default">WIN_RATE</option>
+              <option value="avg_apm">AVG_APM</option>
+              <option value="avg_eapm">AVG_EAPM</option>
+            </select>
+            <button id="rankingsSortDir" class="border border-[#2D3139] px-2 py-1 text-[10px] font-bold uppercase hover:bg-white/50">DESC</button>
+            <button id="refreshRankings" class="border border-[#2D3139] px-3 py-1 text-[10px] font-bold uppercase hover:bg-white/50">Refresh</button>
+          </div>
+        </div>
+        <div class="overflow-x-auto border border-[#2D3139]">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-[#D1D1D4] text-[10px] font-bold uppercase tracking-widest border-b border-[#2D3139]">
+                <th class="p-3 border-r border-[#2D3139]">RANK</th>
+                <th class="p-3 border-r border-[#2D3139]">USER</th>
+                <th class="p-3 border-r border-[#2D3139] text-right">WIN_RATE</th>
+                <th class="p-3 border-r border-[#2D3139] text-right">RECORD</th>
+                <th class="p-3 border-r border-[#2D3139] text-right">GAMES</th>
+                <th class="p-3 border-r border-[#2D3139] text-right">AVG_APM</th>
+                <th class="p-3 text-right">AVG_EAPM</th>
+              </tr>
+            </thead>
+            <tbody id="rankingsTableBody" class="text-[11px] font-bold"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/rankings.js"></script>
+</body>
+</html>
