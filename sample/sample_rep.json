@@ -1,0 +1,271 @@
+{
+  "Header": {
+    "Engine": {
+      "Name": "Brood War",
+      "ID": 1,
+      "ShortName": "BW"
+    },
+    "Version": "1.21+",
+    "Frames": 14319,
+    "StartTime": "2025-05-31T01:46:52+09:00",
+    "Title": "3:3 빨무 54%이하만",
+    "MapWidth": 128,
+    "MapHeight": 128,
+    "AvailSlotsCount": 6,
+    "Speed": {
+      "Name": "Fastest",
+      "ID": 6
+    },
+    "Type": {
+      "Name": "Top vs Bottom",
+      "ID": 15,
+      "ShortName": "TvB"
+    },
+    "SubType": 3,
+    "Host": "jjang9-pil",
+    "Map": "\u0004New \u0007Super◆빠른무한",
+    "Players": [
+      {
+        "SlotID": 0,
+        "ID": 3,
+        "Type": {
+          "Name": "Human",
+          "ID": 2
+        },
+        "Race": {
+          "Name": "Terran",
+          "ID": 1,
+          "ShortName": "ran",
+          "Letter": 84
+        },
+        "Team": 1,
+        "Name": "alweglw.",
+        "Color": {
+          "Name": "Navy",
+          "ID": 19,
+          "RGB": 230
+        },
+        "Observer": false
+      },
+      {
+        "SlotID": 4,
+        "ID": 1,
+        "Type": {
+          "Name": "Human",
+          "ID": 2
+        },
+        "Race": {
+          "Name": "Zerg",
+          "ID": 0,
+          "ShortName": "zerg",
+          "Letter": 90
+        },
+        "Team": 1,
+        "Name": "Gateway10002",
+        "Color": {
+          "Name": "Magenta",
+          "ID": 21,
+          "RGB": 15741670
+        },
+        "Observer": false
+      },
+      {
+        "SlotID": 5,
+        "ID": 0,
+        "Type": {
+          "Name": "Human",
+          "ID": 2
+        },
+        "Race": {
+          "Name": "Protoss",
+          "ID": 2,
+          "ShortName": "toss",
+          "Letter": 80
+        },
+        "Team": 1,
+        "Name": "jjang9-pil",
+        "Color": {
+          "Name": "Pink",
+          "ID": 16,
+          "RGB": 16762084
+        },
+        "Observer": false
+      },
+      {
+        "SlotID": 1,
+        "ID": 4,
+        "Type": {
+          "Name": "Human",
+          "ID": 2
+        },
+        "Race": {
+          "Name": "Zerg",
+          "ID": 0,
+          "ShortName": "zerg",
+          "Letter": 90
+        },
+        "Team": 2,
+        "Name": "784567457456745",
+        "Color": {
+          "Name": "Lime",
+          "ID": 18,
+          "RGB": 13825340
+        },
+        "Observer": false
+      },
+      {
+        "SlotID": 2,
+        "ID": 2,
+        "Type": {
+          "Name": "Human",
+          "ID": 2
+        },
+        "Race": {
+          "Name": "Protoss",
+          "ID": 2,
+          "ShortName": "toss",
+          "Letter": 80
+        },
+        "Team": 2,
+        "Name": "swsoni",
+        "Color": {
+          "Name": "Green",
+          "ID": 8,
+          "RGB": 557064
+        },
+        "Observer": false
+      },
+      {
+        "SlotID": 3,
+        "ID": 5,
+        "Type": {
+          "Name": "Human",
+          "ID": 2
+        },
+        "Race": {
+          "Name": "Terran",
+          "ID": 1,
+          "ShortName": "ran",
+          "Letter": 84
+        },
+        "Team": 2,
+        "Name": "by1619",
+        "Color": {
+          "Name": "Orange",
+          "ID": 4,
+          "RGB": 16288788
+        },
+        "Observer": false
+      }
+    ]
+  },
+  "Commands": null,
+  "MapData": null,
+  "Computed": {
+    "LeaveGameCmds": null,
+    "ChatCmds": [
+      {
+        "Frame": 219,
+        "PlayerID": 1,
+        "Type": {
+          "Name": "Chat",
+          "ID": 92
+        },
+        "SenderSlotID": 3,
+        "Message": "[k런처] 핵 감지기 사용중 입니다. v4.1.1 (https://klauncher.kr)"
+      },
+      {
+        "Frame": 228,
+        "PlayerID": 1,
+        "Type": {
+          "Name": "Chat",
+          "ID": 92
+        },
+        "SenderSlotID": 5,
+        "Message": "[k런처] 핵 감지기 사용중 입니다. v4.1.1 (https://klauncher.kr)"
+      }
+    ],
+    "WinnerTeam": 2,
+    "RepSaverPlayerID": 1,
+    "PlayerDescs": [
+      {
+        "PlayerID": 3,
+        "LastCmdFrame": 14309,
+        "CmdCount": 1536,
+        "APM": 153,
+        "EffectiveCmdCount": 1375,
+        "EAPM": 137,
+        "StartLocation": {
+          "X": 288,
+          "Y": 180
+        },
+        "StartDirection": 11
+      },
+      {
+        "PlayerID": 1,
+        "LastCmdFrame": 13268,
+        "CmdCount": 1092,
+        "APM": 118,
+        "EffectiveCmdCount": 877,
+        "EAPM": 94,
+        "StartLocation": {
+          "X": 289,
+          "Y": 2036
+        },
+        "StartDirection": 9
+      },
+      {
+        "PlayerID": 0,
+        "LastCmdFrame": 14282,
+        "CmdCount": 1497,
+        "APM": 150,
+        "EffectiveCmdCount": 1397,
+        "EAPM": 140,
+        "StartLocation": {
+          "X": 3808,
+          "Y": 2036
+        },
+        "StartDirection": 3
+      },
+      {
+        "PlayerID": 4,
+        "LastCmdFrame": 14317,
+        "CmdCount": 1779,
+        "APM": 178,
+        "EffectiveCmdCount": 1341,
+        "EAPM": 134,
+        "StartLocation": {
+          "X": 3808,
+          "Y": 3736
+        },
+        "StartDirection": 4
+      },
+      {
+        "PlayerID": 2,
+        "LastCmdFrame": 14302,
+        "CmdCount": 1152,
+        "APM": 115,
+        "EffectiveCmdCount": 1133,
+        "EAPM": 113,
+        "StartLocation": {
+          "X": 3809,
+          "Y": 180
+        },
+        "StartDirection": 1
+      },
+      {
+        "PlayerID": 5,
+        "LastCmdFrame": 14318,
+        "CmdCount": 2104,
+        "APM": 210,
+        "EffectiveCmdCount": 1264,
+        "EAPM": 126,
+        "StartLocation": {
+          "X": 288,
+          "Y": 3734
+        },
+        "StartDirection": 8
+      }
+    ]
+  }
+}
