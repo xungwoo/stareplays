@@ -98,6 +98,9 @@ func main() {
 	api.Get("/users/suggest", handlers.GetUserSuggestions)
 
 	// Web UI
+	app.Get("/", func(c *fiber.Ctx) error {
+		return c.SendFile("./web/index.html")
+	})
 	app.Static("/", "./web")
 
 	// 서버 시작

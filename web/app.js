@@ -860,6 +860,12 @@ function renderPlayerStats(stats) {
 async function queryPlayer() {
   const name = playerQueryEl.value.trim();
   if (!name) return;
+  const prevUser = getCurrentUser();
+  setCurrentUser(name);
+  await loadGames(true);
+  if (prevUser.toLowerCase() !== name.toLowerCase()) {
+    addLog(`LOGIN_AS: ${name}`);
+  }
   playerStatsEl.innerHTML = '<div class="text-[10px] text-[#4A4F59]">QUERYING_PLAYER...</div>';
   try {
     const result = await api(`/api/v1/players/${encodeURIComponent(name)}/stats`);
