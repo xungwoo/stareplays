@@ -12,12 +12,16 @@ import (
 // Tx is a transactional client that is created by calling Client.Tx().
 type Tx struct {
 	config
+	// AnalyzerRaceMatchup is the client for interacting with the AnalyzerRaceMatchup builders.
+	AnalyzerRaceMatchup *AnalyzerRaceMatchupClient
 	// Game is the client for interacting with the Game builders.
 	Game *GameClient
 	// GameDetail is the client for interacting with the GameDetail builders.
 	GameDetail *GameDetailClient
 	// Player is the client for interacting with the Player builders.
 	Player *PlayerClient
+	// Ranking3v3 is the client for interacting with the Ranking3v3 builders.
+	Ranking3v3 *Ranking3v3Client
 	// ReplayFile is the client for interacting with the ReplayFile builders.
 	ReplayFile *ReplayFileClient
 	// User is the client for interacting with the User builders.
@@ -153,9 +157,11 @@ func (tx *Tx) Client() *Client {
 }
 
 func (tx *Tx) init() {
+	tx.AnalyzerRaceMatchup = NewAnalyzerRaceMatchupClient(tx.config)
 	tx.Game = NewGameClient(tx.config)
 	tx.GameDetail = NewGameDetailClient(tx.config)
 	tx.Player = NewPlayerClient(tx.config)
+	tx.Ranking3v3 = NewRanking3v3Client(tx.config)
 	tx.ReplayFile = NewReplayFileClient(tx.config)
 	tx.User = NewUserClient(tx.config)
 }
@@ -167,7 +173,7 @@ func (tx *Tx) init() {
 // of them in order to commit or rollback the transaction.
 //
 // If a closed transaction is embedded in one of the generated entities, and the entity
-// applies a query, for example: Game.QueryXXX(), the query will be executed
+// applies a query, for example: AnalyzerRaceMatchup.QueryXXX(), the query will be executed
 // through the driver which created this transaction.
 //
 // Note that txDriver is not goroutine safe.

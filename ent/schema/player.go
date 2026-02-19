@@ -70,6 +70,7 @@ func (Player) Edges() []ent.Edge {
 func (Player) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("name"),
+		index.Edges("game"),
 		index.Fields("player_id").
 			Edges("game").
 			Unique(),

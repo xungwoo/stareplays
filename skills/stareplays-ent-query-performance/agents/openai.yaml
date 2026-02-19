@@ -1,0 +1,7 @@
+interface:
+  display_name: "stareplays Query Performance"
+  short_description: "Tune Ent/Postgres queries with EXPLAIN"
+  default_prompt: "Use $stareplays-ent-query-performance to optimize a slow query path and propose safe index changes."
+
+policy:
+  allow_implicit_invocation: true

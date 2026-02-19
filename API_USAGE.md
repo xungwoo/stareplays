@@ -1,4 +1,4 @@
-# StarEPS API Usage
+# stareplays API Usage
 
 ## Base URL
 

@@ -73,5 +73,6 @@ func (Game) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("host", "start_time").
 			Unique(),
+		index.Fields("player_count"),
 	}
 }

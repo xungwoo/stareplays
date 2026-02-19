@@ -8,8 +8,8 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/xungwoo/stareps/ent/predicate"
-	"github.com/xungwoo/stareps/ent/replayfile"
+	"github.com/xungwoo/stareplays/ent/predicate"
+	"github.com/xungwoo/stareplays/ent/replayfile"
 )
 
 // ReplayFileDelete is the builder for deleting a ReplayFile entity.

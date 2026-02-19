@@ -1,0 +1,7 @@
+interface:
+  display_name: "stareplays Doc Sync"
+  short_description: "Keep docs aligned with runtime behavior"
+  default_prompt: "Use $stareplays-doc-runtime-sync to update documentation so it matches current code and runtime behavior."
+
+policy:
+  allow_implicit_invocation: true

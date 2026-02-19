@@ -1,4 +1,4 @@
-module github.com/xungwoo/stareps
+module github.com/xungwoo/stareplays
 
 go 1.25.5
 

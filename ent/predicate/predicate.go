@@ -6,6 +6,9 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
+// AnalyzerRaceMatchup is the predicate function for analyzerracematchup builders.
+type AnalyzerRaceMatchup func(*sql.Selector)
+
 // Game is the predicate function for game builders.
 type Game func(*sql.Selector)
 
@@ -14,6 +17,9 @@ type GameDetail func(*sql.Selector)
 
 // Player is the predicate function for player builders.
 type Player func(*sql.Selector)
+
+// Ranking3v3 is the predicate function for ranking3v3 builders.
+type Ranking3v3 func(*sql.Selector)
 
 // ReplayFile is the predicate function for replayfile builders.
 type ReplayFile func(*sql.Selector)

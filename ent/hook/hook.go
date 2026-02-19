@@ -6,8 +6,20 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/xungwoo/stareps/ent"
+	"github.com/xungwoo/stareplays/ent"
 )
+
+// The AnalyzerRaceMatchupFunc type is an adapter to allow the use of ordinary
+// function as AnalyzerRaceMatchup mutator.
+type AnalyzerRaceMatchupFunc func(context.Context, *ent.AnalyzerRaceMatchupMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f AnalyzerRaceMatchupFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.AnalyzerRaceMatchupMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AnalyzerRaceMatchupMutation", m)
+}
 
 // The GameFunc type is an adapter to allow the use of ordinary
 // function as Game mutator.
@@ -43,6 +55,18 @@ func (f PlayerFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, erro
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PlayerMutation", m)
+}
+
+// The Ranking3v3Func type is an adapter to allow the use of ordinary
+// function as Ranking3v3 mutator.
+type Ranking3v3Func func(context.Context, *ent.Ranking3v3Mutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f Ranking3v3Func) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.Ranking3v3Mutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.Ranking3v3Mutation", m)
 }
 
 // The ReplayFileFunc type is an adapter to allow the use of ordinary

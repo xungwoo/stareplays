@@ -1,0 +1,7 @@
+interface:
+  display_name: "stareplays Ingestion Throughput"
+  short_description: "Optimize replay upload parse store path"
+  default_prompt: "Use $stareplays-replay-ingestion-throughput to improve batch replay upload throughput while preserving idempotency."
+
+policy:
+  allow_implicit_invocation: true

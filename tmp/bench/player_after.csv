@@ -1,0 +1,2 @@
+label,endpoint,requests,success,fail,min_ms,p50_ms,p95_ms,p99_ms,avg_ms,max_ms
+after-player-stats,http://127.0.0.1:3000/api/v1/players/jjang9-pil/stats,80,67,13,0.235,8.050,24.822,29.808,8.905,29.808

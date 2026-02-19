@@ -12,22 +12,26 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/xungwoo/stareps/ent"
-	"github.com/xungwoo/stareps/ent/game"
-	"github.com/xungwoo/stareps/ent/player"
-	"github.com/xungwoo/stareps/ent/replayfile"
-	"github.com/xungwoo/stareps/ent/user"
-	"github.com/xungwoo/stareps/internal/database"
-	"github.com/xungwoo/stareps/internal/parser"
+	"github.com/xungwoo/stareplays/ent"
+	"github.com/xungwoo/stareplays/ent/game"
+	"github.com/xungwoo/stareplays/ent/player"
+	"github.com/xungwoo/stareplays/ent/replayfile"
+	"github.com/xungwoo/stareplays/ent/user"
+	"github.com/xungwoo/stareplays/internal/database"
+	"github.com/xungwoo/stareplays/internal/parser"
+	"github.com/xungwoo/stareplays/internal/services/analyzer"
+	"github.com/xungwoo/stareplays/internal/services/ranking"
 )
 
 var errAlreadyUploadedByUser = errors.New("this user already uploaded a replay for the game")
 
 const (
-	defaultReplayUploadDir       = "/tmp/stareps/uploads"
+	defaultReplayUploadDir       = "/tmp/stareplays/uploads"
 	defaultReplayMaxSizeMB       = 30
+	maxReplayParseWorkers        = 4
 	bytesPerMB             int64 = 1024 * 1024
 )
 
@@ -44,6 +48,12 @@ type ReplayPreview struct {
 	MapName       string   `json:"map_name"`
 	PlayerCount   int      `json:"player_count"`
 	ParsedPlayers []string `json:"parsed_players"`
+}
+
+type parsedUploadFile struct {
+	FileHeader *multipart.FileHeader
+	Parsed     *parser.ParsedGame
+	Err        error
 }
 
 // ParseLocalReplay parses a local replay file and saves it to database.
@@ -113,20 +123,21 @@ func ParseUploadedReplay(c *fiber.Ctx) error {
 	successCount := 0
 	failedCount := 0
 
-	for _, fh := range files {
-		parsed, err := parseUploadedFile(fh)
-		if err != nil {
+	parsedFiles := parseUploadedFilesInParallel(files)
+	for _, parsedFile := range parsedFiles {
+		fh := parsedFile.FileHeader
+		if parsedFile.Err != nil {
 			failedCount++
 			results = append(results, fiber.Map{
 				"filename": fh.Filename,
 				"ok":       false,
 				"status":   fiber.StatusBadRequest,
-				"error":    err.Error(),
+				"error":    parsedFile.Err.Error(),
 			})
 			continue
 		}
 
-		status, payload := processParsedReplayResult(c.Context(), parsed, uploaderName)
+		status, payload := processParsedReplayResult(c.Context(), parsedFile.Parsed, uploaderName)
 		ok := status < 400
 		if ok {
 			successCount++
@@ -173,21 +184,22 @@ func PreviewUploadedReplay(c *fiber.Ctx) error {
 	failedCount := 0
 	candidateSet := make(map[string]struct{})
 
-	for _, fh := range files {
-		parsed, parseErr := parseUploadedFile(fh)
-		if parseErr != nil {
+	parsedFiles := parseUploadedFilesInParallel(files)
+	for _, parsedFile := range parsedFiles {
+		fh := parsedFile.FileHeader
+		if parsedFile.Err != nil {
 			failedCount++
 			results = append(results, fiber.Map{
 				"filename": fh.Filename,
 				"ok":       false,
 				"status":   fiber.StatusBadRequest,
-				"error":    parseErr.Error(),
+				"error":    parsedFile.Err.Error(),
 			})
 			continue
 		}
 
 		successCount++
-		candidates := previewPlayerNames(parsed)
+		candidates := previewPlayerNames(parsedFile.Parsed)
 		for _, name := range candidates {
 			candidateSet[name] = struct{}{}
 		}
@@ -195,7 +207,7 @@ func PreviewUploadedReplay(c *fiber.Ctx) error {
 			"filename": fh.Filename,
 			"ok":       true,
 			"status":   fiber.StatusOK,
-			"preview":  replayPreviewFromParsed(parsed),
+			"preview":  replayPreviewFromParsed(parsedFile.Parsed),
 		})
 	}
 
@@ -385,21 +397,29 @@ func parseUploadedFile(fileHeader *multipart.FileHeader) (*parser.ParsedGame, er
 		return nil, fmt.Errorf("failed to create temp replay file: %w", err)
 	}
 	tempPath := tempFile.Name()
-	defer func() { _ = os.Remove(tempPath) }()
+	tempClosed := false
+	defer func() {
+		if !tempClosed {
+			_ = tempFile.Close()
+		}
+		if err := os.Remove(tempPath); err != nil && !os.IsNotExist(err) {
+			// best-effort cleanup for temp upload file
+		}
+	}()
 
 	f, err := fileHeader.Open()
 	if err != nil {
 		return nil, fmt.Errorf("failed to open uploaded file: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	if _, err := io.Copy(tempFile, f); err != nil {
-		_ = tempFile.Close()
 		return nil, fmt.Errorf("failed to write temp replay file: %w", err)
 	}
 	if err := tempFile.Close(); err != nil {
 		return nil, fmt.Errorf("failed to close temp replay file: %w", err)
 	}
+	tempClosed = true
 
 	parsed, err := parser.ParseReplayFile(tempPath)
 	if err != nil {
@@ -407,6 +427,51 @@ func parseUploadedFile(fileHeader *multipart.FileHeader) (*parser.ParsedGame, er
 	}
 	parsed.Filename = fileHeader.Filename
 	return parsed, nil
+}
+
+func parseUploadedFilesInParallel(files []*multipart.FileHeader) []parsedUploadFile {
+	results := make([]parsedUploadFile, len(files))
+	if len(files) == 0 {
+		return results
+	}
+	workers := len(files)
+	if workers > maxReplayParseWorkers {
+		workers = maxReplayParseWorkers
+	}
+	if workers <= 1 {
+		fh := files[0]
+		parsed, err := parseUploadedFile(fh)
+		results[0] = parsedUploadFile{
+			FileHeader: fh,
+			Parsed:     parsed,
+			Err:        err,
+		}
+		return results
+	}
+
+	jobCh := make(chan int)
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for idx := range jobCh {
+				fh := files[idx]
+				parsed, err := parseUploadedFile(fh)
+				results[idx] = parsedUploadFile{
+					FileHeader: fh,
+					Parsed:     parsed,
+					Err:        err,
+				}
+			}
+		}()
+	}
+	for idx := range files {
+		jobCh <- idx
+	}
+	close(jobCh)
+	wg.Wait()
+	return results
 }
 
 func replayUploadDir() string {
@@ -972,6 +1037,42 @@ func GetPlayerStats(c *fiber.Ctx) error {
 	// Map stats: map_name → {wins, total}
 	mapStats := make(map[string]*raceRecord)
 
+	gameIDs := make([]int, 0, len(playerRecords))
+	seenGameIDs := make(map[int]struct{}, len(playerRecords))
+	for _, pr := range playerRecords {
+		if pr.Edges.Game == nil {
+			continue
+		}
+		gid := pr.Edges.Game.ID
+		if _, ok := seenGameIDs[gid]; ok {
+			continue
+		}
+		seenGameIDs[gid] = struct{}{}
+		gameIDs = append(gameIDs, gid)
+	}
+
+	playersByGame := make(map[int][]*ent.Player, len(gameIDs))
+	if len(gameIDs) > 0 {
+		playersInGames, err := database.Client.Player.
+			Query().
+			Where(player.HasGameWith(game.IDIn(gameIDs...))).
+			WithGame().
+			All(ctx)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error":   "Failed to fetch opponent data",
+				"details": err.Error(),
+			})
+		}
+		for _, gp := range playersInGames {
+			if gp.Edges.Game == nil {
+				continue
+			}
+			gid := gp.Edges.Game.ID
+			playersByGame[gid] = append(playersByGame[gid], gp)
+		}
+	}
+
 	for _, pr := range playerRecords {
 		switch pr.Result {
 		case "win":
@@ -1015,16 +1116,11 @@ func GetPlayerStats(c *fiber.Ctx) error {
 				}
 			}
 
-			// Get opponents from same game
-			opponents, _ := database.Client.Player.
-				Query().
-				Where(
-					player.HasGameWith(game.IDEQ(g.ID)),
-					player.TeamNEQ(pr.Team),
-				).
-				All(ctx)
-
-			for _, opp := range opponents {
+			// Get opponents from same game (preloaded once for all games).
+			for _, opp := range playersByGame[g.ID] {
+				if opp.Team == pr.Team {
+					continue
+				}
 				oppRace := opp.Race
 				key := fmt.Sprintf("vs %s", oppRace)
 				if _, ok := matchupStats[key]; !ok {
@@ -1167,326 +1263,90 @@ func GetUserSuggestions(c *fiber.Ctx) error {
 // Sort order: win_rate DESC, wins DESC, games DESC, name ASC.
 func GetThreeVsThreeRankings(c *fiber.Ctx) error {
 	ctx := c.Context()
-	limit := c.QueryInt("limit", 100)
-	if limit <= 0 {
-		limit = 100
-	}
-	if limit > 200 {
-		limit = 200
-	}
 
-	games, err := database.Client.Game.
-		Query().
-		Where(game.PlayerCountEQ(6)).
-		WithPlayers().
-		All(ctx)
+	page := c.QueryInt("page", 1)
+	pageSize := c.QueryInt("page_size", ranking.DefaultPageSize)
+	legacyLimit := c.QueryInt("limit", 0)
+	if legacyLimit > 0 {
+		pageSize = legacyLimit
+		page = 1
+	}
+	minGames := c.QueryInt("min_games", 0)
+	sortBy := c.Query("sort_by", "win_rate")
+	sortDir := c.Query("sort_dir", "desc")
+
+	result, err := ranking.List3v3Snapshot(ctx, database.Client, ranking.ListOptions{
+		Page:     page,
+		PageSize: pageSize,
+		MinGames: minGames,
+		Sort: ranking.SortOptions{
+			SortBy:  sortBy,
+			SortDir: sortDir,
+		},
+	})
 	if err != nil {
+		if ranking.IsPQUndefinedTable(err) {
+			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+				"error": "ranking snapshot table is not ready; run ranking job first",
+			})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error":   "Failed to fetch ranking games",
+			"error":   "Failed to fetch ranking snapshot",
 			"details": err.Error(),
 		})
 	}
 
-	type rankAgg struct {
-		Name    string
-		Games   int
-		Wins    int
-		Losses  int
-		Draws   int
-		SumAPM  float64
-		SumEAPM float64
-	}
-	aggByName := make(map[string]*rankAgg)
-	qualifyingGames := 0
-
-	for _, g := range games {
-		if !isStrictThreeVsThree(g.Edges.Players) {
-			continue
-		}
-		qualifyingGames++
-
-		for _, p := range g.Edges.Players {
-			name := strings.TrimSpace(p.Name)
-			if name == "" {
-				continue
-			}
-			key := strings.ToLower(name)
-			a, ok := aggByName[key]
-			if !ok {
-				a = &rankAgg{Name: name}
-				aggByName[key] = a
-			}
-
-			a.Games++
-			result := strings.ToLower(strings.TrimSpace(p.Result))
-			switch result {
-			case "win":
-				a.Wins++
-			case "loss":
-				a.Losses++
-			case "draw":
-				a.Draws++
-			default:
-				if p.IsWinner {
-					a.Wins++
-				} else if g.WinnerTeam > 0 {
-					a.Losses++
-				}
-			}
-			a.SumAPM += float64(p.Apm)
-			a.SumEAPM += float64(p.Eapm)
-		}
-	}
-
-	type rankingEntry struct {
-		Rank    int     `json:"rank"`
-		Name    string  `json:"name"`
-		Games   int     `json:"games"`
-		Wins    int     `json:"wins"`
-		Losses  int     `json:"losses"`
-		Draws   int     `json:"draws"`
-		WinRate float64 `json:"win_rate"`
-		AvgAPM  float64 `json:"avg_apm"`
-		AvgEAPM float64 `json:"avg_eapm"`
-	}
-
-	entries := make([]rankingEntry, 0, len(aggByName))
-	for _, a := range aggByName {
-		if a.Games == 0 {
-			continue
-		}
-		winRate := math.Round((float64(a.Wins)/float64(a.Games))*1000) / 10
-		avgAPM := math.Round((a.SumAPM/float64(a.Games))*10) / 10
-		avgEAPM := math.Round((a.SumEAPM/float64(a.Games))*10) / 10
-		entries = append(entries, rankingEntry{
-			Name:    a.Name,
-			Games:   a.Games,
-			Wins:    a.Wins,
-			Losses:  a.Losses,
-			Draws:   a.Draws,
-			WinRate: winRate,
-			AvgAPM:  avgAPM,
-			AvgEAPM: avgEAPM,
-		})
-	}
-
-	sort.Slice(entries, func(i, j int) bool {
-		if entries[i].WinRate != entries[j].WinRate {
-			return entries[i].WinRate > entries[j].WinRate
-		}
-		if entries[i].Wins != entries[j].Wins {
-			return entries[i].Wins > entries[j].Wins
-		}
-		if entries[i].Games != entries[j].Games {
-			return entries[i].Games > entries[j].Games
-		}
-		return strings.ToLower(entries[i].Name) < strings.ToLower(entries[j].Name)
-	})
-
-	if len(entries) > limit {
-		entries = entries[:limit]
-	}
-	for i := range entries {
-		entries[i].Rank = i + 1
-	}
-
 	return c.JSON(fiber.Map{
-		"mode":             "3v3",
-		"sort":             "win_rate_desc,wins_desc,games_desc",
-		"qualifying_games": qualifyingGames,
-		"total_rankers":    len(entries),
-		"rankings":         entries,
+		"mode":          "3v3",
+		"sort":          result.AppliedSort,
+		"min_games":     result.AppliedMinGames,
+		"total":         result.TotalCount,
+		"total_pages":   result.TotalPages,
+		"page":          result.Page,
+		"page_size":     result.PageSize,
+		"total_rankers": result.TotalCount,
+		"rankings":      result.Items,
+		"items":         result.Items,
 	})
-}
-
-func isStrictThreeVsThree(players []*ent.Player) bool {
-	if len(players) != 6 {
-		return false
-	}
-	teamCounts := make(map[uint8]int)
-	for _, p := range players {
-		teamCounts[p.Team]++
-	}
-	if len(teamCounts) != 2 {
-		return false
-	}
-	for _, cnt := range teamCounts {
-		if cnt != 3 {
-			return false
-		}
-	}
-	return true
 }
 
 // GetRaceMatchupAnalyzer returns race-composition matchup win rates.
 // Example matchup key: "PTZ vs ZZZ"
 func GetRaceMatchupAnalyzer(c *fiber.Ctx) error {
 	ctx := c.Context()
-	teamSize := c.QueryInt("team_size", 0) // 0 = all
-	limit := c.QueryInt("limit", 200)
-	if limit <= 0 {
-		limit = 200
-	}
-	if limit > 500 {
-		limit = 500
-	}
-	if teamSize < 0 {
-		teamSize = 0
-	}
-
-	q := database.Client.Game.Query().WithPlayers()
-	if teamSize > 0 {
-		q = q.Where(game.PlayerCountEQ(teamSize * 2))
-	}
-	games, err := q.All(ctx)
+	result, err := analyzer.ListSnapshot(ctx, database.Client, analyzer.ListOptions{
+		TeamSize: c.QueryInt("team_size", 0),
+		Page:     c.QueryInt("page", 1),
+		PageSize: c.QueryInt("page_size", analyzer.DefaultAnalyzerPageSize),
+		Limit:    c.QueryInt("limit", 0), // backward compatibility
+		Sort: analyzer.SortOptions{
+			SortBy:  c.Query("sort_by", "games"),
+			SortDir: c.Query("sort_dir", "desc"),
+		},
+	})
 	if err != nil {
+		if analyzer.IsPQUndefinedTable(err) {
+			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+				"error": "analyzer snapshot table is not ready; run analyzer job first",
+			})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error":   "Failed to fetch analyzer games",
+			"error":   "Failed to fetch analyzer snapshot",
 			"details": err.Error(),
 		})
 	}
 
-	type agg struct {
-		TeamA string
-		TeamB string
-		Games int
-		AWins int
-		BWins int
-	}
-	aggByKey := make(map[string]*agg)
-	qualifiedGames := 0
-
-	for _, g := range games {
-		players := g.Edges.Players
-		if len(players) == 0 {
-			continue
-		}
-		byTeam := make(map[uint8][]*ent.Player)
-		for _, p := range players {
-			byTeam[p.Team] = append(byTeam[p.Team], p)
-		}
-		if len(byTeam) != 2 {
-			continue
-		}
-
-		teams := make([]int, 0, 2)
-		for t := range byTeam {
-			teams = append(teams, int(t))
-		}
-		sort.Ints(teams)
-		t1 := uint8(teams[0])
-		t2 := uint8(teams[1])
-		p1 := byTeam[t1]
-		p2 := byTeam[t2]
-		if teamSize > 0 && (len(p1) != teamSize || len(p2) != teamSize) {
-			continue
-		}
-
-		comp1 := teamRaceComposition(p1)
-		comp2 := teamRaceComposition(p2)
-		if comp1 == "" || comp2 == "" {
-			continue
-		}
-
-		teamA := comp1
-		teamB := comp2
-		teamAID := t1
-		teamBID := t2
-		if teamB < teamA {
-			teamA, teamB = teamB, teamA
-			teamAID, teamBID = teamBID, teamAID
-		}
-
-		key := teamA + " vs " + teamB
-		a, ok := aggByKey[key]
-		if !ok {
-			a = &agg{TeamA: teamA, TeamB: teamB}
-			aggByKey[key] = a
-		}
-		if g.WinnerTeam <= 0 {
-			continue
-		}
-		winner := uint8(g.WinnerTeam)
-		if winner == teamAID {
-			a.Games++
-			qualifiedGames++
-			a.AWins++
-		} else if winner == teamBID {
-			a.Games++
-			qualifiedGames++
-			a.BWins++
-		}
-	}
-
-	type entry struct {
-		Matchup      string  `json:"matchup"`
-		TeamA        string  `json:"team_a"`
-		TeamB        string  `json:"team_b"`
-		Games        int     `json:"games"`
-		TeamAWins    int     `json:"team_a_wins"`
-		TeamBWins    int     `json:"team_b_wins"`
-		TeamAWinRate float64 `json:"team_a_win_rate"`
-		TeamBWinRate float64 `json:"team_b_win_rate"`
-	}
-
-	rows := make([]entry, 0, len(aggByKey))
-	for _, a := range aggByKey {
-		if a.Games == 0 {
-			continue
-		}
-		base := float64(a.Games)
-		rows = append(rows, entry{
-			Matchup:      a.TeamA + " vs " + a.TeamB,
-			TeamA:        a.TeamA,
-			TeamB:        a.TeamB,
-			Games:        a.Games,
-			TeamAWins:    a.AWins,
-			TeamBWins:    a.BWins,
-			TeamAWinRate: math.Round((float64(a.AWins)/base)*1000) / 10,
-			TeamBWinRate: math.Round((float64(a.BWins)/base)*1000) / 10,
-		})
-	}
-
-	sort.Slice(rows, func(i, j int) bool {
-		if rows[i].Games != rows[j].Games {
-			return rows[i].Games > rows[j].Games
-		}
-		if rows[i].TeamAWinRate != rows[j].TeamAWinRate {
-			return rows[i].TeamAWinRate > rows[j].TeamAWinRate
-		}
-		return rows[i].Matchup < rows[j].Matchup
-	})
-	if len(rows) > limit {
-		rows = rows[:limit]
-	}
-
 	return c.JSON(fiber.Map{
 		"mode":            "race_composition_matchup",
-		"team_size":       teamSize,
-		"qualified_games": qualifiedGames,
-		"total_rows":      len(rows),
-		"rows":            rows,
+		"team_size":       result.TeamSize,
+		"qualified_games": result.QualifiedGames,
+		"total_rows":      result.TotalCount,
+		"total":           result.TotalCount,
+		"total_pages":     result.TotalPages,
+		"page":            result.Page,
+		"page_size":       result.PageSize,
+		"sort":            result.AppliedSort,
+		"rows":            result.Items,
+		"items":           result.Items,
 	})
-}
-
-func teamRaceComposition(players []*ent.Player) string {
-	if len(players) == 0 {
-		return ""
-	}
-	letters := make([]string, 0, len(players))
-	for _, p := range players {
-		r := strings.ToLower(strings.TrimSpace(p.Race))
-		switch {
-		case strings.HasPrefix(r, "terran"):
-			letters = append(letters, "T")
-		case strings.HasPrefix(r, "zerg"):
-			letters = append(letters, "Z")
-		case strings.HasPrefix(r, "protoss"):
-			letters = append(letters, "P")
-		default:
-			letters = append(letters, "U")
-		}
-	}
-	sort.Strings(letters)
-	return strings.Join(letters, "")
 }

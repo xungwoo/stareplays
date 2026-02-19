@@ -11,7 +11,7 @@ const state = {
 };
 
 function getCurrentUser() {
-  return String(localStorage.getItem("stareps_current_user") || "").trim();
+  return String(localStorage.getItem("stareplays_current_user") || "").trim();
 }
 
 function renderCurrentUser() {
@@ -27,14 +27,14 @@ function escapeHtml(s) {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/\"/g, "&quot;")
+    .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 }
 
 async function api(url, options = {}) {
   const res = await fetch(url, options);
   const text = await res.text();
-  let data = {};
+  let data;
   try {
     data = text ? JSON.parse(text) : {};
   } catch {
@@ -101,7 +101,7 @@ function applyRankingSort(rows) {
 }
 
 function renderSortedRankings() {
-  renderRankingsTable(applyRankingSort(state.rankings));
+  renderRankingsTable(applyRankingSort(state.rankings || []));
 }
 
 async function loadRankings() {

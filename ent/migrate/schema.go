@@ -3,11 +3,56 @@
 package migrate
 
 import (
+	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/schema/field"
 )
 
 var (
+	// AnalyzerRaceMatchupsColumns holds the columns for the "analyzer_race_matchups" table.
+	AnalyzerRaceMatchupsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "team_size", Type: field.TypeInt, Default: 0},
+		{Name: "team_a", Type: field.TypeString},
+		{Name: "team_b", Type: field.TypeString},
+		{Name: "matchup_key", Type: field.TypeString},
+		{Name: "games", Type: field.TypeInt, Default: 0},
+		{Name: "team_a_wins", Type: field.TypeInt, Default: 0},
+		{Name: "team_b_wins", Type: field.TypeInt, Default: 0},
+		{Name: "team_a_win_rate", Type: field.TypeFloat64, Default: 0},
+		{Name: "team_b_win_rate", Type: field.TypeFloat64, Default: 0},
+		{Name: "computed_at", Type: field.TypeTime},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// AnalyzerRaceMatchupsTable holds the schema information for the "analyzer_race_matchups" table.
+	AnalyzerRaceMatchupsTable = &schema.Table{
+		Name:       "analyzer_race_matchups",
+		Columns:    AnalyzerRaceMatchupsColumns,
+		PrimaryKey: []*schema.Column{AnalyzerRaceMatchupsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "analyzerracematchup_team_size_team_a_team_b",
+				Unique:  true,
+				Columns: []*schema.Column{AnalyzerRaceMatchupsColumns[1], AnalyzerRaceMatchupsColumns[2], AnalyzerRaceMatchupsColumns[3]},
+			},
+			{
+				Name:    "analyzerracematchup_team_size_games",
+				Unique:  false,
+				Columns: []*schema.Column{AnalyzerRaceMatchupsColumns[1], AnalyzerRaceMatchupsColumns[5]},
+			},
+			{
+				Name:    "analyzerracematchup_team_size_team_a_win_rate",
+				Unique:  false,
+				Columns: []*schema.Column{AnalyzerRaceMatchupsColumns[1], AnalyzerRaceMatchupsColumns[8]},
+			},
+			{
+				Name:    "analyzerracematchup_team_size_matchup_key",
+				Unique:  false,
+				Columns: []*schema.Column{AnalyzerRaceMatchupsColumns[1], AnalyzerRaceMatchupsColumns[4]},
+			},
+		},
+	}
 	// GamesColumns holds the columns for the "games" table.
 	GamesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -36,6 +81,11 @@ var (
 				Name:    "game_host_start_time",
 				Unique:  true,
 				Columns: []*schema.Column{GamesColumns[1], GamesColumns[2]},
+			},
+			{
+				Name:    "game_player_count",
+				Unique:  false,
+				Columns: []*schema.Column{GamesColumns[10]},
 			},
 		},
 	}
@@ -103,9 +153,69 @@ var (
 				Columns: []*schema.Column{PlayersColumns[1]},
 			},
 			{
+				Name:    "player_game_players",
+				Unique:  false,
+				Columns: []*schema.Column{PlayersColumns[17]},
+			},
+			{
 				Name:    "player_player_id_game_players",
 				Unique:  true,
 				Columns: []*schema.Column{PlayersColumns[5], PlayersColumns[17]},
+			},
+		},
+	}
+	// Ranking3v3Columns holds the columns for the "ranking_3v3" table.
+	Ranking3v3Columns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "name", Type: field.TypeString},
+		{Name: "rank", Type: field.TypeInt, Default: 0},
+		{Name: "games", Type: field.TypeInt, Default: 0},
+		{Name: "wins", Type: field.TypeInt, Default: 0},
+		{Name: "losses", Type: field.TypeInt, Default: 0},
+		{Name: "draws", Type: field.TypeInt, Default: 0},
+		{Name: "win_rate", Type: field.TypeFloat64, Default: 0},
+		{Name: "avg_apm", Type: field.TypeFloat64, Default: 0},
+		{Name: "avg_eapm", Type: field.TypeFloat64, Default: 0},
+		{Name: "min_games", Type: field.TypeInt, Default: 20},
+		{Name: "computed_at", Type: field.TypeTime},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// Ranking3v3Table holds the schema information for the "ranking_3v3" table.
+	Ranking3v3Table = &schema.Table{
+		Name:       "ranking_3v3",
+		Columns:    Ranking3v3Columns,
+		PrimaryKey: []*schema.Column{Ranking3v3Columns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "ranking3v3_name",
+				Unique:  true,
+				Columns: []*schema.Column{Ranking3v3Columns[1]},
+			},
+			{
+				Name:    "ranking3v3_rank",
+				Unique:  false,
+				Columns: []*schema.Column{Ranking3v3Columns[2]},
+			},
+			{
+				Name:    "ranking3v3_games",
+				Unique:  false,
+				Columns: []*schema.Column{Ranking3v3Columns[3]},
+			},
+			{
+				Name:    "ranking3v3_win_rate",
+				Unique:  false,
+				Columns: []*schema.Column{Ranking3v3Columns[7]},
+			},
+			{
+				Name:    "ranking3v3_avg_apm",
+				Unique:  false,
+				Columns: []*schema.Column{Ranking3v3Columns[8]},
+			},
+			{
+				Name:    "ranking3v3_avg_eapm",
+				Unique:  false,
+				Columns: []*schema.Column{Ranking3v3Columns[9]},
 			},
 		},
 	}
@@ -171,17 +281,25 @@ var (
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		AnalyzerRaceMatchupsTable,
 		GamesTable,
 		GameDetailsTable,
 		PlayersTable,
+		Ranking3v3Table,
 		ReplayFilesTable,
 		UsersTable,
 	}
 )
 
 func init() {
+	AnalyzerRaceMatchupsTable.Annotation = &entsql.Annotation{
+		Table: "analyzer_race_matchups",
+	}
 	GameDetailsTable.ForeignKeys[0].RefTable = GamesTable
 	PlayersTable.ForeignKeys[0].RefTable = GamesTable
+	Ranking3v3Table.Annotation = &entsql.Annotation{
+		Table: "ranking_3v3",
+	}
 	ReplayFilesTable.ForeignKeys[0].RefTable = GamesTable
 	ReplayFilesTable.ForeignKeys[1].RefTable = UsersTable
 }
