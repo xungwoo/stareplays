@@ -8,8 +8,8 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/xungwoo/stareps/ent/player"
-	"github.com/xungwoo/stareps/ent/predicate"
+	"github.com/xungwoo/stareplays/ent/player"
+	"github.com/xungwoo/stareplays/ent/predicate"
 )
 
 // PlayerDelete is the builder for deleting a Player entity.

@@ -1,6 +1,6 @@
 # Railway 배포 체크리스트
 
-이 문서는 `StarEPS` API를 Railway에 배포할 때 필요한 최소 단계를 정리한 체크리스트입니다.
+이 문서는 `stareplays` API를 Railway에 배포할 때 필요한 최소 단계를 정리한 체크리스트입니다.
 
 ## 0. 사전 확인 (로컬)
 
@@ -54,6 +54,35 @@ Railway API 서비스 Variables에 아래 값 설정:
 - [ ] Railway Spending Limit 또는 Usage Alert 설정
 - [ ] 최소 1개 실제 replay로 업로드/조회/삭제 플로우 점검
 
+## 6-1. Rankings Cron Job (권장)
+
+`rankings_3v3`는 snapshot 기반 조회이므로, 주기적 집계 job을 별도 실행해야 합니다.
+
+- [ ] Railway에서 별도 서비스(Worker) 또는 Cron Job 생성
+- [ ] 실행 커맨드:
+
+```bash
+RANKING_JOB_MODE=once RANKING_MIN_GAMES=20 go run ./cmd/ranking-job
+```
+
+- [ ] 스케줄 예시: 10분 간격 (`*/10 * * * *`)
+- [ ] 동일 DB 환경변수(`DB_*` 또는 `DATABASE_URL`)를 API 서비스와 동일하게 설정
+- [ ] `RANKING_MIN_GAMES`는 운영 중 값 변경 가능 (예: 20 -> 30)
+
+## 6-2. Analyzer Cron Job (권장)
+
+`Game_Analyzer : Race_Composition_WinRate`도 snapshot 기반 조회이므로, 주기적 집계 job 실행을 권장합니다.
+
+- [ ] Railway Cron Job 생성
+- [ ] 실행 커맨드:
+
+```bash
+ANALYZER_JOB_MODE=once go run ./cmd/analyzer-job
+```
+
+- [ ] 스케줄 예시: 10분 간격 (`*/10 * * * *`)
+- [ ] 동일 DB 환경변수(`DB_*` 또는 `DATABASE_URL`)를 API 서비스와 동일하게 설정
+
 ## 7. 현재 코드 기준 주의사항
 
 - [ ] 현재 일부 문서와 엔드포인트 구현이 다를 수 있으니, 실제 라우트는 `cmd/server/main.go` 기준으로 확인
@@ -65,4 +94,3 @@ Railway API 서비스 Variables에 아래 값 설정:
 - [ ] 앱 로그에서 DB 연결 에러 확인 (`DB_*` 변수 누락/오타 우선 점검)
 - [ ] 헬스체크 실패 시 `PORT` 충돌 여부 확인
 - [ ] 배포 직후 5xx 발생 시 최근 배포 버전 롤백
-

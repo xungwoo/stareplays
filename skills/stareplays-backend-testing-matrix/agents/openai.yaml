@@ -1,0 +1,7 @@
+interface:
+  display_name: "stareplays Backend Tests"
+  short_description: "Risk-focused backend testing strategy"
+  default_prompt: "Use $stareplays-backend-testing-matrix to add a complete test plan and tests for this backend change."
+
+policy:
+  allow_implicit_invocation: true

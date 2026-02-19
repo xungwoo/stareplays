@@ -12,11 +12,13 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
-	"github.com/xungwoo/stareps/ent/game"
-	"github.com/xungwoo/stareps/ent/gamedetail"
-	"github.com/xungwoo/stareps/ent/player"
-	"github.com/xungwoo/stareps/ent/replayfile"
-	"github.com/xungwoo/stareps/ent/user"
+	"github.com/xungwoo/stareplays/ent/analyzerracematchup"
+	"github.com/xungwoo/stareplays/ent/game"
+	"github.com/xungwoo/stareplays/ent/gamedetail"
+	"github.com/xungwoo/stareplays/ent/player"
+	"github.com/xungwoo/stareplays/ent/ranking3v3"
+	"github.com/xungwoo/stareplays/ent/replayfile"
+	"github.com/xungwoo/stareplays/ent/user"
 )
 
 // ent aliases to avoid import conflicts in user's code.
@@ -77,11 +79,13 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			game.Table:       game.ValidColumn,
-			gamedetail.Table: gamedetail.ValidColumn,
-			player.Table:     player.ValidColumn,
-			replayfile.Table: replayfile.ValidColumn,
-			user.Table:       user.ValidColumn,
+			analyzerracematchup.Table: analyzerracematchup.ValidColumn,
+			game.Table:                game.ValidColumn,
+			gamedetail.Table:          gamedetail.ValidColumn,
+			player.Table:              player.ValidColumn,
+			ranking3v3.Table:          ranking3v3.ValidColumn,
+			replayfile.Table:          replayfile.ValidColumn,
+			user.Table:                user.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

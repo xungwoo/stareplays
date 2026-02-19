@@ -11,10 +11,10 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/xungwoo/stareps/ent/game"
-	"github.com/xungwoo/stareps/ent/predicate"
-	"github.com/xungwoo/stareps/ent/replayfile"
-	"github.com/xungwoo/stareps/ent/user"
+	"github.com/xungwoo/stareplays/ent/game"
+	"github.com/xungwoo/stareplays/ent/predicate"
+	"github.com/xungwoo/stareplays/ent/replayfile"
+	"github.com/xungwoo/stareplays/ent/user"
 )
 
 // ReplayFileQuery is the builder for querying ReplayFile entities.

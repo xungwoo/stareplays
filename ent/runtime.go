@@ -5,17 +5,71 @@ package ent
 import (
 	"time"
 
-	"github.com/xungwoo/stareps/ent/game"
-	"github.com/xungwoo/stareps/ent/player"
-	"github.com/xungwoo/stareps/ent/replayfile"
-	"github.com/xungwoo/stareps/ent/schema"
-	"github.com/xungwoo/stareps/ent/user"
+	"github.com/xungwoo/stareplays/ent/analyzerracematchup"
+	"github.com/xungwoo/stareplays/ent/game"
+	"github.com/xungwoo/stareplays/ent/player"
+	"github.com/xungwoo/stareplays/ent/ranking3v3"
+	"github.com/xungwoo/stareplays/ent/replayfile"
+	"github.com/xungwoo/stareplays/ent/schema"
+	"github.com/xungwoo/stareplays/ent/user"
 )
 
 // The init function reads all schema descriptors with runtime code
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	analyzerracematchupFields := schema.AnalyzerRaceMatchup{}.Fields()
+	_ = analyzerracematchupFields
+	// analyzerracematchupDescTeamSize is the schema descriptor for team_size field.
+	analyzerracematchupDescTeamSize := analyzerracematchupFields[0].Descriptor()
+	// analyzerracematchup.DefaultTeamSize holds the default value on creation for the team_size field.
+	analyzerracematchup.DefaultTeamSize = analyzerracematchupDescTeamSize.Default.(int)
+	// analyzerracematchupDescTeamA is the schema descriptor for team_a field.
+	analyzerracematchupDescTeamA := analyzerracematchupFields[1].Descriptor()
+	// analyzerracematchup.TeamAValidator is a validator for the "team_a" field. It is called by the builders before save.
+	analyzerracematchup.TeamAValidator = analyzerracematchupDescTeamA.Validators[0].(func(string) error)
+	// analyzerracematchupDescTeamB is the schema descriptor for team_b field.
+	analyzerracematchupDescTeamB := analyzerracematchupFields[2].Descriptor()
+	// analyzerracematchup.TeamBValidator is a validator for the "team_b" field. It is called by the builders before save.
+	analyzerracematchup.TeamBValidator = analyzerracematchupDescTeamB.Validators[0].(func(string) error)
+	// analyzerracematchupDescMatchupKey is the schema descriptor for matchup_key field.
+	analyzerracematchupDescMatchupKey := analyzerracematchupFields[3].Descriptor()
+	// analyzerracematchup.MatchupKeyValidator is a validator for the "matchup_key" field. It is called by the builders before save.
+	analyzerracematchup.MatchupKeyValidator = analyzerracematchupDescMatchupKey.Validators[0].(func(string) error)
+	// analyzerracematchupDescGames is the schema descriptor for games field.
+	analyzerracematchupDescGames := analyzerracematchupFields[4].Descriptor()
+	// analyzerracematchup.DefaultGames holds the default value on creation for the games field.
+	analyzerracematchup.DefaultGames = analyzerracematchupDescGames.Default.(int)
+	// analyzerracematchupDescTeamAWins is the schema descriptor for team_a_wins field.
+	analyzerracematchupDescTeamAWins := analyzerracematchupFields[5].Descriptor()
+	// analyzerracematchup.DefaultTeamAWins holds the default value on creation for the team_a_wins field.
+	analyzerracematchup.DefaultTeamAWins = analyzerracematchupDescTeamAWins.Default.(int)
+	// analyzerracematchupDescTeamBWins is the schema descriptor for team_b_wins field.
+	analyzerracematchupDescTeamBWins := analyzerracematchupFields[6].Descriptor()
+	// analyzerracematchup.DefaultTeamBWins holds the default value on creation for the team_b_wins field.
+	analyzerracematchup.DefaultTeamBWins = analyzerracematchupDescTeamBWins.Default.(int)
+	// analyzerracematchupDescTeamAWinRate is the schema descriptor for team_a_win_rate field.
+	analyzerracematchupDescTeamAWinRate := analyzerracematchupFields[7].Descriptor()
+	// analyzerracematchup.DefaultTeamAWinRate holds the default value on creation for the team_a_win_rate field.
+	analyzerracematchup.DefaultTeamAWinRate = analyzerracematchupDescTeamAWinRate.Default.(float64)
+	// analyzerracematchupDescTeamBWinRate is the schema descriptor for team_b_win_rate field.
+	analyzerracematchupDescTeamBWinRate := analyzerracematchupFields[8].Descriptor()
+	// analyzerracematchup.DefaultTeamBWinRate holds the default value on creation for the team_b_win_rate field.
+	analyzerracematchup.DefaultTeamBWinRate = analyzerracematchupDescTeamBWinRate.Default.(float64)
+	// analyzerracematchupDescComputedAt is the schema descriptor for computed_at field.
+	analyzerracematchupDescComputedAt := analyzerracematchupFields[9].Descriptor()
+	// analyzerracematchup.DefaultComputedAt holds the default value on creation for the computed_at field.
+	analyzerracematchup.DefaultComputedAt = analyzerracematchupDescComputedAt.Default.(func() time.Time)
+	// analyzerracematchupDescCreatedAt is the schema descriptor for created_at field.
+	analyzerracematchupDescCreatedAt := analyzerracematchupFields[10].Descriptor()
+	// analyzerracematchup.DefaultCreatedAt holds the default value on creation for the created_at field.
+	analyzerracematchup.DefaultCreatedAt = analyzerracematchupDescCreatedAt.Default.(func() time.Time)
+	// analyzerracematchupDescUpdatedAt is the schema descriptor for updated_at field.
+	analyzerracematchupDescUpdatedAt := analyzerracematchupFields[11].Descriptor()
+	// analyzerracematchup.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	analyzerracematchup.DefaultUpdatedAt = analyzerracematchupDescUpdatedAt.Default.(func() time.Time)
+	// analyzerracematchup.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	analyzerracematchup.UpdateDefaultUpdatedAt = analyzerracematchupDescUpdatedAt.UpdateDefault.(func() time.Time)
 	gameFields := schema.Game{}.Fields()
 	_ = gameFields
 	// gameDescHost is the schema descriptor for host field.
@@ -66,6 +120,62 @@ func init() {
 	playerDescCreatedAt := playerFields[15].Descriptor()
 	// player.DefaultCreatedAt holds the default value on creation for the created_at field.
 	player.DefaultCreatedAt = playerDescCreatedAt.Default.(func() time.Time)
+	ranking3v3Fields := schema.Ranking3v3{}.Fields()
+	_ = ranking3v3Fields
+	// ranking3v3DescName is the schema descriptor for name field.
+	ranking3v3DescName := ranking3v3Fields[0].Descriptor()
+	// ranking3v3.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	ranking3v3.NameValidator = ranking3v3DescName.Validators[0].(func(string) error)
+	// ranking3v3DescRank is the schema descriptor for rank field.
+	ranking3v3DescRank := ranking3v3Fields[1].Descriptor()
+	// ranking3v3.DefaultRank holds the default value on creation for the rank field.
+	ranking3v3.DefaultRank = ranking3v3DescRank.Default.(int)
+	// ranking3v3DescGames is the schema descriptor for games field.
+	ranking3v3DescGames := ranking3v3Fields[2].Descriptor()
+	// ranking3v3.DefaultGames holds the default value on creation for the games field.
+	ranking3v3.DefaultGames = ranking3v3DescGames.Default.(int)
+	// ranking3v3DescWins is the schema descriptor for wins field.
+	ranking3v3DescWins := ranking3v3Fields[3].Descriptor()
+	// ranking3v3.DefaultWins holds the default value on creation for the wins field.
+	ranking3v3.DefaultWins = ranking3v3DescWins.Default.(int)
+	// ranking3v3DescLosses is the schema descriptor for losses field.
+	ranking3v3DescLosses := ranking3v3Fields[4].Descriptor()
+	// ranking3v3.DefaultLosses holds the default value on creation for the losses field.
+	ranking3v3.DefaultLosses = ranking3v3DescLosses.Default.(int)
+	// ranking3v3DescDraws is the schema descriptor for draws field.
+	ranking3v3DescDraws := ranking3v3Fields[5].Descriptor()
+	// ranking3v3.DefaultDraws holds the default value on creation for the draws field.
+	ranking3v3.DefaultDraws = ranking3v3DescDraws.Default.(int)
+	// ranking3v3DescWinRate is the schema descriptor for win_rate field.
+	ranking3v3DescWinRate := ranking3v3Fields[6].Descriptor()
+	// ranking3v3.DefaultWinRate holds the default value on creation for the win_rate field.
+	ranking3v3.DefaultWinRate = ranking3v3DescWinRate.Default.(float64)
+	// ranking3v3DescAvgApm is the schema descriptor for avg_apm field.
+	ranking3v3DescAvgApm := ranking3v3Fields[7].Descriptor()
+	// ranking3v3.DefaultAvgApm holds the default value on creation for the avg_apm field.
+	ranking3v3.DefaultAvgApm = ranking3v3DescAvgApm.Default.(float64)
+	// ranking3v3DescAvgEapm is the schema descriptor for avg_eapm field.
+	ranking3v3DescAvgEapm := ranking3v3Fields[8].Descriptor()
+	// ranking3v3.DefaultAvgEapm holds the default value on creation for the avg_eapm field.
+	ranking3v3.DefaultAvgEapm = ranking3v3DescAvgEapm.Default.(float64)
+	// ranking3v3DescMinGames is the schema descriptor for min_games field.
+	ranking3v3DescMinGames := ranking3v3Fields[9].Descriptor()
+	// ranking3v3.DefaultMinGames holds the default value on creation for the min_games field.
+	ranking3v3.DefaultMinGames = ranking3v3DescMinGames.Default.(int)
+	// ranking3v3DescComputedAt is the schema descriptor for computed_at field.
+	ranking3v3DescComputedAt := ranking3v3Fields[10].Descriptor()
+	// ranking3v3.DefaultComputedAt holds the default value on creation for the computed_at field.
+	ranking3v3.DefaultComputedAt = ranking3v3DescComputedAt.Default.(func() time.Time)
+	// ranking3v3DescCreatedAt is the schema descriptor for created_at field.
+	ranking3v3DescCreatedAt := ranking3v3Fields[11].Descriptor()
+	// ranking3v3.DefaultCreatedAt holds the default value on creation for the created_at field.
+	ranking3v3.DefaultCreatedAt = ranking3v3DescCreatedAt.Default.(func() time.Time)
+	// ranking3v3DescUpdatedAt is the schema descriptor for updated_at field.
+	ranking3v3DescUpdatedAt := ranking3v3Fields[12].Descriptor()
+	// ranking3v3.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	ranking3v3.DefaultUpdatedAt = ranking3v3DescUpdatedAt.Default.(func() time.Time)
+	// ranking3v3.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	ranking3v3.UpdateDefaultUpdatedAt = ranking3v3DescUpdatedAt.UpdateDefault.(func() time.Time)
 	replayfileFields := schema.ReplayFile{}.Fields()
 	_ = replayfileFields
 	// replayfileDescFileHash is the schema descriptor for file_hash field.

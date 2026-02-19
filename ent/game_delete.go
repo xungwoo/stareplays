@@ -8,8 +8,8 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/xungwoo/stareps/ent/game"
-	"github.com/xungwoo/stareps/ent/predicate"
+	"github.com/xungwoo/stareplays/ent/game"
+	"github.com/xungwoo/stareplays/ent/predicate"
 )
 
 // GameDelete is the builder for deleting a Game entity.

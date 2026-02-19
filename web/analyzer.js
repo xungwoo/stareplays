@@ -39,11 +39,13 @@ function renderAnalyzerRows(rows) {
   for (const row of rows) {
     const teamA = renderRaceCompositionBadges(String(row.team_a || ""));
     const teamB = renderRaceCompositionBadges(String(row.team_b || ""));
+    const matchupText = String(row.matchup || row.matchup_key || "-");
     const tr = document.createElement("tr");
     tr.className = "border-b border-[#2D3139]/30";
     tr.innerHTML = `
       <td class="p-3 border-r border-[#2D3139]/30">
         <div class="inline-flex items-center gap-2">
+          <span class="hidden">${escapeHtml(matchupText)}</span>
           <span>${teamA}</span>
           <span class="text-[#4A4F59]">vs</span>
           <span>${teamB}</span>

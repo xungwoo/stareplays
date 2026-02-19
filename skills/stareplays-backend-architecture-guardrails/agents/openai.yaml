@@ -1,0 +1,7 @@
+interface:
+  display_name: "stareplays Backend Guardrails"
+  short_description: "Structure-safe backend design for stareplays"
+  default_prompt: "Use $stareplays-backend-architecture-guardrails to design and implement a maintainable backend change in this repository."
+
+policy:
+  allow_implicit_invocation: true

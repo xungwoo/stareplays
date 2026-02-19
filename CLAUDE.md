@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-StarEPS is a StarCraft replay statistics and analysis API built with Go. The application parses StarCraft replay files (.rep), extracts game data, stores it in PostgreSQL, and provides a REST API for querying player statistics and game history.
+stareplays is a StarCraft replay statistics and analysis API built with Go. The application parses StarCraft replay files (.rep), extracts game data, stores it in PostgreSQL, and provides a REST API for querying player statistics and game history.
 
 **Tech Stack:**
 - Go 1.25.5
@@ -57,7 +57,7 @@ make docker-run
 ### Project Structure
 
 ```
-stareps/
+stareplays/
 ├── cmd/server/           # Application entry point
 │   └── main.go          # HTTP server initialization, middleware setup, route definitions
 ├── internal/            # Private application code
@@ -82,7 +82,7 @@ stareps/
 - Uses GORM for database abstraction
 - Global `database.DB` variable stores the GORM instance
 - Auto-migration is performed in `database.Connect()` on startup
-- Import path issue: `internal/database/postgres.go:10` references incorrect module path `github.com/yourusername/starcraft-stats` instead of `github.com/xungwoo/stareps`
+- Import path issue: `internal/database/postgres.go:10` references incorrect module path `github.com/yourusername/starcraft-stats` instead of `github.com/xungwoo/stareplays`
 
 **Data Models:**
 - `models.Replay`: Core entity storing parsed replay file data
@@ -112,5 +112,5 @@ stareps/
 
 ### Known Issues
 
-- Import path in `internal/database/postgres.go:10` references wrong module (`github.com/yourusername/starcraft-stats` should be `github.com/xungwoo/stareps`)
+- Import path in `internal/database/postgres.go:10` references wrong module (`github.com/yourusername/starcraft-stats` should be `github.com/xungwoo/stareplays`)
 - Core functionality (handlers, parser, middleware) are placeholder directories awaiting implementation

@@ -5,12 +5,12 @@ package enttest
 import (
 	"context"
 
-	"github.com/xungwoo/stareps/ent"
+	"github.com/xungwoo/stareplays/ent"
 	// required by schema hooks.
-	_ "github.com/xungwoo/stareps/ent/runtime"
+	_ "github.com/xungwoo/stareplays/ent/runtime"
 
 	"entgo.io/ent/dialect/sql/schema"
-	"github.com/xungwoo/stareps/ent/migrate"
+	"github.com/xungwoo/stareplays/ent/migrate"
 )
 
 type (

@@ -13,7 +13,7 @@ import (
 	"github.com/icza/screp/rep"
 	"github.com/icza/screp/rep/repcmd"
 	"github.com/icza/screp/repparser"
-	"github.com/xungwoo/stareps/ent/schema"
+	"github.com/xungwoo/stareplays/ent/schema"
 )
 
 // ParsedGame holds all parsed data from a replay file.

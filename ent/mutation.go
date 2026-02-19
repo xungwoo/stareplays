@@ -11,13 +11,15 @@ import (
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
-	"github.com/xungwoo/stareps/ent/game"
-	"github.com/xungwoo/stareps/ent/gamedetail"
-	"github.com/xungwoo/stareps/ent/player"
-	"github.com/xungwoo/stareps/ent/predicate"
-	"github.com/xungwoo/stareps/ent/replayfile"
-	"github.com/xungwoo/stareps/ent/schema"
-	"github.com/xungwoo/stareps/ent/user"
+	"github.com/xungwoo/stareplays/ent/analyzerracematchup"
+	"github.com/xungwoo/stareplays/ent/game"
+	"github.com/xungwoo/stareplays/ent/gamedetail"
+	"github.com/xungwoo/stareplays/ent/player"
+	"github.com/xungwoo/stareplays/ent/predicate"
+	"github.com/xungwoo/stareplays/ent/ranking3v3"
+	"github.com/xungwoo/stareplays/ent/replayfile"
+	"github.com/xungwoo/stareplays/ent/schema"
+	"github.com/xungwoo/stareplays/ent/user"
 )
 
 const (
@@ -29,12 +31,1135 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
-	TypeGame       = "Game"
-	TypeGameDetail = "GameDetail"
-	TypePlayer     = "Player"
-	TypeReplayFile = "ReplayFile"
-	TypeUser       = "User"
+	TypeAnalyzerRaceMatchup = "AnalyzerRaceMatchup"
+	TypeGame                = "Game"
+	TypeGameDetail          = "GameDetail"
+	TypePlayer              = "Player"
+	TypeRanking3v3          = "Ranking3v3"
+	TypeReplayFile          = "ReplayFile"
+	TypeUser                = "User"
 )
+
+// AnalyzerRaceMatchupMutation represents an operation that mutates the AnalyzerRaceMatchup nodes in the graph.
+type AnalyzerRaceMatchupMutation struct {
+	config
+	op                 Op
+	typ                string
+	id                 *int
+	team_size          *int
+	addteam_size       *int
+	team_a             *string
+	team_b             *string
+	matchup_key        *string
+	games              *int
+	addgames           *int
+	team_a_wins        *int
+	addteam_a_wins     *int
+	team_b_wins        *int
+	addteam_b_wins     *int
+	team_a_win_rate    *float64
+	addteam_a_win_rate *float64
+	team_b_win_rate    *float64
+	addteam_b_win_rate *float64
+	computed_at        *time.Time
+	created_at         *time.Time
+	updated_at         *time.Time
+	clearedFields      map[string]struct{}
+	done               bool
+	oldValue           func(context.Context) (*AnalyzerRaceMatchup, error)
+	predicates         []predicate.AnalyzerRaceMatchup
+}
+
+var _ ent.Mutation = (*AnalyzerRaceMatchupMutation)(nil)
+
+// analyzerracematchupOption allows management of the mutation configuration using functional options.
+type analyzerracematchupOption func(*AnalyzerRaceMatchupMutation)
+
+// newAnalyzerRaceMatchupMutation creates new mutation for the AnalyzerRaceMatchup entity.
+func newAnalyzerRaceMatchupMutation(c config, op Op, opts ...analyzerracematchupOption) *AnalyzerRaceMatchupMutation {
+	m := &AnalyzerRaceMatchupMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeAnalyzerRaceMatchup,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withAnalyzerRaceMatchupID sets the ID field of the mutation.
+func withAnalyzerRaceMatchupID(id int) analyzerracematchupOption {
+	return func(m *AnalyzerRaceMatchupMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *AnalyzerRaceMatchup
+		)
+		m.oldValue = func(ctx context.Context) (*AnalyzerRaceMatchup, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().AnalyzerRaceMatchup.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withAnalyzerRaceMatchup sets the old AnalyzerRaceMatchup of the mutation.
+func withAnalyzerRaceMatchup(node *AnalyzerRaceMatchup) analyzerracematchupOption {
+	return func(m *AnalyzerRaceMatchupMutation) {
+		m.oldValue = func(context.Context) (*AnalyzerRaceMatchup, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m AnalyzerRaceMatchupMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m AnalyzerRaceMatchupMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *AnalyzerRaceMatchupMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *AnalyzerRaceMatchupMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().AnalyzerRaceMatchup.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTeamSize sets the "team_size" field.
+func (m *AnalyzerRaceMatchupMutation) SetTeamSize(i int) {
+	m.team_size = &i
+	m.addteam_size = nil
+}
+
+// TeamSize returns the value of the "team_size" field in the mutation.
+func (m *AnalyzerRaceMatchupMutation) TeamSize() (r int, exists bool) {
+	v := m.team_size
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTeamSize returns the old "team_size" field's value of the AnalyzerRaceMatchup entity.
+// If the AnalyzerRaceMatchup object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AnalyzerRaceMatchupMutation) OldTeamSize(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTeamSize is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTeamSize requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTeamSize: %w", err)
+	}
+	return oldValue.TeamSize, nil
+}
+
+// AddTeamSize adds i to the "team_size" field.
+func (m *AnalyzerRaceMatchupMutation) AddTeamSize(i int) {
+	if m.addteam_size != nil {
+		*m.addteam_size += i
+	} else {
+		m.addteam_size = &i
+	}
+}
+
+// AddedTeamSize returns the value that was added to the "team_size" field in this mutation.
+func (m *AnalyzerRaceMatchupMutation) AddedTeamSize() (r int, exists bool) {
+	v := m.addteam_size
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTeamSize resets all changes to the "team_size" field.
+func (m *AnalyzerRaceMatchupMutation) ResetTeamSize() {
+	m.team_size = nil
+	m.addteam_size = nil
+}
+
+// SetTeamA sets the "team_a" field.
+func (m *AnalyzerRaceMatchupMutation) SetTeamA(s string) {
+	m.team_a = &s
+}
+
+// TeamA returns the value of the "team_a" field in the mutation.
+func (m *AnalyzerRaceMatchupMutation) TeamA() (r string, exists bool) {
+	v := m.team_a
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTeamA returns the old "team_a" field's value of the AnalyzerRaceMatchup entity.
+// If the AnalyzerRaceMatchup object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AnalyzerRaceMatchupMutation) OldTeamA(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTeamA is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTeamA requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTeamA: %w", err)
+	}
+	return oldValue.TeamA, nil
+}
+
+// ResetTeamA resets all changes to the "team_a" field.
+func (m *AnalyzerRaceMatchupMutation) ResetTeamA() {
+	m.team_a = nil
+}
+
+// SetTeamB sets the "team_b" field.
+func (m *AnalyzerRaceMatchupMutation) SetTeamB(s string) {
+	m.team_b = &s
+}
+
+// TeamB returns the value of the "team_b" field in the mutation.
+func (m *AnalyzerRaceMatchupMutation) TeamB() (r string, exists bool) {
+	v := m.team_b
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTeamB returns the old "team_b" field's value of the AnalyzerRaceMatchup entity.
+// If the AnalyzerRaceMatchup object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AnalyzerRaceMatchupMutation) OldTeamB(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTeamB is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTeamB requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTeamB: %w", err)
+	}
+	return oldValue.TeamB, nil
+}
+
+// ResetTeamB resets all changes to the "team_b" field.
+func (m *AnalyzerRaceMatchupMutation) ResetTeamB() {
+	m.team_b = nil
+}
+
+// SetMatchupKey sets the "matchup_key" field.
+func (m *AnalyzerRaceMatchupMutation) SetMatchupKey(s string) {
+	m.matchup_key = &s
+}
+
+// MatchupKey returns the value of the "matchup_key" field in the mutation.
+func (m *AnalyzerRaceMatchupMutation) MatchupKey() (r string, exists bool) {
+	v := m.matchup_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMatchupKey returns the old "matchup_key" field's value of the AnalyzerRaceMatchup entity.
+// If the AnalyzerRaceMatchup object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AnalyzerRaceMatchupMutation) OldMatchupKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMatchupKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMatchupKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMatchupKey: %w", err)
+	}
+	return oldValue.MatchupKey, nil
+}
+
+// ResetMatchupKey resets all changes to the "matchup_key" field.
+func (m *AnalyzerRaceMatchupMutation) ResetMatchupKey() {
+	m.matchup_key = nil
+}
+
+// SetGames sets the "games" field.
+func (m *AnalyzerRaceMatchupMutation) SetGames(i int) {
+	m.games = &i
+	m.addgames = nil
+}
+
+// Games returns the value of the "games" field in the mutation.
+func (m *AnalyzerRaceMatchupMutation) Games() (r int, exists bool) {
+	v := m.games
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGames returns the old "games" field's value of the AnalyzerRaceMatchup entity.
+// If the AnalyzerRaceMatchup object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AnalyzerRaceMatchupMutation) OldGames(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGames is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGames requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGames: %w", err)
+	}
+	return oldValue.Games, nil
+}
+
+// AddGames adds i to the "games" field.
+func (m *AnalyzerRaceMatchupMutation) AddGames(i int) {
+	if m.addgames != nil {
+		*m.addgames += i
+	} else {
+		m.addgames = &i
+	}
+}
+
+// AddedGames returns the value that was added to the "games" field in this mutation.
+func (m *AnalyzerRaceMatchupMutation) AddedGames() (r int, exists bool) {
+	v := m.addgames
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetGames resets all changes to the "games" field.
+func (m *AnalyzerRaceMatchupMutation) ResetGames() {
+	m.games = nil
+	m.addgames = nil
+}
+
+// SetTeamAWins sets the "team_a_wins" field.
+func (m *AnalyzerRaceMatchupMutation) SetTeamAWins(i int) {
+	m.team_a_wins = &i
+	m.addteam_a_wins = nil
+}
+
+// TeamAWins returns the value of the "team_a_wins" field in the mutation.
+func (m *AnalyzerRaceMatchupMutation) TeamAWins() (r int, exists bool) {
+	v := m.team_a_wins
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTeamAWins returns the old "team_a_wins" field's value of the AnalyzerRaceMatchup entity.
+// If the AnalyzerRaceMatchup object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AnalyzerRaceMatchupMutation) OldTeamAWins(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTeamAWins is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTeamAWins requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTeamAWins: %w", err)
+	}
+	return oldValue.TeamAWins, nil
+}
+
+// AddTeamAWins adds i to the "team_a_wins" field.
+func (m *AnalyzerRaceMatchupMutation) AddTeamAWins(i int) {
+	if m.addteam_a_wins != nil {
+		*m.addteam_a_wins += i
+	} else {
+		m.addteam_a_wins = &i
+	}
+}
+
+// AddedTeamAWins returns the value that was added to the "team_a_wins" field in this mutation.
+func (m *AnalyzerRaceMatchupMutation) AddedTeamAWins() (r int, exists bool) {
+	v := m.addteam_a_wins
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTeamAWins resets all changes to the "team_a_wins" field.
+func (m *AnalyzerRaceMatchupMutation) ResetTeamAWins() {
+	m.team_a_wins = nil
+	m.addteam_a_wins = nil
+}
+
+// SetTeamBWins sets the "team_b_wins" field.
+func (m *AnalyzerRaceMatchupMutation) SetTeamBWins(i int) {
+	m.team_b_wins = &i
+	m.addteam_b_wins = nil
+}
+
+// TeamBWins returns the value of the "team_b_wins" field in the mutation.
+func (m *AnalyzerRaceMatchupMutation) TeamBWins() (r int, exists bool) {
+	v := m.team_b_wins
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTeamBWins returns the old "team_b_wins" field's value of the AnalyzerRaceMatchup entity.
+// If the AnalyzerRaceMatchup object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AnalyzerRaceMatchupMutation) OldTeamBWins(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTeamBWins is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTeamBWins requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTeamBWins: %w", err)
+	}
+	return oldValue.TeamBWins, nil
+}
+
+// AddTeamBWins adds i to the "team_b_wins" field.
+func (m *AnalyzerRaceMatchupMutation) AddTeamBWins(i int) {
+	if m.addteam_b_wins != nil {
+		*m.addteam_b_wins += i
+	} else {
+		m.addteam_b_wins = &i
+	}
+}
+
+// AddedTeamBWins returns the value that was added to the "team_b_wins" field in this mutation.
+func (m *AnalyzerRaceMatchupMutation) AddedTeamBWins() (r int, exists bool) {
+	v := m.addteam_b_wins
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTeamBWins resets all changes to the "team_b_wins" field.
+func (m *AnalyzerRaceMatchupMutation) ResetTeamBWins() {
+	m.team_b_wins = nil
+	m.addteam_b_wins = nil
+}
+
+// SetTeamAWinRate sets the "team_a_win_rate" field.
+func (m *AnalyzerRaceMatchupMutation) SetTeamAWinRate(f float64) {
+	m.team_a_win_rate = &f
+	m.addteam_a_win_rate = nil
+}
+
+// TeamAWinRate returns the value of the "team_a_win_rate" field in the mutation.
+func (m *AnalyzerRaceMatchupMutation) TeamAWinRate() (r float64, exists bool) {
+	v := m.team_a_win_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTeamAWinRate returns the old "team_a_win_rate" field's value of the AnalyzerRaceMatchup entity.
+// If the AnalyzerRaceMatchup object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AnalyzerRaceMatchupMutation) OldTeamAWinRate(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTeamAWinRate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTeamAWinRate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTeamAWinRate: %w", err)
+	}
+	return oldValue.TeamAWinRate, nil
+}
+
+// AddTeamAWinRate adds f to the "team_a_win_rate" field.
+func (m *AnalyzerRaceMatchupMutation) AddTeamAWinRate(f float64) {
+	if m.addteam_a_win_rate != nil {
+		*m.addteam_a_win_rate += f
+	} else {
+		m.addteam_a_win_rate = &f
+	}
+}
+
+// AddedTeamAWinRate returns the value that was added to the "team_a_win_rate" field in this mutation.
+func (m *AnalyzerRaceMatchupMutation) AddedTeamAWinRate() (r float64, exists bool) {
+	v := m.addteam_a_win_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTeamAWinRate resets all changes to the "team_a_win_rate" field.
+func (m *AnalyzerRaceMatchupMutation) ResetTeamAWinRate() {
+	m.team_a_win_rate = nil
+	m.addteam_a_win_rate = nil
+}
+
+// SetTeamBWinRate sets the "team_b_win_rate" field.
+func (m *AnalyzerRaceMatchupMutation) SetTeamBWinRate(f float64) {
+	m.team_b_win_rate = &f
+	m.addteam_b_win_rate = nil
+}
+
+// TeamBWinRate returns the value of the "team_b_win_rate" field in the mutation.
+func (m *AnalyzerRaceMatchupMutation) TeamBWinRate() (r float64, exists bool) {
+	v := m.team_b_win_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTeamBWinRate returns the old "team_b_win_rate" field's value of the AnalyzerRaceMatchup entity.
+// If the AnalyzerRaceMatchup object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AnalyzerRaceMatchupMutation) OldTeamBWinRate(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTeamBWinRate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTeamBWinRate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTeamBWinRate: %w", err)
+	}
+	return oldValue.TeamBWinRate, nil
+}
+
+// AddTeamBWinRate adds f to the "team_b_win_rate" field.
+func (m *AnalyzerRaceMatchupMutation) AddTeamBWinRate(f float64) {
+	if m.addteam_b_win_rate != nil {
+		*m.addteam_b_win_rate += f
+	} else {
+		m.addteam_b_win_rate = &f
+	}
+}
+
+// AddedTeamBWinRate returns the value that was added to the "team_b_win_rate" field in this mutation.
+func (m *AnalyzerRaceMatchupMutation) AddedTeamBWinRate() (r float64, exists bool) {
+	v := m.addteam_b_win_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTeamBWinRate resets all changes to the "team_b_win_rate" field.
+func (m *AnalyzerRaceMatchupMutation) ResetTeamBWinRate() {
+	m.team_b_win_rate = nil
+	m.addteam_b_win_rate = nil
+}
+
+// SetComputedAt sets the "computed_at" field.
+func (m *AnalyzerRaceMatchupMutation) SetComputedAt(t time.Time) {
+	m.computed_at = &t
+}
+
+// ComputedAt returns the value of the "computed_at" field in the mutation.
+func (m *AnalyzerRaceMatchupMutation) ComputedAt() (r time.Time, exists bool) {
+	v := m.computed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldComputedAt returns the old "computed_at" field's value of the AnalyzerRaceMatchup entity.
+// If the AnalyzerRaceMatchup object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AnalyzerRaceMatchupMutation) OldComputedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldComputedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldComputedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldComputedAt: %w", err)
+	}
+	return oldValue.ComputedAt, nil
+}
+
+// ResetComputedAt resets all changes to the "computed_at" field.
+func (m *AnalyzerRaceMatchupMutation) ResetComputedAt() {
+	m.computed_at = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *AnalyzerRaceMatchupMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *AnalyzerRaceMatchupMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the AnalyzerRaceMatchup entity.
+// If the AnalyzerRaceMatchup object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AnalyzerRaceMatchupMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *AnalyzerRaceMatchupMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *AnalyzerRaceMatchupMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *AnalyzerRaceMatchupMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the AnalyzerRaceMatchup entity.
+// If the AnalyzerRaceMatchup object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AnalyzerRaceMatchupMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *AnalyzerRaceMatchupMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the AnalyzerRaceMatchupMutation builder.
+func (m *AnalyzerRaceMatchupMutation) Where(ps ...predicate.AnalyzerRaceMatchup) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the AnalyzerRaceMatchupMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *AnalyzerRaceMatchupMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.AnalyzerRaceMatchup, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *AnalyzerRaceMatchupMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *AnalyzerRaceMatchupMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (AnalyzerRaceMatchup).
+func (m *AnalyzerRaceMatchupMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *AnalyzerRaceMatchupMutation) Fields() []string {
+	fields := make([]string, 0, 12)
+	if m.team_size != nil {
+		fields = append(fields, analyzerracematchup.FieldTeamSize)
+	}
+	if m.team_a != nil {
+		fields = append(fields, analyzerracematchup.FieldTeamA)
+	}
+	if m.team_b != nil {
+		fields = append(fields, analyzerracematchup.FieldTeamB)
+	}
+	if m.matchup_key != nil {
+		fields = append(fields, analyzerracematchup.FieldMatchupKey)
+	}
+	if m.games != nil {
+		fields = append(fields, analyzerracematchup.FieldGames)
+	}
+	if m.team_a_wins != nil {
+		fields = append(fields, analyzerracematchup.FieldTeamAWins)
+	}
+	if m.team_b_wins != nil {
+		fields = append(fields, analyzerracematchup.FieldTeamBWins)
+	}
+	if m.team_a_win_rate != nil {
+		fields = append(fields, analyzerracematchup.FieldTeamAWinRate)
+	}
+	if m.team_b_win_rate != nil {
+		fields = append(fields, analyzerracematchup.FieldTeamBWinRate)
+	}
+	if m.computed_at != nil {
+		fields = append(fields, analyzerracematchup.FieldComputedAt)
+	}
+	if m.created_at != nil {
+		fields = append(fields, analyzerracematchup.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, analyzerracematchup.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *AnalyzerRaceMatchupMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case analyzerracematchup.FieldTeamSize:
+		return m.TeamSize()
+	case analyzerracematchup.FieldTeamA:
+		return m.TeamA()
+	case analyzerracematchup.FieldTeamB:
+		return m.TeamB()
+	case analyzerracematchup.FieldMatchupKey:
+		return m.MatchupKey()
+	case analyzerracematchup.FieldGames:
+		return m.Games()
+	case analyzerracematchup.FieldTeamAWins:
+		return m.TeamAWins()
+	case analyzerracematchup.FieldTeamBWins:
+		return m.TeamBWins()
+	case analyzerracematchup.FieldTeamAWinRate:
+		return m.TeamAWinRate()
+	case analyzerracematchup.FieldTeamBWinRate:
+		return m.TeamBWinRate()
+	case analyzerracematchup.FieldComputedAt:
+		return m.ComputedAt()
+	case analyzerracematchup.FieldCreatedAt:
+		return m.CreatedAt()
+	case analyzerracematchup.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *AnalyzerRaceMatchupMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case analyzerracematchup.FieldTeamSize:
+		return m.OldTeamSize(ctx)
+	case analyzerracematchup.FieldTeamA:
+		return m.OldTeamA(ctx)
+	case analyzerracematchup.FieldTeamB:
+		return m.OldTeamB(ctx)
+	case analyzerracematchup.FieldMatchupKey:
+		return m.OldMatchupKey(ctx)
+	case analyzerracematchup.FieldGames:
+		return m.OldGames(ctx)
+	case analyzerracematchup.FieldTeamAWins:
+		return m.OldTeamAWins(ctx)
+	case analyzerracematchup.FieldTeamBWins:
+		return m.OldTeamBWins(ctx)
+	case analyzerracematchup.FieldTeamAWinRate:
+		return m.OldTeamAWinRate(ctx)
+	case analyzerracematchup.FieldTeamBWinRate:
+		return m.OldTeamBWinRate(ctx)
+	case analyzerracematchup.FieldComputedAt:
+		return m.OldComputedAt(ctx)
+	case analyzerracematchup.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case analyzerracematchup.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown AnalyzerRaceMatchup field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *AnalyzerRaceMatchupMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case analyzerracematchup.FieldTeamSize:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTeamSize(v)
+		return nil
+	case analyzerracematchup.FieldTeamA:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTeamA(v)
+		return nil
+	case analyzerracematchup.FieldTeamB:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTeamB(v)
+		return nil
+	case analyzerracematchup.FieldMatchupKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMatchupKey(v)
+		return nil
+	case analyzerracematchup.FieldGames:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGames(v)
+		return nil
+	case analyzerracematchup.FieldTeamAWins:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTeamAWins(v)
+		return nil
+	case analyzerracematchup.FieldTeamBWins:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTeamBWins(v)
+		return nil
+	case analyzerracematchup.FieldTeamAWinRate:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTeamAWinRate(v)
+		return nil
+	case analyzerracematchup.FieldTeamBWinRate:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTeamBWinRate(v)
+		return nil
+	case analyzerracematchup.FieldComputedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetComputedAt(v)
+		return nil
+	case analyzerracematchup.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case analyzerracematchup.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown AnalyzerRaceMatchup field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *AnalyzerRaceMatchupMutation) AddedFields() []string {
+	var fields []string
+	if m.addteam_size != nil {
+		fields = append(fields, analyzerracematchup.FieldTeamSize)
+	}
+	if m.addgames != nil {
+		fields = append(fields, analyzerracematchup.FieldGames)
+	}
+	if m.addteam_a_wins != nil {
+		fields = append(fields, analyzerracematchup.FieldTeamAWins)
+	}
+	if m.addteam_b_wins != nil {
+		fields = append(fields, analyzerracematchup.FieldTeamBWins)
+	}
+	if m.addteam_a_win_rate != nil {
+		fields = append(fields, analyzerracematchup.FieldTeamAWinRate)
+	}
+	if m.addteam_b_win_rate != nil {
+		fields = append(fields, analyzerracematchup.FieldTeamBWinRate)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *AnalyzerRaceMatchupMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case analyzerracematchup.FieldTeamSize:
+		return m.AddedTeamSize()
+	case analyzerracematchup.FieldGames:
+		return m.AddedGames()
+	case analyzerracematchup.FieldTeamAWins:
+		return m.AddedTeamAWins()
+	case analyzerracematchup.FieldTeamBWins:
+		return m.AddedTeamBWins()
+	case analyzerracematchup.FieldTeamAWinRate:
+		return m.AddedTeamAWinRate()
+	case analyzerracematchup.FieldTeamBWinRate:
+		return m.AddedTeamBWinRate()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *AnalyzerRaceMatchupMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case analyzerracematchup.FieldTeamSize:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTeamSize(v)
+		return nil
+	case analyzerracematchup.FieldGames:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddGames(v)
+		return nil
+	case analyzerracematchup.FieldTeamAWins:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTeamAWins(v)
+		return nil
+	case analyzerracematchup.FieldTeamBWins:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTeamBWins(v)
+		return nil
+	case analyzerracematchup.FieldTeamAWinRate:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTeamAWinRate(v)
+		return nil
+	case analyzerracematchup.FieldTeamBWinRate:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTeamBWinRate(v)
+		return nil
+	}
+	return fmt.Errorf("unknown AnalyzerRaceMatchup numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *AnalyzerRaceMatchupMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *AnalyzerRaceMatchupMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *AnalyzerRaceMatchupMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown AnalyzerRaceMatchup nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *AnalyzerRaceMatchupMutation) ResetField(name string) error {
+	switch name {
+	case analyzerracematchup.FieldTeamSize:
+		m.ResetTeamSize()
+		return nil
+	case analyzerracematchup.FieldTeamA:
+		m.ResetTeamA()
+		return nil
+	case analyzerracematchup.FieldTeamB:
+		m.ResetTeamB()
+		return nil
+	case analyzerracematchup.FieldMatchupKey:
+		m.ResetMatchupKey()
+		return nil
+	case analyzerracematchup.FieldGames:
+		m.ResetGames()
+		return nil
+	case analyzerracematchup.FieldTeamAWins:
+		m.ResetTeamAWins()
+		return nil
+	case analyzerracematchup.FieldTeamBWins:
+		m.ResetTeamBWins()
+		return nil
+	case analyzerracematchup.FieldTeamAWinRate:
+		m.ResetTeamAWinRate()
+		return nil
+	case analyzerracematchup.FieldTeamBWinRate:
+		m.ResetTeamBWinRate()
+		return nil
+	case analyzerracematchup.FieldComputedAt:
+		m.ResetComputedAt()
+		return nil
+	case analyzerracematchup.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case analyzerracematchup.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown AnalyzerRaceMatchup field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *AnalyzerRaceMatchupMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *AnalyzerRaceMatchupMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *AnalyzerRaceMatchupMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *AnalyzerRaceMatchupMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *AnalyzerRaceMatchupMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *AnalyzerRaceMatchupMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *AnalyzerRaceMatchupMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown AnalyzerRaceMatchup unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *AnalyzerRaceMatchupMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown AnalyzerRaceMatchup edge %s", name)
+}
 
 // GameMutation represents an operation that mutates the Game nodes in the graph.
 type GameMutation struct {
@@ -4057,6 +5182,1280 @@ func (m *PlayerMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown Player edge %s", name)
+}
+
+// Ranking3v3Mutation represents an operation that mutates the Ranking3v3 nodes in the graph.
+type Ranking3v3Mutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int
+	name          *string
+	rank          *int
+	addrank       *int
+	games         *int
+	addgames      *int
+	wins          *int
+	addwins       *int
+	losses        *int
+	addlosses     *int
+	draws         *int
+	adddraws      *int
+	win_rate      *float64
+	addwin_rate   *float64
+	avg_apm       *float64
+	addavg_apm    *float64
+	avg_eapm      *float64
+	addavg_eapm   *float64
+	min_games     *int
+	addmin_games  *int
+	computed_at   *time.Time
+	created_at    *time.Time
+	updated_at    *time.Time
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*Ranking3v3, error)
+	predicates    []predicate.Ranking3v3
+}
+
+var _ ent.Mutation = (*Ranking3v3Mutation)(nil)
+
+// ranking3v3Option allows management of the mutation configuration using functional options.
+type ranking3v3Option func(*Ranking3v3Mutation)
+
+// newRanking3v3Mutation creates new mutation for the Ranking3v3 entity.
+func newRanking3v3Mutation(c config, op Op, opts ...ranking3v3Option) *Ranking3v3Mutation {
+	m := &Ranking3v3Mutation{
+		config:        c,
+		op:            op,
+		typ:           TypeRanking3v3,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withRanking3v3ID sets the ID field of the mutation.
+func withRanking3v3ID(id int) ranking3v3Option {
+	return func(m *Ranking3v3Mutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *Ranking3v3
+		)
+		m.oldValue = func(ctx context.Context) (*Ranking3v3, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().Ranking3v3.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withRanking3v3 sets the old Ranking3v3 of the mutation.
+func withRanking3v3(node *Ranking3v3) ranking3v3Option {
+	return func(m *Ranking3v3Mutation) {
+		m.oldValue = func(context.Context) (*Ranking3v3, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m Ranking3v3Mutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m Ranking3v3Mutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *Ranking3v3Mutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *Ranking3v3Mutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().Ranking3v3.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetName sets the "name" field.
+func (m *Ranking3v3Mutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *Ranking3v3Mutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the Ranking3v3 entity.
+// If the Ranking3v3 object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *Ranking3v3Mutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *Ranking3v3Mutation) ResetName() {
+	m.name = nil
+}
+
+// SetRank sets the "rank" field.
+func (m *Ranking3v3Mutation) SetRank(i int) {
+	m.rank = &i
+	m.addrank = nil
+}
+
+// Rank returns the value of the "rank" field in the mutation.
+func (m *Ranking3v3Mutation) Rank() (r int, exists bool) {
+	v := m.rank
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRank returns the old "rank" field's value of the Ranking3v3 entity.
+// If the Ranking3v3 object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *Ranking3v3Mutation) OldRank(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRank is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRank requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRank: %w", err)
+	}
+	return oldValue.Rank, nil
+}
+
+// AddRank adds i to the "rank" field.
+func (m *Ranking3v3Mutation) AddRank(i int) {
+	if m.addrank != nil {
+		*m.addrank += i
+	} else {
+		m.addrank = &i
+	}
+}
+
+// AddedRank returns the value that was added to the "rank" field in this mutation.
+func (m *Ranking3v3Mutation) AddedRank() (r int, exists bool) {
+	v := m.addrank
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRank resets all changes to the "rank" field.
+func (m *Ranking3v3Mutation) ResetRank() {
+	m.rank = nil
+	m.addrank = nil
+}
+
+// SetGames sets the "games" field.
+func (m *Ranking3v3Mutation) SetGames(i int) {
+	m.games = &i
+	m.addgames = nil
+}
+
+// Games returns the value of the "games" field in the mutation.
+func (m *Ranking3v3Mutation) Games() (r int, exists bool) {
+	v := m.games
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGames returns the old "games" field's value of the Ranking3v3 entity.
+// If the Ranking3v3 object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *Ranking3v3Mutation) OldGames(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGames is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGames requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGames: %w", err)
+	}
+	return oldValue.Games, nil
+}
+
+// AddGames adds i to the "games" field.
+func (m *Ranking3v3Mutation) AddGames(i int) {
+	if m.addgames != nil {
+		*m.addgames += i
+	} else {
+		m.addgames = &i
+	}
+}
+
+// AddedGames returns the value that was added to the "games" field in this mutation.
+func (m *Ranking3v3Mutation) AddedGames() (r int, exists bool) {
+	v := m.addgames
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetGames resets all changes to the "games" field.
+func (m *Ranking3v3Mutation) ResetGames() {
+	m.games = nil
+	m.addgames = nil
+}
+
+// SetWins sets the "wins" field.
+func (m *Ranking3v3Mutation) SetWins(i int) {
+	m.wins = &i
+	m.addwins = nil
+}
+
+// Wins returns the value of the "wins" field in the mutation.
+func (m *Ranking3v3Mutation) Wins() (r int, exists bool) {
+	v := m.wins
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWins returns the old "wins" field's value of the Ranking3v3 entity.
+// If the Ranking3v3 object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *Ranking3v3Mutation) OldWins(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWins is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWins requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWins: %w", err)
+	}
+	return oldValue.Wins, nil
+}
+
+// AddWins adds i to the "wins" field.
+func (m *Ranking3v3Mutation) AddWins(i int) {
+	if m.addwins != nil {
+		*m.addwins += i
+	} else {
+		m.addwins = &i
+	}
+}
+
+// AddedWins returns the value that was added to the "wins" field in this mutation.
+func (m *Ranking3v3Mutation) AddedWins() (r int, exists bool) {
+	v := m.addwins
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetWins resets all changes to the "wins" field.
+func (m *Ranking3v3Mutation) ResetWins() {
+	m.wins = nil
+	m.addwins = nil
+}
+
+// SetLosses sets the "losses" field.
+func (m *Ranking3v3Mutation) SetLosses(i int) {
+	m.losses = &i
+	m.addlosses = nil
+}
+
+// Losses returns the value of the "losses" field in the mutation.
+func (m *Ranking3v3Mutation) Losses() (r int, exists bool) {
+	v := m.losses
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLosses returns the old "losses" field's value of the Ranking3v3 entity.
+// If the Ranking3v3 object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *Ranking3v3Mutation) OldLosses(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLosses is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLosses requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLosses: %w", err)
+	}
+	return oldValue.Losses, nil
+}
+
+// AddLosses adds i to the "losses" field.
+func (m *Ranking3v3Mutation) AddLosses(i int) {
+	if m.addlosses != nil {
+		*m.addlosses += i
+	} else {
+		m.addlosses = &i
+	}
+}
+
+// AddedLosses returns the value that was added to the "losses" field in this mutation.
+func (m *Ranking3v3Mutation) AddedLosses() (r int, exists bool) {
+	v := m.addlosses
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetLosses resets all changes to the "losses" field.
+func (m *Ranking3v3Mutation) ResetLosses() {
+	m.losses = nil
+	m.addlosses = nil
+}
+
+// SetDraws sets the "draws" field.
+func (m *Ranking3v3Mutation) SetDraws(i int) {
+	m.draws = &i
+	m.adddraws = nil
+}
+
+// Draws returns the value of the "draws" field in the mutation.
+func (m *Ranking3v3Mutation) Draws() (r int, exists bool) {
+	v := m.draws
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDraws returns the old "draws" field's value of the Ranking3v3 entity.
+// If the Ranking3v3 object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *Ranking3v3Mutation) OldDraws(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDraws is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDraws requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDraws: %w", err)
+	}
+	return oldValue.Draws, nil
+}
+
+// AddDraws adds i to the "draws" field.
+func (m *Ranking3v3Mutation) AddDraws(i int) {
+	if m.adddraws != nil {
+		*m.adddraws += i
+	} else {
+		m.adddraws = &i
+	}
+}
+
+// AddedDraws returns the value that was added to the "draws" field in this mutation.
+func (m *Ranking3v3Mutation) AddedDraws() (r int, exists bool) {
+	v := m.adddraws
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetDraws resets all changes to the "draws" field.
+func (m *Ranking3v3Mutation) ResetDraws() {
+	m.draws = nil
+	m.adddraws = nil
+}
+
+// SetWinRate sets the "win_rate" field.
+func (m *Ranking3v3Mutation) SetWinRate(f float64) {
+	m.win_rate = &f
+	m.addwin_rate = nil
+}
+
+// WinRate returns the value of the "win_rate" field in the mutation.
+func (m *Ranking3v3Mutation) WinRate() (r float64, exists bool) {
+	v := m.win_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWinRate returns the old "win_rate" field's value of the Ranking3v3 entity.
+// If the Ranking3v3 object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *Ranking3v3Mutation) OldWinRate(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWinRate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWinRate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWinRate: %w", err)
+	}
+	return oldValue.WinRate, nil
+}
+
+// AddWinRate adds f to the "win_rate" field.
+func (m *Ranking3v3Mutation) AddWinRate(f float64) {
+	if m.addwin_rate != nil {
+		*m.addwin_rate += f
+	} else {
+		m.addwin_rate = &f
+	}
+}
+
+// AddedWinRate returns the value that was added to the "win_rate" field in this mutation.
+func (m *Ranking3v3Mutation) AddedWinRate() (r float64, exists bool) {
+	v := m.addwin_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetWinRate resets all changes to the "win_rate" field.
+func (m *Ranking3v3Mutation) ResetWinRate() {
+	m.win_rate = nil
+	m.addwin_rate = nil
+}
+
+// SetAvgApm sets the "avg_apm" field.
+func (m *Ranking3v3Mutation) SetAvgApm(f float64) {
+	m.avg_apm = &f
+	m.addavg_apm = nil
+}
+
+// AvgApm returns the value of the "avg_apm" field in the mutation.
+func (m *Ranking3v3Mutation) AvgApm() (r float64, exists bool) {
+	v := m.avg_apm
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAvgApm returns the old "avg_apm" field's value of the Ranking3v3 entity.
+// If the Ranking3v3 object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *Ranking3v3Mutation) OldAvgApm(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAvgApm is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAvgApm requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAvgApm: %w", err)
+	}
+	return oldValue.AvgApm, nil
+}
+
+// AddAvgApm adds f to the "avg_apm" field.
+func (m *Ranking3v3Mutation) AddAvgApm(f float64) {
+	if m.addavg_apm != nil {
+		*m.addavg_apm += f
+	} else {
+		m.addavg_apm = &f
+	}
+}
+
+// AddedAvgApm returns the value that was added to the "avg_apm" field in this mutation.
+func (m *Ranking3v3Mutation) AddedAvgApm() (r float64, exists bool) {
+	v := m.addavg_apm
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAvgApm resets all changes to the "avg_apm" field.
+func (m *Ranking3v3Mutation) ResetAvgApm() {
+	m.avg_apm = nil
+	m.addavg_apm = nil
+}
+
+// SetAvgEapm sets the "avg_eapm" field.
+func (m *Ranking3v3Mutation) SetAvgEapm(f float64) {
+	m.avg_eapm = &f
+	m.addavg_eapm = nil
+}
+
+// AvgEapm returns the value of the "avg_eapm" field in the mutation.
+func (m *Ranking3v3Mutation) AvgEapm() (r float64, exists bool) {
+	v := m.avg_eapm
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAvgEapm returns the old "avg_eapm" field's value of the Ranking3v3 entity.
+// If the Ranking3v3 object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *Ranking3v3Mutation) OldAvgEapm(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAvgEapm is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAvgEapm requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAvgEapm: %w", err)
+	}
+	return oldValue.AvgEapm, nil
+}
+
+// AddAvgEapm adds f to the "avg_eapm" field.
+func (m *Ranking3v3Mutation) AddAvgEapm(f float64) {
+	if m.addavg_eapm != nil {
+		*m.addavg_eapm += f
+	} else {
+		m.addavg_eapm = &f
+	}
+}
+
+// AddedAvgEapm returns the value that was added to the "avg_eapm" field in this mutation.
+func (m *Ranking3v3Mutation) AddedAvgEapm() (r float64, exists bool) {
+	v := m.addavg_eapm
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAvgEapm resets all changes to the "avg_eapm" field.
+func (m *Ranking3v3Mutation) ResetAvgEapm() {
+	m.avg_eapm = nil
+	m.addavg_eapm = nil
+}
+
+// SetMinGames sets the "min_games" field.
+func (m *Ranking3v3Mutation) SetMinGames(i int) {
+	m.min_games = &i
+	m.addmin_games = nil
+}
+
+// MinGames returns the value of the "min_games" field in the mutation.
+func (m *Ranking3v3Mutation) MinGames() (r int, exists bool) {
+	v := m.min_games
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMinGames returns the old "min_games" field's value of the Ranking3v3 entity.
+// If the Ranking3v3 object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *Ranking3v3Mutation) OldMinGames(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMinGames is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMinGames requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMinGames: %w", err)
+	}
+	return oldValue.MinGames, nil
+}
+
+// AddMinGames adds i to the "min_games" field.
+func (m *Ranking3v3Mutation) AddMinGames(i int) {
+	if m.addmin_games != nil {
+		*m.addmin_games += i
+	} else {
+		m.addmin_games = &i
+	}
+}
+
+// AddedMinGames returns the value that was added to the "min_games" field in this mutation.
+func (m *Ranking3v3Mutation) AddedMinGames() (r int, exists bool) {
+	v := m.addmin_games
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetMinGames resets all changes to the "min_games" field.
+func (m *Ranking3v3Mutation) ResetMinGames() {
+	m.min_games = nil
+	m.addmin_games = nil
+}
+
+// SetComputedAt sets the "computed_at" field.
+func (m *Ranking3v3Mutation) SetComputedAt(t time.Time) {
+	m.computed_at = &t
+}
+
+// ComputedAt returns the value of the "computed_at" field in the mutation.
+func (m *Ranking3v3Mutation) ComputedAt() (r time.Time, exists bool) {
+	v := m.computed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldComputedAt returns the old "computed_at" field's value of the Ranking3v3 entity.
+// If the Ranking3v3 object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *Ranking3v3Mutation) OldComputedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldComputedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldComputedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldComputedAt: %w", err)
+	}
+	return oldValue.ComputedAt, nil
+}
+
+// ResetComputedAt resets all changes to the "computed_at" field.
+func (m *Ranking3v3Mutation) ResetComputedAt() {
+	m.computed_at = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *Ranking3v3Mutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *Ranking3v3Mutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the Ranking3v3 entity.
+// If the Ranking3v3 object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *Ranking3v3Mutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *Ranking3v3Mutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *Ranking3v3Mutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *Ranking3v3Mutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the Ranking3v3 entity.
+// If the Ranking3v3 object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *Ranking3v3Mutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *Ranking3v3Mutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the Ranking3v3Mutation builder.
+func (m *Ranking3v3Mutation) Where(ps ...predicate.Ranking3v3) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the Ranking3v3Mutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *Ranking3v3Mutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.Ranking3v3, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *Ranking3v3Mutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *Ranking3v3Mutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (Ranking3v3).
+func (m *Ranking3v3Mutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *Ranking3v3Mutation) Fields() []string {
+	fields := make([]string, 0, 13)
+	if m.name != nil {
+		fields = append(fields, ranking3v3.FieldName)
+	}
+	if m.rank != nil {
+		fields = append(fields, ranking3v3.FieldRank)
+	}
+	if m.games != nil {
+		fields = append(fields, ranking3v3.FieldGames)
+	}
+	if m.wins != nil {
+		fields = append(fields, ranking3v3.FieldWins)
+	}
+	if m.losses != nil {
+		fields = append(fields, ranking3v3.FieldLosses)
+	}
+	if m.draws != nil {
+		fields = append(fields, ranking3v3.FieldDraws)
+	}
+	if m.win_rate != nil {
+		fields = append(fields, ranking3v3.FieldWinRate)
+	}
+	if m.avg_apm != nil {
+		fields = append(fields, ranking3v3.FieldAvgApm)
+	}
+	if m.avg_eapm != nil {
+		fields = append(fields, ranking3v3.FieldAvgEapm)
+	}
+	if m.min_games != nil {
+		fields = append(fields, ranking3v3.FieldMinGames)
+	}
+	if m.computed_at != nil {
+		fields = append(fields, ranking3v3.FieldComputedAt)
+	}
+	if m.created_at != nil {
+		fields = append(fields, ranking3v3.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, ranking3v3.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *Ranking3v3Mutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case ranking3v3.FieldName:
+		return m.Name()
+	case ranking3v3.FieldRank:
+		return m.Rank()
+	case ranking3v3.FieldGames:
+		return m.Games()
+	case ranking3v3.FieldWins:
+		return m.Wins()
+	case ranking3v3.FieldLosses:
+		return m.Losses()
+	case ranking3v3.FieldDraws:
+		return m.Draws()
+	case ranking3v3.FieldWinRate:
+		return m.WinRate()
+	case ranking3v3.FieldAvgApm:
+		return m.AvgApm()
+	case ranking3v3.FieldAvgEapm:
+		return m.AvgEapm()
+	case ranking3v3.FieldMinGames:
+		return m.MinGames()
+	case ranking3v3.FieldComputedAt:
+		return m.ComputedAt()
+	case ranking3v3.FieldCreatedAt:
+		return m.CreatedAt()
+	case ranking3v3.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *Ranking3v3Mutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case ranking3v3.FieldName:
+		return m.OldName(ctx)
+	case ranking3v3.FieldRank:
+		return m.OldRank(ctx)
+	case ranking3v3.FieldGames:
+		return m.OldGames(ctx)
+	case ranking3v3.FieldWins:
+		return m.OldWins(ctx)
+	case ranking3v3.FieldLosses:
+		return m.OldLosses(ctx)
+	case ranking3v3.FieldDraws:
+		return m.OldDraws(ctx)
+	case ranking3v3.FieldWinRate:
+		return m.OldWinRate(ctx)
+	case ranking3v3.FieldAvgApm:
+		return m.OldAvgApm(ctx)
+	case ranking3v3.FieldAvgEapm:
+		return m.OldAvgEapm(ctx)
+	case ranking3v3.FieldMinGames:
+		return m.OldMinGames(ctx)
+	case ranking3v3.FieldComputedAt:
+		return m.OldComputedAt(ctx)
+	case ranking3v3.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case ranking3v3.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown Ranking3v3 field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *Ranking3v3Mutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case ranking3v3.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case ranking3v3.FieldRank:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRank(v)
+		return nil
+	case ranking3v3.FieldGames:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGames(v)
+		return nil
+	case ranking3v3.FieldWins:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWins(v)
+		return nil
+	case ranking3v3.FieldLosses:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLosses(v)
+		return nil
+	case ranking3v3.FieldDraws:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDraws(v)
+		return nil
+	case ranking3v3.FieldWinRate:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWinRate(v)
+		return nil
+	case ranking3v3.FieldAvgApm:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAvgApm(v)
+		return nil
+	case ranking3v3.FieldAvgEapm:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAvgEapm(v)
+		return nil
+	case ranking3v3.FieldMinGames:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMinGames(v)
+		return nil
+	case ranking3v3.FieldComputedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetComputedAt(v)
+		return nil
+	case ranking3v3.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case ranking3v3.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Ranking3v3 field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *Ranking3v3Mutation) AddedFields() []string {
+	var fields []string
+	if m.addrank != nil {
+		fields = append(fields, ranking3v3.FieldRank)
+	}
+	if m.addgames != nil {
+		fields = append(fields, ranking3v3.FieldGames)
+	}
+	if m.addwins != nil {
+		fields = append(fields, ranking3v3.FieldWins)
+	}
+	if m.addlosses != nil {
+		fields = append(fields, ranking3v3.FieldLosses)
+	}
+	if m.adddraws != nil {
+		fields = append(fields, ranking3v3.FieldDraws)
+	}
+	if m.addwin_rate != nil {
+		fields = append(fields, ranking3v3.FieldWinRate)
+	}
+	if m.addavg_apm != nil {
+		fields = append(fields, ranking3v3.FieldAvgApm)
+	}
+	if m.addavg_eapm != nil {
+		fields = append(fields, ranking3v3.FieldAvgEapm)
+	}
+	if m.addmin_games != nil {
+		fields = append(fields, ranking3v3.FieldMinGames)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *Ranking3v3Mutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case ranking3v3.FieldRank:
+		return m.AddedRank()
+	case ranking3v3.FieldGames:
+		return m.AddedGames()
+	case ranking3v3.FieldWins:
+		return m.AddedWins()
+	case ranking3v3.FieldLosses:
+		return m.AddedLosses()
+	case ranking3v3.FieldDraws:
+		return m.AddedDraws()
+	case ranking3v3.FieldWinRate:
+		return m.AddedWinRate()
+	case ranking3v3.FieldAvgApm:
+		return m.AddedAvgApm()
+	case ranking3v3.FieldAvgEapm:
+		return m.AddedAvgEapm()
+	case ranking3v3.FieldMinGames:
+		return m.AddedMinGames()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *Ranking3v3Mutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case ranking3v3.FieldRank:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRank(v)
+		return nil
+	case ranking3v3.FieldGames:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddGames(v)
+		return nil
+	case ranking3v3.FieldWins:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddWins(v)
+		return nil
+	case ranking3v3.FieldLosses:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLosses(v)
+		return nil
+	case ranking3v3.FieldDraws:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddDraws(v)
+		return nil
+	case ranking3v3.FieldWinRate:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddWinRate(v)
+		return nil
+	case ranking3v3.FieldAvgApm:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAvgApm(v)
+		return nil
+	case ranking3v3.FieldAvgEapm:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAvgEapm(v)
+		return nil
+	case ranking3v3.FieldMinGames:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddMinGames(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Ranking3v3 numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *Ranking3v3Mutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *Ranking3v3Mutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *Ranking3v3Mutation) ClearField(name string) error {
+	return fmt.Errorf("unknown Ranking3v3 nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *Ranking3v3Mutation) ResetField(name string) error {
+	switch name {
+	case ranking3v3.FieldName:
+		m.ResetName()
+		return nil
+	case ranking3v3.FieldRank:
+		m.ResetRank()
+		return nil
+	case ranking3v3.FieldGames:
+		m.ResetGames()
+		return nil
+	case ranking3v3.FieldWins:
+		m.ResetWins()
+		return nil
+	case ranking3v3.FieldLosses:
+		m.ResetLosses()
+		return nil
+	case ranking3v3.FieldDraws:
+		m.ResetDraws()
+		return nil
+	case ranking3v3.FieldWinRate:
+		m.ResetWinRate()
+		return nil
+	case ranking3v3.FieldAvgApm:
+		m.ResetAvgApm()
+		return nil
+	case ranking3v3.FieldAvgEapm:
+		m.ResetAvgEapm()
+		return nil
+	case ranking3v3.FieldMinGames:
+		m.ResetMinGames()
+		return nil
+	case ranking3v3.FieldComputedAt:
+		m.ResetComputedAt()
+		return nil
+	case ranking3v3.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case ranking3v3.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown Ranking3v3 field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *Ranking3v3Mutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *Ranking3v3Mutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *Ranking3v3Mutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *Ranking3v3Mutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *Ranking3v3Mutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *Ranking3v3Mutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *Ranking3v3Mutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown Ranking3v3 unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *Ranking3v3Mutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown Ranking3v3 edge %s", name)
 }
 
 // ReplayFileMutation represents an operation that mutates the ReplayFile nodes in the graph.

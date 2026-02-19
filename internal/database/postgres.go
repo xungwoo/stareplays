@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	_ "github.com/lib/pq"
-	"github.com/xungwoo/stareps/ent"
+	"github.com/xungwoo/stareplays/ent"
 )
 
 var Client *ent.Client

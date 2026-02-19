@@ -14,8 +14,8 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/fiber/v2/middleware/requestid"
 	"github.com/joho/godotenv"
-	"github.com/xungwoo/stareps/internal/api/handlers"
-	"github.com/xungwoo/stareps/internal/database"
+	"github.com/xungwoo/stareplays/internal/api/handlers"
+	"github.com/xungwoo/stareplays/internal/database"
 )
 
 func main() {
@@ -32,7 +32,7 @@ func main() {
 
 	// Fiber 앱 생성
 	app := fiber.New(fiber.Config{
-		AppName:   "StarCraft Stats API v1.0",
+		AppName:   "stareplays API v1.0",
 		BodyLimit: envIntMB("REPLAY_MAX_SIZE_MB", 30),
 	})
 

@@ -1,4 +1,4 @@
-# StarEPS
+# StaReplays
 
 StarCraft: Brood War replay 파싱/저장 API 서버입니다.
 
@@ -68,6 +68,24 @@ multipart/form-data:
 
 `GET /health`
 
+### 8) 3v3 랭킹 조회 (snapshot 기반)
+
+`GET /rankings/3v3?page=1&page_size=20&sort_by=win_rate&sort_dir=desc&min_games=10`
+
+- 기본 정렬: `win_rate desc`
+- 정렬 키: `win_rate`, `wins`, `games`, `avg_apm`, `avg_eapm`, `name`
+- snapshot 데이터가 비어 있으면 랭킹 결과도 비어 있습니다.
+
+### 9) 종족 조합 승률 분석
+
+`GET /analyzer/race-matchups?team_size=3&limit=200`
+
+- snapshot 기반 조회 (실시간 전체 집계 아님)
+- 정렬/페이징 파라미터:
+  - `sort_by`: `games`, `team_a_win_rate`, `team_b_win_rate`, `matchup`
+  - `sort_dir`: `asc` | `desc`
+  - `page`, `page_size` (`limit`도 하위호환으로 지원)
+
 ## 실행
 
 환경변수 설정 후:
@@ -82,16 +100,111 @@ go run ./cmd/server
 make run
 ```
 
+### 로컬 서버 운영 규칙 (필수)
+
+- 로컬 서버는 항상 `127.0.0.1:3000` 리스닝 상태를 유지합니다.
+- 서버 시작/재시작은 아래 방식(`nohup` + PID/로그 파일)으로 고정합니다.
+
+```bash
+mkdir -p /tmp/stareplays/uploads
+if [ -f /tmp/stareplays_server.pid ]; then kill "$(cat /tmp/stareplays_server.pid)" 2>/dev/null || true; fi
+lsof -tiTCP:3000 -sTCP:LISTEN | xargs -I{} kill {} 2>/dev/null || true
+go build -o bin/server ./cmd/server/main.go
+nohup env PORT=3000 REPLAY_UPLOAD_DIR=/tmp/stareplays/uploads DISABLE_LOCAL_PARSE=true ./bin/server > /tmp/stareplays_server.log 2>&1 &
+echo $! > /tmp/stareplays_server.pid
+```
+
+- 기동 확인:
+
+```bash
+curl -sS http://127.0.0.1:3000/health
+lsof -nP -iTCP:3000 -sTCP:LISTEN
+```
+
 ### 운영 권장 환경변수
 
-- `REPLAY_UPLOAD_DIR` (기본: `/tmp/stareps/uploads`)
+- `REPLAY_UPLOAD_DIR` (기본: `/tmp/stareplays/uploads`)
   - multipart 업로드 파일의 임시 저장 디렉토리
 - `REPLAY_MAX_SIZE_MB` (기본: `30`)
   - 업로드 파일 최대 크기(MB), Fiber BodyLimit에도 동일 반영
 - `DISABLE_LOCAL_PARSE` (기본: `false`)
   - `true`면 `/api/v1/games/parse` 로컬 경로 파싱 API 비활성화
+- `RANKING_MIN_GAMES` (기본: `20`)
+  - 랭킹 snapshot 생성 시 최소 게임 수 필터
+- `RANKING_JOB_MODE` (기본: `once`)
+  - `once` 또는 `daemon`
+- `RANKING_JOB_INTERVAL` (기본: `10m`)
+  - `daemon` 모드일 때 실행 주기
+- `ANALYZER_JOB_MODE` (기본: `once`)
+  - `once` 또는 `daemon`
+- `ANALYZER_JOB_INTERVAL` (기본: `10m`)
+  - analyzer daemon 모드 실행 주기
+
+## 랭킹 스케줄 잡 실행
+
+1회 실행:
+
+```bash
+RANKING_JOB_MODE=once RANKING_MIN_GAMES=20 go run ./cmd/ranking-job
+```
+
+데몬 실행:
+
+```bash
+RANKING_JOB_MODE=daemon RANKING_MIN_GAMES=20 RANKING_JOB_INTERVAL=10m go run ./cmd/ranking-job
+```
+
+## Analyzer 스케줄 잡 실행
+
+1회 실행:
+
+```bash
+ANALYZER_JOB_MODE=once go run ./cmd/analyzer-job
+```
+
+데몬 실행:
+
+```bash
+ANALYZER_JOB_MODE=daemon ANALYZER_JOB_INTERVAL=10m go run ./cmd/analyzer-job
+```
 
 ## 참고 문서
 
 - 상세 API 예시: `API_USAGE.md`
 - Railway 배포 체크리스트: `DEPLOY_RAILWAY.md`
+
+## 성능 벤치 스크립트
+
+- `scripts/perf/bench_player_stats.sh`
+  - `/api/v1/players/:name/stats` 응답시간 p50/p95/p99 측정
+- `scripts/perf/bench_batch_upload.sh`
+  - `/api/v1/games/upload` 배치 업로드 p50/p95/p99 측정
+- `scripts/perf/compare_bench_results.sh`
+  - before/after CSV 결과 비교
+
+예시:
+
+```bash
+# player stats 벤치
+bash scripts/perf/bench_player_stats.sh \
+  --base-url http://127.0.0.1:3000 \
+  --player jjang9-pil \
+  --requests 120 \
+  --concurrency 8 \
+  --summary-file perf-results/player_stats_before.csv
+
+# batch upload 벤치
+bash scripts/perf/bench_batch_upload.sh \
+  --base-url http://127.0.0.1:3000 \
+  --replay-file /path/to/sample.rep \
+  --uploader-names "jjang9-pil,player2,player3" \
+  --batch-size 4 \
+  --requests 60 \
+  --concurrency 4 \
+  --summary-file perf-results/batch_upload_before.csv
+
+# 코드 변경 후 동일 명령을 *_after.csv 로 다시 측정 후 비교
+bash scripts/perf/compare_bench_results.sh \
+  --before perf-results/player_stats_before.csv \
+  --after perf-results/player_stats_after.csv
+```

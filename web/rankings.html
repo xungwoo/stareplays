@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>StaReplays Rankings</title>
+  <title>stareplays Rankings</title>
   <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
   <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="./styles.css">
 </head>
 <body class="min-h-screen bg-[#E0E0E2] text-[#2D3139]">
   <div class="min-h-screen flex flex-col">
@@ -14,13 +14,13 @@
       <div class="max-w-[1400px] mx-auto px-4 md:px-6 h-14 flex items-center justify-between">
         <div class="flex items-center gap-6">
           <div class="flex items-center gap-2">
-            <span class="font-bold tracking-tight text-sm md:text-base">StaReplays v1.0</span>
+            <span class="font-bold tracking-tight text-sm md:text-base">stareplays v1.0</span>
           </div>
           <div class="hidden md:flex items-center gap-4 text-[11px] font-bold uppercase">
-            <a href="/" class="text-[#2D3139] border border-[#2D3139] px-2 py-0.5 bg-white/30">[ Dashboard ]</a>
-            <a href="/" class="text-[#4A4F59] hover:text-[#2D3139]">Replay_Vault</a>
-            <a href="/analyzer.html" class="text-[#4A4F59] hover:text-[#2D3139]">Game_Analyzer</a>
-            <a href="/rankings.html" class="text-[#4A4F59] hover:text-[#2D3139]">Rankings</a>
+            <a href="./index.html" class="text-[#2D3139] border border-[#2D3139] px-2 py-0.5 bg-white/30">[ Dashboard ]</a>
+            <a href="./index.html" class="text-[#4A4F59] hover:text-[#2D3139]">Replay_Vault</a>
+            <a href="./analyzer.html" class="text-[#4A4F59] hover:text-[#2D3139]">Game_Analyzer</a>
+            <a href="./rankings.html" class="text-[#4A4F59] hover:text-[#2D3139]">Rankings</a>
           </div>
         </div>
         <div class="text-[10px] md:text-[11px] font-bold uppercase text-[#4A4F59]">SYS_STATUS: ONLINE</div>
@@ -35,6 +35,7 @@
             Rankings_3v3
           </h2>
           <div class="flex items-center gap-2">
+            <label for="rankingsSortBy" class="text-[10px] font-bold uppercase text-[#4A4F59]">Sort_By</label>
             <select id="rankingsSortBy" class="border border-[#2D3139] bg-white/60 px-2 py-1 text-[10px] font-bold uppercase">
               <option value="default">WIN_RATE</option>
               <option value="avg_apm">AVG_APM</option>
@@ -64,6 +65,6 @@
     </main>
   </div>
 
-  <script src="/rankings.js"></script>
+  <script src="./rankings.js?v=20260220-1"></script>
 </body>
 </html>

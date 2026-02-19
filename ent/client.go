@@ -9,17 +9,19 @@ import (
 	"log"
 	"reflect"
 
-	"github.com/xungwoo/stareps/ent/migrate"
+	"github.com/xungwoo/stareplays/ent/migrate"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
-	"github.com/xungwoo/stareps/ent/game"
-	"github.com/xungwoo/stareps/ent/gamedetail"
-	"github.com/xungwoo/stareps/ent/player"
-	"github.com/xungwoo/stareps/ent/replayfile"
-	"github.com/xungwoo/stareps/ent/user"
+	"github.com/xungwoo/stareplays/ent/analyzerracematchup"
+	"github.com/xungwoo/stareplays/ent/game"
+	"github.com/xungwoo/stareplays/ent/gamedetail"
+	"github.com/xungwoo/stareplays/ent/player"
+	"github.com/xungwoo/stareplays/ent/ranking3v3"
+	"github.com/xungwoo/stareplays/ent/replayfile"
+	"github.com/xungwoo/stareplays/ent/user"
 )
 
 // Client is the client that holds all ent builders.
@@ -27,12 +29,16 @@ type Client struct {
 	config
 	// Schema is the client for creating, migrating and dropping schema.
 	Schema *migrate.Schema
+	// AnalyzerRaceMatchup is the client for interacting with the AnalyzerRaceMatchup builders.
+	AnalyzerRaceMatchup *AnalyzerRaceMatchupClient
 	// Game is the client for interacting with the Game builders.
 	Game *GameClient
 	// GameDetail is the client for interacting with the GameDetail builders.
 	GameDetail *GameDetailClient
 	// Player is the client for interacting with the Player builders.
 	Player *PlayerClient
+	// Ranking3v3 is the client for interacting with the Ranking3v3 builders.
+	Ranking3v3 *Ranking3v3Client
 	// ReplayFile is the client for interacting with the ReplayFile builders.
 	ReplayFile *ReplayFileClient
 	// User is the client for interacting with the User builders.
@@ -48,9 +54,11 @@ func NewClient(opts ...Option) *Client {
 
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
+	c.AnalyzerRaceMatchup = NewAnalyzerRaceMatchupClient(c.config)
 	c.Game = NewGameClient(c.config)
 	c.GameDetail = NewGameDetailClient(c.config)
 	c.Player = NewPlayerClient(c.config)
+	c.Ranking3v3 = NewRanking3v3Client(c.config)
 	c.ReplayFile = NewReplayFileClient(c.config)
 	c.User = NewUserClient(c.config)
 }
@@ -143,13 +151,15 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:        ctx,
-		config:     cfg,
-		Game:       NewGameClient(cfg),
-		GameDetail: NewGameDetailClient(cfg),
-		Player:     NewPlayerClient(cfg),
-		ReplayFile: NewReplayFileClient(cfg),
-		User:       NewUserClient(cfg),
+		ctx:                 ctx,
+		config:              cfg,
+		AnalyzerRaceMatchup: NewAnalyzerRaceMatchupClient(cfg),
+		Game:                NewGameClient(cfg),
+		GameDetail:          NewGameDetailClient(cfg),
+		Player:              NewPlayerClient(cfg),
+		Ranking3v3:          NewRanking3v3Client(cfg),
+		ReplayFile:          NewReplayFileClient(cfg),
+		User:                NewUserClient(cfg),
 	}, nil
 }
 
@@ -167,20 +177,22 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:        ctx,
-		config:     cfg,
-		Game:       NewGameClient(cfg),
-		GameDetail: NewGameDetailClient(cfg),
-		Player:     NewPlayerClient(cfg),
-		ReplayFile: NewReplayFileClient(cfg),
-		User:       NewUserClient(cfg),
+		ctx:                 ctx,
+		config:              cfg,
+		AnalyzerRaceMatchup: NewAnalyzerRaceMatchupClient(cfg),
+		Game:                NewGameClient(cfg),
+		GameDetail:          NewGameDetailClient(cfg),
+		Player:              NewPlayerClient(cfg),
+		Ranking3v3:          NewRanking3v3Client(cfg),
+		ReplayFile:          NewReplayFileClient(cfg),
+		User:                NewUserClient(cfg),
 	}, nil
 }
 
 // Debug returns a new debug-client. It's used to get verbose logging on specific operations.
 //
 //	client.Debug().
-//		Game.
+//		AnalyzerRaceMatchup.
 //		Query().
 //		Count(ctx)
 func (c *Client) Debug() *Client {
@@ -202,38 +214,177 @@ func (c *Client) Close() error {
 // Use adds the mutation hooks to all the entity clients.
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
-	c.Game.Use(hooks...)
-	c.GameDetail.Use(hooks...)
-	c.Player.Use(hooks...)
-	c.ReplayFile.Use(hooks...)
-	c.User.Use(hooks...)
+	for _, n := range []interface{ Use(...Hook) }{
+		c.AnalyzerRaceMatchup, c.Game, c.GameDetail, c.Player, c.Ranking3v3,
+		c.ReplayFile, c.User,
+	} {
+		n.Use(hooks...)
+	}
 }
 
 // Intercept adds the query interceptors to all the entity clients.
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
-	c.Game.Intercept(interceptors...)
-	c.GameDetail.Intercept(interceptors...)
-	c.Player.Intercept(interceptors...)
-	c.ReplayFile.Intercept(interceptors...)
-	c.User.Intercept(interceptors...)
+	for _, n := range []interface{ Intercept(...Interceptor) }{
+		c.AnalyzerRaceMatchup, c.Game, c.GameDetail, c.Player, c.Ranking3v3,
+		c.ReplayFile, c.User,
+	} {
+		n.Intercept(interceptors...)
+	}
 }
 
 // Mutate implements the ent.Mutator interface.
 func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
+	case *AnalyzerRaceMatchupMutation:
+		return c.AnalyzerRaceMatchup.mutate(ctx, m)
 	case *GameMutation:
 		return c.Game.mutate(ctx, m)
 	case *GameDetailMutation:
 		return c.GameDetail.mutate(ctx, m)
 	case *PlayerMutation:
 		return c.Player.mutate(ctx, m)
+	case *Ranking3v3Mutation:
+		return c.Ranking3v3.mutate(ctx, m)
 	case *ReplayFileMutation:
 		return c.ReplayFile.mutate(ctx, m)
 	case *UserMutation:
 		return c.User.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
+	}
+}
+
+// AnalyzerRaceMatchupClient is a client for the AnalyzerRaceMatchup schema.
+type AnalyzerRaceMatchupClient struct {
+	config
+}
+
+// NewAnalyzerRaceMatchupClient returns a client for the AnalyzerRaceMatchup from the given config.
+func NewAnalyzerRaceMatchupClient(c config) *AnalyzerRaceMatchupClient {
+	return &AnalyzerRaceMatchupClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `analyzerracematchup.Hooks(f(g(h())))`.
+func (c *AnalyzerRaceMatchupClient) Use(hooks ...Hook) {
+	c.hooks.AnalyzerRaceMatchup = append(c.hooks.AnalyzerRaceMatchup, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `analyzerracematchup.Intercept(f(g(h())))`.
+func (c *AnalyzerRaceMatchupClient) Intercept(interceptors ...Interceptor) {
+	c.inters.AnalyzerRaceMatchup = append(c.inters.AnalyzerRaceMatchup, interceptors...)
+}
+
+// Create returns a builder for creating a AnalyzerRaceMatchup entity.
+func (c *AnalyzerRaceMatchupClient) Create() *AnalyzerRaceMatchupCreate {
+	mutation := newAnalyzerRaceMatchupMutation(c.config, OpCreate)
+	return &AnalyzerRaceMatchupCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of AnalyzerRaceMatchup entities.
+func (c *AnalyzerRaceMatchupClient) CreateBulk(builders ...*AnalyzerRaceMatchupCreate) *AnalyzerRaceMatchupCreateBulk {
+	return &AnalyzerRaceMatchupCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *AnalyzerRaceMatchupClient) MapCreateBulk(slice any, setFunc func(*AnalyzerRaceMatchupCreate, int)) *AnalyzerRaceMatchupCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &AnalyzerRaceMatchupCreateBulk{err: fmt.Errorf("calling to AnalyzerRaceMatchupClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*AnalyzerRaceMatchupCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &AnalyzerRaceMatchupCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for AnalyzerRaceMatchup.
+func (c *AnalyzerRaceMatchupClient) Update() *AnalyzerRaceMatchupUpdate {
+	mutation := newAnalyzerRaceMatchupMutation(c.config, OpUpdate)
+	return &AnalyzerRaceMatchupUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *AnalyzerRaceMatchupClient) UpdateOne(_m *AnalyzerRaceMatchup) *AnalyzerRaceMatchupUpdateOne {
+	mutation := newAnalyzerRaceMatchupMutation(c.config, OpUpdateOne, withAnalyzerRaceMatchup(_m))
+	return &AnalyzerRaceMatchupUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *AnalyzerRaceMatchupClient) UpdateOneID(id int) *AnalyzerRaceMatchupUpdateOne {
+	mutation := newAnalyzerRaceMatchupMutation(c.config, OpUpdateOne, withAnalyzerRaceMatchupID(id))
+	return &AnalyzerRaceMatchupUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for AnalyzerRaceMatchup.
+func (c *AnalyzerRaceMatchupClient) Delete() *AnalyzerRaceMatchupDelete {
+	mutation := newAnalyzerRaceMatchupMutation(c.config, OpDelete)
+	return &AnalyzerRaceMatchupDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *AnalyzerRaceMatchupClient) DeleteOne(_m *AnalyzerRaceMatchup) *AnalyzerRaceMatchupDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *AnalyzerRaceMatchupClient) DeleteOneID(id int) *AnalyzerRaceMatchupDeleteOne {
+	builder := c.Delete().Where(analyzerracematchup.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &AnalyzerRaceMatchupDeleteOne{builder}
+}
+
+// Query returns a query builder for AnalyzerRaceMatchup.
+func (c *AnalyzerRaceMatchupClient) Query() *AnalyzerRaceMatchupQuery {
+	return &AnalyzerRaceMatchupQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeAnalyzerRaceMatchup},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a AnalyzerRaceMatchup entity by its id.
+func (c *AnalyzerRaceMatchupClient) Get(ctx context.Context, id int) (*AnalyzerRaceMatchup, error) {
+	return c.Query().Where(analyzerracematchup.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *AnalyzerRaceMatchupClient) GetX(ctx context.Context, id int) *AnalyzerRaceMatchup {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *AnalyzerRaceMatchupClient) Hooks() []Hook {
+	return c.hooks.AnalyzerRaceMatchup
+}
+
+// Interceptors returns the client interceptors.
+func (c *AnalyzerRaceMatchupClient) Interceptors() []Interceptor {
+	return c.inters.AnalyzerRaceMatchup
+}
+
+func (c *AnalyzerRaceMatchupClient) mutate(ctx context.Context, m *AnalyzerRaceMatchupMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&AnalyzerRaceMatchupCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&AnalyzerRaceMatchupUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&AnalyzerRaceMatchupUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&AnalyzerRaceMatchupDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown AnalyzerRaceMatchup mutation op: %q", m.Op())
 	}
 }
 
@@ -716,6 +867,139 @@ func (c *PlayerClient) mutate(ctx context.Context, m *PlayerMutation) (Value, er
 	}
 }
 
+// Ranking3v3Client is a client for the Ranking3v3 schema.
+type Ranking3v3Client struct {
+	config
+}
+
+// NewRanking3v3Client returns a client for the Ranking3v3 from the given config.
+func NewRanking3v3Client(c config) *Ranking3v3Client {
+	return &Ranking3v3Client{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `ranking3v3.Hooks(f(g(h())))`.
+func (c *Ranking3v3Client) Use(hooks ...Hook) {
+	c.hooks.Ranking3v3 = append(c.hooks.Ranking3v3, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `ranking3v3.Intercept(f(g(h())))`.
+func (c *Ranking3v3Client) Intercept(interceptors ...Interceptor) {
+	c.inters.Ranking3v3 = append(c.inters.Ranking3v3, interceptors...)
+}
+
+// Create returns a builder for creating a Ranking3v3 entity.
+func (c *Ranking3v3Client) Create() *Ranking3v3Create {
+	mutation := newRanking3v3Mutation(c.config, OpCreate)
+	return &Ranking3v3Create{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Ranking3v3 entities.
+func (c *Ranking3v3Client) CreateBulk(builders ...*Ranking3v3Create) *Ranking3v3CreateBulk {
+	return &Ranking3v3CreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *Ranking3v3Client) MapCreateBulk(slice any, setFunc func(*Ranking3v3Create, int)) *Ranking3v3CreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &Ranking3v3CreateBulk{err: fmt.Errorf("calling to Ranking3v3Client.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*Ranking3v3Create, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &Ranking3v3CreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Ranking3v3.
+func (c *Ranking3v3Client) Update() *Ranking3v3Update {
+	mutation := newRanking3v3Mutation(c.config, OpUpdate)
+	return &Ranking3v3Update{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *Ranking3v3Client) UpdateOne(_m *Ranking3v3) *Ranking3v3UpdateOne {
+	mutation := newRanking3v3Mutation(c.config, OpUpdateOne, withRanking3v3(_m))
+	return &Ranking3v3UpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *Ranking3v3Client) UpdateOneID(id int) *Ranking3v3UpdateOne {
+	mutation := newRanking3v3Mutation(c.config, OpUpdateOne, withRanking3v3ID(id))
+	return &Ranking3v3UpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Ranking3v3.
+func (c *Ranking3v3Client) Delete() *Ranking3v3Delete {
+	mutation := newRanking3v3Mutation(c.config, OpDelete)
+	return &Ranking3v3Delete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *Ranking3v3Client) DeleteOne(_m *Ranking3v3) *Ranking3v3DeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *Ranking3v3Client) DeleteOneID(id int) *Ranking3v3DeleteOne {
+	builder := c.Delete().Where(ranking3v3.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &Ranking3v3DeleteOne{builder}
+}
+
+// Query returns a query builder for Ranking3v3.
+func (c *Ranking3v3Client) Query() *Ranking3v3Query {
+	return &Ranking3v3Query{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeRanking3v3},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Ranking3v3 entity by its id.
+func (c *Ranking3v3Client) Get(ctx context.Context, id int) (*Ranking3v3, error) {
+	return c.Query().Where(ranking3v3.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *Ranking3v3Client) GetX(ctx context.Context, id int) *Ranking3v3 {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *Ranking3v3Client) Hooks() []Hook {
+	return c.hooks.Ranking3v3
+}
+
+// Interceptors returns the client interceptors.
+func (c *Ranking3v3Client) Interceptors() []Interceptor {
+	return c.inters.Ranking3v3
+}
+
+func (c *Ranking3v3Client) mutate(ctx context.Context, m *Ranking3v3Mutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&Ranking3v3Create{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&Ranking3v3Update{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&Ranking3v3UpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&Ranking3v3Delete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Ranking3v3 mutation op: %q", m.Op())
+	}
+}
+
 // ReplayFileClient is a client for the ReplayFile schema.
 type ReplayFileClient struct {
 	config
@@ -1033,9 +1317,11 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		Game, GameDetail, Player, ReplayFile, User []ent.Hook
+		AnalyzerRaceMatchup, Game, GameDetail, Player, Ranking3v3, ReplayFile,
+		User []ent.Hook
 	}
 	inters struct {
-		Game, GameDetail, Player, ReplayFile, User []ent.Interceptor
+		AnalyzerRaceMatchup, Game, GameDetail, Player, Ranking3v3, ReplayFile,
+		User []ent.Interceptor
 	}
 )

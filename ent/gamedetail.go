@@ -9,9 +9,9 @@ import (
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
-	"github.com/xungwoo/stareps/ent/game"
-	"github.com/xungwoo/stareps/ent/gamedetail"
-	"github.com/xungwoo/stareps/ent/schema"
+	"github.com/xungwoo/stareplays/ent/game"
+	"github.com/xungwoo/stareplays/ent/gamedetail"
+	"github.com/xungwoo/stareplays/ent/schema"
 )
 
 // GameDetail is the model entity for the GameDetail schema.

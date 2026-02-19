@@ -119,10 +119,10 @@ function setCurrentUser(name) {
   const normalized = String(name || "").trim();
   state.currentUser = normalized;
   if (normalized) {
-    localStorage.setItem("stareps_current_user", normalized);
+    localStorage.setItem("stareplays_current_user", normalized);
     playerQueryEl.value = normalized;
   } else {
-    localStorage.removeItem("stareps_current_user");
+    localStorage.removeItem("stareplays_current_user");
   }
   renderCurrentUser();
   renderRankingsTable(state.rankings || []);
@@ -1449,7 +1449,7 @@ function renderActiveVisualization() {
   }
 }
 
-setCurrentUser(localStorage.getItem("stareps_current_user") || "");
+setCurrentUser(localStorage.getItem("stareplays_current_user") || "");
 renderCurrentUser();
 if (getCurrentUser()) {
   playerQueryEl.value = getCurrentUser();

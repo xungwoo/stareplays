@@ -1,0 +1,7 @@
+interface:
+  display_name: "stareplays Snapshot Jobs"
+  short_description: "Tune ranking and analyzer job flows"
+  default_prompt: "Use $stareplays-snapshot-job-optimizer to improve ranking or analyzer snapshot job performance and reliability."
+
+policy:
+  allow_implicit_invocation: true
