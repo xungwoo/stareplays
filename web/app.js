@@ -22,6 +22,10 @@ const apmLegendEl = document.getElementById("apmLegend");
 const vizTabsEl = document.getElementById("vizTabs");
 const chartHintEl = document.getElementById("chartHint");
 const techEventInfoEl = document.getElementById("techEventInfo");
+const spendUserControlEl = document.getElementById("spendUserControl");
+const techTreeSummaryEl = document.getElementById("techTreeSummary");
+const gameDetailVizPanelEl = document.getElementById("gameDetailVizPanel");
+const toggleVizFullscreenEl = document.getElementById("toggleVizFullscreen");
 
 const state = {
   games: [],
@@ -29,6 +33,12 @@ const state = {
   highlightedPlayer: null,
   activeVizTab: "apm",
   gameDetail: null,
+  techTree: null,
+  unitProduction: null,
+  unitProductionVersions: null,
+  resourceSpend: null,
+  resourceSpendFocus: { player: "", mode: "both" },
+  techFocus: null,
   techMarkers: [],
   pendingFiles: [],
   pendingCommonPlayers: [],
@@ -38,6 +48,7 @@ const state = {
   gamesPageSize: 6,
   gamesTotal: 0,
   rankings: [],
+  vizFullscreen: false,
 };
 const chartPalette = ["#2D3139", "#275DAD", "#7B2CBF", "#C44536", "#0A8F6A", "#AF6E0D", "#5A4FCF", "#39424E"];
 
@@ -49,6 +60,27 @@ function addLog(message) {
   while (systemLogsEl.children.length > 14) {
     systemLogsEl.removeChild(systemLogsEl.lastChild);
   }
+}
+
+function applyVizFullscreenUi() {
+  if (!gameDetailVizPanelEl || !toggleVizFullscreenEl) return;
+  if (state.vizFullscreen) {
+    gameDetailVizPanelEl.classList.add("viz-panel-fullscreen");
+    document.body.classList.add("viz-fullscreen-lock");
+    toggleVizFullscreenEl.textContent = "작게 보기";
+  } else {
+    gameDetailVizPanelEl.classList.remove("viz-panel-fullscreen");
+    document.body.classList.remove("viz-fullscreen-lock");
+    toggleVizFullscreenEl.textContent = "크게 보기";
+  }
+}
+
+function toggleVizFullscreen() {
+  state.vizFullscreen = !state.vizFullscreen;
+  applyVizFullscreenUi();
+  setTimeout(() => {
+    renderActiveVisualization();
+  }, 0);
 }
 
 async function api(url, options = {}) {
@@ -281,11 +313,190 @@ function setTechEventInfo(text) {
   techEventInfoEl.textContent = text;
 }
 
+function clearTechTreeSummary() {
+  if (!techTreeSummaryEl) return;
+  techTreeSummaryEl.innerHTML = "";
+}
+
+function clearSpendUserControl() {
+  if (!spendUserControlEl) return;
+  spendUserControlEl.innerHTML = "";
+}
+
+function makeLegendControl(label, active, onClick) {
+  const btn = document.createElement("span");
+  btn.className = "inline-flex items-center gap-1 border border-[#2D3139] bg-white px-1.5 py-0.5 cursor-pointer";
+  btn.textContent = label;
+  if (active) {
+    btn.style.background = "#2D3139";
+    btn.style.color = "#E0E0E2";
+  }
+  btn.addEventListener("click", onClick);
+  return btn;
+}
+
+function renderUnitProductionSummary(unitProduction) {
+  if (!techTreeSummaryEl) return;
+  const rows = Array.isArray(unitProduction?.summaries) ? unitProduction.summaries : [];
+  if (!rows.length) {
+    techTreeSummaryEl.innerHTML = "";
+    return;
+  }
+  const source = String(unitProduction?.source || "-");
+  const body = rows
+    .map((r) => `
+      <tr>
+        <td>${escapeHtml(String(r.player_name || "-"))}</td>
+        <td class="tt-num">${Number(r.total || 0)}</td>
+        <td class="tt-num">${Number(r.worker || 0)}</td>
+        <td class="tt-num">${Number(r.army || 0)}</td>
+        <td class="tt-num">${Number(r.tech_unit || 0)}</td>
+      </tr>
+    `)
+    .join("");
+
+  techTreeSummaryEl.innerHTML = `
+    <div class="tt-wrap">
+      <div class="tt-head">UNIT_PRODUCTION_SUMMARY <span class="tt-source">source: ${escapeHtml(source)}</span></div>
+      <table class="tt-table">
+        <thead>
+          <tr>
+            <th>PLAYER</th>
+            <th>TOTAL</th>
+            <th>WORKER</th>
+            <th>ARMY</th>
+            <th>TECH_UNIT</th>
+          </tr>
+        </thead>
+        <tbody>${body}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderResourceSpendSummary(resourceSpend) {
+  if (!techTreeSummaryEl) return;
+  const rows = Array.isArray(resourceSpend?.summaries) ? resourceSpend.summaries : [];
+  if (!rows.length) {
+    techTreeSummaryEl.innerHTML = "";
+    return;
+  }
+  const source = String(resourceSpend?.source || "-");
+  const body = rows
+    .map((r) => {
+      const name = String(r.player_name || "-");
+      const selected = state.resourceSpendFocus?.player || "";
+      const cls = !selected || selected === name ? "tt-row-active" : "tt-row-dim";
+      return `
+      <tr class="${cls}">
+        <td>${escapeHtml(String(r.player_name || "-"))}</td>
+        <td class="tt-num">${Number(r.total_mineral || 0)}</td>
+        <td class="tt-num">${Number(r.total_gas || 0)}</td>
+        <td class="tt-num">${Number(r.total_spend || 0)}</td>
+      </tr>
+    `;
+    })
+    .join("");
+
+  techTreeSummaryEl.innerHTML = `
+    <div class="tt-wrap">
+      <div class="tt-head">RESOURCE_SPEND_SUMMARY <span class="tt-source">source: ${escapeHtml(source)}</span></div>
+      <table class="tt-table">
+        <thead>
+          <tr>
+            <th>PLAYER</th>
+            <th>MINERAL</th>
+            <th>GAS</th>
+            <th>TOTAL</th>
+          </tr>
+        </thead>
+        <tbody>${body}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderTechTreeSummary(techTree) {
+  if (!techTreeSummaryEl) return;
+  const rows = Array.isArray(techTree?.summary) ? techTree.summary : [];
+  if (!rows.length) {
+    techTreeSummaryEl.innerHTML = "";
+    return;
+  }
+
+  const source = String(techTree?.source || "-");
+  const current = state.highlightedPlayer;
+  const body = rows
+    .map((r) => {
+      const name = String(r.player_name || "-");
+      const active = !current || current === name;
+      const cls = active ? "tt-row-active" : "tt-row-dim";
+      const techCount = Number(r.tech_count || 0);
+      const upgCount = Number(r.upgrade_count || 0);
+      const isTechFocus = state.techFocus && state.techFocus.player === name && state.techFocus.kind === "tech";
+      const isUpgFocus = state.techFocus && state.techFocus.player === name && state.techFocus.kind === "upgrade";
+      return `
+        <tr class="${cls}">
+          <td>${escapeHtml(name)}</td>
+          <td class="tt-num">${
+            techCount > 0
+              ? `<button type="button" class="tt-filter-btn ${isTechFocus ? "tt-filter-on" : ""}" data-player="${escapeHtml(name)}" data-kind="tech">${techCount}</button>`
+              : "0"
+          }</td>
+          <td class="tt-num">${
+            upgCount > 0
+              ? `<button type="button" class="tt-filter-btn ${isUpgFocus ? "tt-filter-on" : ""}" data-player="${escapeHtml(name)}" data-kind="upgrade">${upgCount}</button>`
+              : "0"
+          }</td>
+          <td class="tt-num">${Number(r.prereq_build_count || 0)}</td>
+          <td class="tt-num">${Number(r.cancel_count || 0)}</td>
+          <td class="tt-num">${Number(r.ineff_count || 0)}</td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  techTreeSummaryEl.innerHTML = `
+    <div class="tt-wrap">
+      <div class="tt-head">TECH_TREE_SUMMARY <span class="tt-source">source: ${escapeHtml(source)}</span></div>
+      <table class="tt-table">
+        <thead>
+          <tr>
+            <th>PLAYER</th>
+            <th>TECH</th>
+            <th>UPG</th>
+            <th>PREREQ</th>
+            <th>CANCEL</th>
+            <th>INEFF</th>
+          </tr>
+        </thead>
+        <tbody>${body}</tbody>
+      </table>
+    </div>
+  `;
+}
+
 function frameToTimeText(frame) {
   const sec = Math.max(0, Math.floor(Number(frame || 0) / 23.81));
   const m = Math.floor(sec / 60);
   const s = sec % 60;
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+function pickTechMarkerByCanvasPos(x, y) {
+  if (!Array.isArray(state.techMarkers) || state.techMarkers.length === 0) return null;
+  let picked = null;
+  let minDist = Infinity;
+  for (const m of state.techMarkers) {
+    const dx = x - m.x;
+    const dy = y - m.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist <= m.r && dist < minDist) {
+      picked = m;
+      minDist = dist;
+    }
+  }
+  return picked;
 }
 
 function computeMatchup(players) {
@@ -527,7 +738,12 @@ async function loadGames(resetPage = false) {
 async function loadGameDetail(id) {
   selectedGameEl.innerHTML = '<div class="text-[#4A4F59]">FETCHING_GAME...</div>';
   state.highlightedPlayer = null;
+  state.techFocus = null;
   state.gameDetail = null;
+  state.techTree = null;
+  state.unitProduction = null;
+  state.unitProductionVersions = null;
+  state.resourceSpend = null;
   renderActiveVisualization();
   try {
     const [gameRes, detailRes] = await Promise.all([
@@ -538,6 +754,10 @@ async function loadGameDetail(id) {
       ? detailRes.detail.apm_timeline
       : [];
     state.gameDetail = detailRes.detail || null;
+    state.techTree = detailRes.tech_tree || null;
+    state.unitProduction = detailRes.unit_production || null;
+    state.unitProductionVersions = detailRes.unit_production_versions || null;
+    state.resourceSpend = detailRes.resource_spend || null;
     renderSelectedGameBoard(gameRes.game || null);
     state.chartTimelines = apmTimeline;
     renderActiveVisualization();
@@ -546,7 +766,12 @@ async function loadGameDetail(id) {
     selectedGameEl.innerHTML = `<div class="text-[#8a2f2f] font-bold">ERROR: ${escapeHtml(err.message)}</div>`;
     state.chartTimelines = [];
     state.highlightedPlayer = null;
+    state.techFocus = null;
     state.gameDetail = null;
+    state.techTree = null;
+    state.unitProduction = null;
+    state.unitProductionVersions = null;
+    state.resourceSpend = null;
     renderActiveVisualization();
     addLog(`ERROR_LOAD_DETAIL: #${id}`);
   }
@@ -996,7 +1221,56 @@ if (vizTabsEl) {
     });
   });
 }
+if (toggleVizFullscreenEl) {
+  toggleVizFullscreenEl.addEventListener("click", toggleVizFullscreen);
+}
+window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && state.vizFullscreen) {
+    state.vizFullscreen = false;
+    applyVizFullscreenUi();
+    renderActiveVisualization();
+  }
+});
+if (techTreeSummaryEl) {
+  techTreeSummaryEl.addEventListener("click", (e) => {
+    const target = e.target instanceof Element ? e.target : null;
+    if (!target) return;
+    const btn = target.closest(".tt-filter-btn");
+    if (!btn) return;
+
+    const player = String(btn.dataset.player || "").trim();
+    const kind = String(btn.dataset.kind || "").trim();
+    if (!player || !kind) return;
+
+    const curr = state.techFocus;
+    if (curr && curr.player === player && curr.kind === kind) {
+      state.techFocus = null;
+    } else {
+      state.techFocus = { player, kind };
+      state.highlightedPlayer = player;
+    }
+    renderActiveVisualization();
+  });
+}
 if (apmChartEl) {
+  apmChartEl.addEventListener("mousemove", (e) => {
+    if (state.activeVizTab !== "tech" || !Array.isArray(state.techMarkers) || state.techMarkers.length === 0) {
+      apmChartEl.style.cursor = "default";
+      return;
+    }
+    const rect = apmChartEl.getBoundingClientRect();
+    const scaleX = apmChartEl.width / rect.width;
+    const scaleY = apmChartEl.height / rect.height;
+    const x = (e.clientX - rect.left) * scaleX;
+    const y = (e.clientY - rect.top) * scaleY;
+    const picked = pickTechMarkerByCanvasPos(x, y);
+    apmChartEl.style.cursor = picked ? "pointer" : "default";
+  });
+
+  apmChartEl.addEventListener("mouseleave", () => {
+    apmChartEl.style.cursor = "default";
+  });
+
   apmChartEl.addEventListener("click", (e) => {
     if (state.activeVizTab !== "tech" || !Array.isArray(state.techMarkers) || state.techMarkers.length === 0) {
       return;
@@ -1006,22 +1280,12 @@ if (apmChartEl) {
     const scaleY = apmChartEl.height / rect.height;
     const x = (e.clientX - rect.left) * scaleX;
     const y = (e.clientY - rect.top) * scaleY;
-
-    let picked = null;
-    let minDist = Infinity;
-    for (const m of state.techMarkers) {
-      const dx = x - m.x;
-      const dy = y - m.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist <= m.r && dist < minDist) {
-        picked = m;
-        minDist = dist;
-      }
-    }
+    const picked = pickTechMarkerByCanvasPos(x, y);
     if (!picked) return;
 
-    const morphText = picked.isMorph ? "MORPH" : "TECH";
-    setTechEventInfo(`TECH_EVENT: ${picked.player} | ${picked.unit} | ${morphText} | F:${picked.frame} (${frameToTimeText(picked.frame)})`);
+    setTechEventInfo(
+      `TECH_EVENT: ${picked.player} | ${picked.name} | ${picked.kind.toUpperCase()} | ${picked.status.toUpperCase()} | Q:${picked.quality} | F:${picked.frame} (${frameToTimeText(picked.frame)})`,
+    );
   });
 }
 window.addEventListener("resize", () => {
@@ -1029,19 +1293,6 @@ window.addEventListener("resize", () => {
 });
 
 const WINDOW_FRAMES = 238;
-
-const UNIT_COSTS = {
-  SCV: [50, 0], Probe: [50, 0], Drone: [50, 0], Marine: [50, 0], Medic: [50, 25], Firebat: [50, 25],
-  Vulture: [75, 0], "Siege Tank": [150, 100], Goliath: [100, 50], Wraith: [150, 100], Dropship: [100, 100],
-  ScienceVessel: [100, 225], Battlecruiser: [400, 300], Valkyrie: [250, 125], Ghost: [25, 75],
-  Zealot: [100, 0], Dragoon: [125, 50], HighTemplar: [50, 150], DarkTemplar: [125, 100], Archon: [0, 0],
-  Shuttle: [200, 200], Reaver: [200, 100], Observer: [25, 75], Corsair: [150, 100], Carrier: [350, 250],
-  Zergling: [50, 0], Hydralisk: [75, 25], Lurker: [50, 100], Mutalisk: [100, 100], Guardian: [50, 100],
-  Devourer: [150, 50], Ultralisk: [200, 200], Defiler: [50, 150], Queen: [100, 100], Overlord: [100, 0],
-  Hatchery: [300, 0], Lair: [150, 100], Hive: [200, 150], SpawningPool: [200, 0],
-  CommandCenter: [400, 0], Nexus: [400, 0], Barracks: [150, 0], Gateway: [150, 0], Factory: [200, 100],
-  Starport: [150, 100], RoboticsFacility: [200, 200], Stargate: [150, 150],
-};
 
 function setupChartCanvas() {
   if (!apmChartEl) return null;
@@ -1068,7 +1319,86 @@ function showChartEmpty(ctx, text) {
   ctx.fillText(text, 12, 22);
 }
 
-function renderMultiLineChart(series, title, ySuffix) {
+function renderTwoSeriesAreaChart(pointsA, pointsB, labelA, labelB) {
+  const setup = setupChartCanvas();
+  if (!setup) return;
+  const { ctx, width, height } = setup;
+  apmLegendEl.innerHTML = "";
+
+  const seriesA = Array.isArray(pointsA) ? pointsA : [];
+  const seriesB = Array.isArray(pointsB) ? pointsB : [];
+  if (!seriesA.length && !seriesB.length) {
+    showChartEmpty(ctx, "NO_RESOURCE_SPEND");
+    return;
+  }
+
+  let maxFrame = 1;
+  let maxValue = 1;
+  [...seriesA, ...seriesB].forEach((p) => {
+    maxFrame = Math.max(maxFrame, Number(p.frame || 0));
+    maxValue = Math.max(maxValue, Number(p.value || 0));
+  });
+
+  const padLeft = 44;
+  const padRight = 12;
+  const padTop = 10;
+  const padBottom = 24;
+  const plotW = width - padLeft - padRight;
+  const plotH = height - padTop - padBottom;
+
+  ctx.strokeStyle = "rgba(45,49,57,0.25)";
+  for (let i = 0; i <= 4; i++) {
+    const y = padTop + (plotH * i) / 4;
+    ctx.beginPath();
+    ctx.moveTo(padLeft, y);
+    ctx.lineTo(width - padRight, y);
+    ctx.stroke();
+  }
+
+  const drawArea = (series, fillColor, strokeColor) => {
+    if (!series.length) return;
+    ctx.beginPath();
+    series.forEach((p, i) => {
+      const x = padLeft + (plotW * Number(p.frame || 0)) / maxFrame;
+      const y = padTop + plotH - (plotH * Number(p.value || 0)) / maxValue;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    const lastX = padLeft + (plotW * Number(series[series.length - 1].frame || 0)) / maxFrame;
+    const firstX = padLeft + (plotW * Number(series[0].frame || 0)) / maxFrame;
+    ctx.lineTo(lastX, padTop + plotH);
+    ctx.lineTo(firstX, padTop + plotH);
+    ctx.closePath();
+    ctx.fillStyle = fillColor;
+    ctx.fill();
+
+    ctx.beginPath();
+    series.forEach((p, i) => {
+      const x = padLeft + (plotW * Number(p.frame || 0)) / maxFrame;
+      const y = padTop + plotH - (plotH * Number(p.value || 0)) / maxValue;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  };
+
+  drawArea(seriesA, "rgba(39,93,173,0.28)", "#275DAD");
+  drawArea(seriesB, "rgba(196,69,54,0.24)", "#C44536");
+
+  const legendA = document.createElement("span");
+  legendA.className = "inline-flex items-center gap-1 border border-[#2D3139] bg-white px-1.5 py-0.5";
+  legendA.innerHTML = `<span style="display:inline-block;width:8px;height:8px;background:#275DAD"></span><span>${escapeHtml(labelA)}</span>`;
+  apmLegendEl.appendChild(legendA);
+
+  const legendB = document.createElement("span");
+  legendB.className = "inline-flex items-center gap-1 border border-[#2D3139] bg-white px-1.5 py-0.5";
+  legendB.innerHTML = `<span style="display:inline-block;width:8px;height:8px;background:#C44536"></span><span>${escapeHtml(labelB)}</span>`;
+  apmLegendEl.appendChild(legendB);
+}
+
+function renderMultiLineChart(series, title, ySuffix, styleResolver) {
   const setup = setupChartCanvas();
   if (!setup) return;
   const { ctx, width, height } = setup;
@@ -1115,15 +1445,19 @@ function renderMultiLineChart(series, title, ySuffix) {
   ctx.fillText("frame", width - 42, height - 7);
 
   series.forEach((tl, idx) => {
-    const color = chartPalette[idx % chartPalette.length];
+    const style = typeof styleResolver === "function" ? (styleResolver(tl, idx) || {}) : {};
+    if (style.hidden) return;
+    const color = style.color || chartPalette[idx % chartPalette.length];
     const points = Array.isArray(tl.data_points) ? tl.data_points : [];
     if (!points.length) return;
     const playerName = tl.player_name || `P${idx + 1}`;
-    const isActive = !state.highlightedPlayer || state.highlightedPlayer === playerName;
-    const strokeColor = isActive ? color : "rgba(45,49,57,0.22)";
+    const useLocalHighlight = style.useLocalHighlight === true;
+    const isActive = useLocalHighlight ? style.active !== false : (!state.highlightedPlayer || state.highlightedPlayer === playerName);
+    const strokeColor = style.strokeColor || (isActive ? color : "rgba(45,49,57,0.22)");
 
     ctx.strokeStyle = strokeColor;
-    ctx.lineWidth = isActive ? 1.6 : 0.8;
+    ctx.lineWidth = Number(style.lineWidth || (isActive ? 1.6 : 0.8));
+    ctx.setLineDash(Array.isArray(style.lineDash) ? style.lineDash : []);
     ctx.beginPath();
     points.forEach((p, i) => {
       const x = padLeft + (plotW * Number(p.frame || 0)) / maxFrame;
@@ -1132,15 +1466,23 @@ function renderMultiLineChart(series, title, ySuffix) {
       else ctx.lineTo(x, y);
     });
     ctx.stroke();
+    ctx.setLineDash([]);
 
     const legend = document.createElement("span");
     legend.className = "inline-flex items-center gap-1 border border-[#2D3139] bg-white px-1.5 py-0.5 cursor-pointer";
-    legend.style.opacity = isActive ? "1" : "0.45";
-    legend.innerHTML = `<span style="display:inline-block;width:8px;height:8px;background:${color}"></span><span>${playerName}</span>`;
-    legend.addEventListener("click", () => {
-      state.highlightedPlayer = state.highlightedPlayer === playerName ? null : playerName;
-      renderActiveVisualization();
-    });
+    legend.style.opacity = String(style.legendOpacity || (isActive ? "1" : "0.45"));
+    const legendLabel = style.legendLabel || playerName;
+    legend.innerHTML = `<span style="display:inline-block;width:8px;height:8px;background:${color}"></span><span>${legendLabel}</span>`;
+    if (typeof style.onLegendClick === "function") {
+      legend.addEventListener("click", style.onLegendClick);
+    } else if (style.disableLegendClick) {
+      legend.style.cursor = "default";
+    } else {
+      legend.addEventListener("click", () => {
+        state.highlightedPlayer = state.highlightedPlayer === playerName ? null : playerName;
+        renderActiveVisualization();
+      });
+    }
     apmLegendEl.appendChild(legend);
   });
 }
@@ -1178,6 +1520,8 @@ function mapBuildOrdersToSeries(valueFn) {
 }
 
 function renderAPMTab() {
+  clearSpendUserControl();
+  clearTechTreeSummary();
   const apm = Array.isArray(state.chartTimelines) ? state.chartTimelines : [];
   const series = apm.map((tl) => ({
     player_name: tl.player_name,
@@ -1190,29 +1534,189 @@ function renderAPMTab() {
   chartHintEl.textContent = "범례를 클릭하면 플레이어 라인이 강조됩니다.";
 }
 
+function renderUnitProductionTab() {
+  clearSpendUserControl();
+  const versions = state.unitProductionVersions || {};
+  const v2 = versions.v2_effective_only || state.unitProduction || null;
+
+  const playerIndex = new Map();
+  const addPlayers = (dto) => {
+    const tls = Array.isArray(dto?.timelines) ? dto.timelines : [];
+    for (const tl of tls) {
+      const name = String(tl.player_name || "").trim();
+      if (!name || playerIndex.has(name)) continue;
+      playerIndex.set(name, playerIndex.size);
+    }
+  };
+  addPlayers(v2);
+
+  const toSeries = (dto) => {
+    const tls = Array.isArray(dto?.timelines) ? dto.timelines : [];
+    return tls.map((tl) => ({
+      player_name: tl.player_name,
+      player_base: String(tl.player_name || "").trim(),
+      data_points: (Array.isArray(tl.data_points) ? tl.data_points : []).map((p) => ({
+        frame: Number(p.frame || 0),
+        value: Number(p.count || 0),
+      })),
+    }));
+  };
+
+  const series = [];
+  series.push(...toSeries(v2));
+
+  const styleResolver = (tl) => {
+    const base = String(tl.player_base || "");
+    const idx = playerIndex.has(base) ? playerIndex.get(base) : 0;
+    const color = chartPalette[idx % chartPalette.length];
+    const isActive = !state.highlightedPlayer || state.highlightedPlayer === base;
+    const onLegendClick = () => {
+      state.highlightedPlayer = state.highlightedPlayer === base ? null : base;
+      renderActiveVisualization();
+    };
+    return {
+      useLocalHighlight: true,
+      active: isActive,
+      color,
+      strokeColor: isActive ? color : "rgba(45,49,57,0.22)",
+      lineWidth: isActive ? 1.8 : 0.9,
+      lineDash: [],
+      legendLabel: base,
+      legendOpacity: isActive ? "1" : "0.45",
+      onLegendClick,
+    };
+  };
+
+  renderMultiLineChart(series, "UNIT_PRODUCTION", "", styleResolver);
+
+  renderUnitProductionSummary(v2);
+  chartHintEl.textContent = "시간 구간별 유닛 생산량(유효 생산 기준)입니다.";
+}
+
 function renderSpendTab() {
-  const series = mapBuildOrdersToSeries((ev) => {
-    const unit = String(ev.unit || "");
-    const [m, g] = UNIT_COSTS[unit] || [0, 0];
-    return m + g;
+  const rs = state.resourceSpend;
+  const timelines = Array.isArray(rs?.timelines) ? rs.timelines : [];
+  if (!timelines.length) {
+    clearSpendUserControl();
+    clearTechTreeSummary();
+    renderMultiLineChart([], "RESOURCE_SPEND", "");
+    chartHintEl.textContent = "데이터가 없습니다.";
+    return;
+  }
+  const players = timelines
+    .map((t) => String(t.player_name || "").trim())
+    .filter(Boolean);
+  const focus = state.resourceSpendFocus || { player: "", mode: "both" };
+  const selectedPlayer = players.includes(focus.player) ? focus.player : "";
+  const selectedMode = focus.mode === "mineral" || focus.mode === "gas" ? focus.mode : "both";
+  state.resourceSpendFocus = { player: selectedPlayer, mode: selectedMode };
+
+  const series = [];
+  for (const tl of timelines) {
+    const base = String(tl.player_name || "");
+    const points = Array.isArray(tl.data_points) ? tl.data_points : [];
+    const mineralPoints = points.map((p) => ({
+      frame: Number(p.frame || 0),
+      value: Number(p.mineral || 0),
+    }));
+    const gasPoints = points.map((p) => ({
+      frame: Number(p.frame || 0),
+      value: Number(p.gas || 0),
+    }));
+    series.push({ player_name: `${base} [M]`, player_base: base, resource_kind: "mineral", data_points: mineralPoints });
+    series.push({ player_name: `${base} [G]`, player_base: base, resource_kind: "gas", data_points: gasPoints });
+  }
+
+  const styleResolver = (tl, idx) => {
+    const kind = tl.resource_kind;
+    const base = String(tl.player_base || "");
+    const isFocusedMode = Boolean(selectedPlayer);
+    if (isFocusedMode && selectedMode === "mineral" && kind === "gas") return { hidden: true };
+    if (isFocusedMode && selectedMode === "gas" && kind === "mineral") return { hidden: true };
+    const onLegendClick = () => {
+      state.resourceSpendFocus = { player: base, mode: "both" };
+      state.highlightedPlayer = null;
+      renderActiveVisualization();
+    };
+    if (!selectedPlayer) {
+      return {
+        useLocalHighlight: true,
+        active: true,
+        color: chartPalette[idx % chartPalette.length],
+        strokeColor: chartPalette[idx % chartPalette.length],
+        lineWidth: 1.3,
+        legendOpacity: "1",
+        onLegendClick,
+      };
+    }
+    const isSelected = base === selectedPlayer;
+    const baseColor = chartPalette[idx % chartPalette.length];
+    return {
+      useLocalHighlight: true,
+      active: isSelected,
+      color: isSelected ? baseColor : "rgba(45,49,57,0.45)",
+      strokeColor: isSelected ? baseColor : "rgba(45,49,57,0.24)",
+      lineWidth: isSelected ? 1.8 : 0.9,
+      legendOpacity: isSelected ? "1" : "0.45",
+      onLegendClick,
+    };
+  };
+
+  renderMultiLineChart(series, "RESOURCE_SPEND (PLAYER M/G)", "", styleResolver);
+  const allBtn = makeLegendControl("ALL", !selectedPlayer, () => {
+    state.resourceSpendFocus = { player: "", mode: "both" };
+    state.highlightedPlayer = null;
+    renderActiveVisualization();
   });
-  renderMultiLineChart(series, "RESOURCE_SPEND", "");
-  chartHintEl.textContent = "build/train/morph 이벤트 기반 자원 소모량(추정치)입니다.";
+  apmLegendEl.insertBefore(allBtn, apmLegendEl.firstChild);
+  if (selectedPlayer) {
+    const bothBtn = makeLegendControl("MINERAL + GAS", selectedMode === "both", () => {
+      state.resourceSpendFocus = { player: selectedPlayer, mode: "both" };
+      state.highlightedPlayer = null;
+      renderActiveVisualization();
+    });
+    const mineralBtn = makeLegendControl("MINERAL", selectedMode === "mineral", () => {
+      state.resourceSpendFocus = { player: selectedPlayer, mode: "mineral" };
+      state.highlightedPlayer = null;
+      renderActiveVisualization();
+    });
+    const gasBtn = makeLegendControl("GAS", selectedMode === "gas", () => {
+      state.resourceSpendFocus = { player: selectedPlayer, mode: "gas" };
+      state.highlightedPlayer = null;
+      renderActiveVisualization();
+    });
+    apmLegendEl.insertBefore(gasBtn, allBtn.nextSibling);
+    apmLegendEl.insertBefore(mineralBtn, allBtn.nextSibling);
+    apmLegendEl.insertBefore(bothBtn, allBtn.nextSibling);
+  }
+  renderResourceSpendSummary(rs);
+  if (!selectedPlayer) {
+    chartHintEl.textContent = "전체 플레이어 조회 모드입니다. 플레이어 버튼([M]/[G])을 클릭하면 해당 플레이어가 선택됩니다.";
+  } else if (selectedMode === "both") {
+    chartHintEl.textContent = `${selectedPlayer} 선택 상태: Mineral/Gas 동시 조회`;
+  } else if (selectedMode === "mineral") {
+    chartHintEl.textContent = `${selectedPlayer} Mineral 강조, Gas 숨김`;
+  } else {
+    chartHintEl.textContent = `${selectedPlayer} Gas 강조, Mineral 숨김`;
+  }
 }
 
 function renderProductionTab() {
+  clearSpendUserControl();
+  clearTechTreeSummary();
   const series = mapBuildOrdersToSeries(() => 1);
   renderMultiLineChart(series, "PRODUCTION", "");
   chartHintEl.textContent = "시간 구간별 생산 이벤트 개수입니다.";
 }
 
-function isTechLikeUnit(unitName) {
-  const u = String(unitName || "").toLowerCase();
-  const keys = ["academy", "armory", "engineering", "science", "observatory", "citadel", "templar", "archives", "spire", "queen", "defiler", "lair", "hive"];
-  return keys.some((k) => u.includes(k));
+function getTechTreeData() {
+  const tt = state.techTree;
+  if (!tt || !Array.isArray(tt.events)) return null;
+  return tt;
 }
 
 function renderTechTab() {
+  clearSpendUserControl();
   const setup = setupChartCanvas();
   if (!setup) return;
   const { ctx, width, height } = setup;
@@ -1220,70 +1724,126 @@ function renderTechTab() {
   state.techMarkers = [];
   setTechEventInfo("TECH_EVENT: CLICK_MARKER_TO_VIEW");
 
-  const buildOrders = getBuildOrders();
-  if (!buildOrders.length) {
+  const techTree = getTechTreeData();
+  if (!techTree || !Array.isArray(techTree.events) || techTree.events.length === 0) {
+    clearTechTreeSummary();
     showChartEmpty(ctx, "NO_TECH_TIMING");
     chartHintEl.textContent = "데이터가 없습니다.";
     return;
   }
 
+  const events = techTree.events
+    .filter((ev) => ev && ev.player_name && ev.frame != null)
+    .slice()
+    .sort((a, b) => Number(a.frame || 0) - Number(b.frame || 0));
+
+  const players = Array.isArray(techTree.players)
+    ? techTree.players.map((p) => String(p.name || "").trim()).filter(Boolean)
+    : [];
+  const playerSet = new Set(players);
+  for (const ev of events) {
+    const name = String(ev.player_name || "").trim();
+    if (name && !playerSet.has(name)) {
+      players.push(name);
+      playerSet.add(name);
+    }
+  }
+  if (!players.length) {
+    clearTechTreeSummary();
+    showChartEmpty(ctx, "NO_TECH_TIMING");
+    chartHintEl.textContent = "데이터가 없습니다.";
+    return;
+  }
+
+  const eventsByPlayer = new Map();
+  for (const name of players) eventsByPlayer.set(name, []);
+  for (const ev of events) {
+    const name = String(ev.player_name || "").trim();
+    if (!eventsByPlayer.has(name)) eventsByPlayer.set(name, []);
+    eventsByPlayer.get(name).push(ev);
+  }
+
   let maxFrame = 1;
-  buildOrders.forEach((bo) => {
-    (bo.events || []).forEach((ev) => { maxFrame = Math.max(maxFrame, Number(ev.frame || 0)); });
-  });
+  events.forEach((ev) => { maxFrame = Math.max(maxFrame, Number(ev.frame || 0)); });
 
   const padLeft = 110;
   const padRight = 14;
   const padTop = 14;
   const padBottom = 18;
   const plotW = width - padLeft - padRight;
-  const rowH = (height - padTop - padBottom) / Math.max(1, buildOrders.length);
+  const rowH = (height - padTop - padBottom) / Math.max(1, players.length);
 
-  buildOrders.forEach((bo, i) => {
+  players.forEach((playerName, i) => {
     const y = padTop + rowH * i + rowH / 2;
     ctx.fillStyle = "#4A4F59";
     ctx.font = "10px 'Roboto Mono'";
-    ctx.fillText(String(bo.player_name || "-").slice(0, 16), 8, y + 3);
+    ctx.fillText(String(playerName || "-").slice(0, 16), 8, y + 3);
     ctx.strokeStyle = "rgba(45,49,57,0.14)";
     ctx.beginPath();
     ctx.moveTo(padLeft, y);
     ctx.lineTo(width - padRight, y);
     ctx.stroke();
 
-    const active = !state.highlightedPlayer || state.highlightedPlayer === bo.player_name;
-    ctx.fillStyle = active ? chartPalette[i % chartPalette.length] : "rgba(45,49,57,0.2)";
-    (bo.events || []).forEach((ev) => {
-      if (!ev.is_morph && !isTechLikeUnit(ev.unit)) return;
+    const active = !state.highlightedPlayer || state.highlightedPlayer === playerName;
+    const focus = state.techFocus;
+    const hasFocus = Boolean(focus && focus.player && focus.kind);
+    (eventsByPlayer.get(playerName) || []).forEach((ev) => {
+      const kind = String(ev.kind || "");
+      const focusedMatch = !hasFocus || (focus.player === playerName && focus.kind === kind);
+      const markerColor = active && focusedMatch
+        ? chartPalette[i % chartPalette.length]
+        : "rgba(45,49,57,0.18)";
+      ctx.fillStyle = markerColor;
+
       const x = padLeft + (plotW * Number(ev.frame || 0)) / maxFrame;
+      let radius = 2.8;
+      if (kind === "tech_cancel" || kind === "upgrade_cancel") radius = 3.4;
+      if (!focusedMatch) radius = Math.max(2.0, radius - 0.8);
+      radius += 0.6;
       ctx.beginPath();
-      ctx.arc(x, y, 2.8, 0, Math.PI * 2);
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
+      if (focusedMatch) {
+        ctx.strokeStyle = "rgba(255,255,255,0.85)";
+        ctx.lineWidth = 1.1;
+        ctx.stroke();
+      }
       state.techMarkers.push({
         x,
         y,
-        r: 6,
-        player: bo.player_name || "-",
-        unit: ev.unit || "-",
+        r: 11,
+        player: playerName || "-",
+        name: ev.name || "-",
+        kind: ev.kind || "tech",
+        status: ev.status || "started",
+        quality: ev.quality || "effective",
         frame: Number(ev.frame || 0),
-        isMorph: Boolean(ev.is_morph),
       });
     });
 
     const legend = document.createElement("span");
     legend.className = "inline-flex items-center gap-1 border border-[#2D3139] bg-white px-1.5 py-0.5 cursor-pointer";
     legend.style.opacity = active ? "1" : "0.45";
-    legend.innerHTML = `<span style="display:inline-block;width:8px;height:8px;background:${chartPalette[i % chartPalette.length]}"></span><span>${bo.player_name}</span>`;
+    legend.innerHTML = `<span style="display:inline-block;width:8px;height:8px;background:${chartPalette[i % chartPalette.length]}"></span><span>${playerName}</span>`;
     legend.addEventListener("click", () => {
-      state.highlightedPlayer = state.highlightedPlayer === bo.player_name ? null : bo.player_name;
+      state.highlightedPlayer = state.highlightedPlayer === playerName ? null : playerName;
+      state.techFocus = null;
       renderActiveVisualization();
     });
     apmLegendEl.appendChild(legend);
   });
 
-  chartHintEl.textContent = "Morph + 주요 테크 구조물 타이밍입니다.";
+  renderTechTreeSummary(techTree);
+  if (state.techFocus) {
+    chartHintEl.textContent = `필터: ${state.techFocus.player} / ${state.techFocus.kind.toUpperCase()} 강조`;
+  } else {
+    chartHintEl.textContent = "Tech/UPG 숫자를 클릭하면 해당 플레이어의 해당 이벤트만 강조됩니다.";
+  }
 }
 
 function renderBattleTab() {
+  clearSpendUserControl();
+  clearTechTreeSummary();
   const setup = setupChartCanvas();
   if (!setup) return;
   const { ctx, width, height } = setup;
@@ -1332,6 +1892,8 @@ function renderBattleTab() {
 }
 
 function renderActionMixTab() {
+  clearSpendUserControl();
+  clearTechTreeSummary();
   const setup = setupChartCanvas();
   if (!setup) return;
   const { ctx, width, height } = setup;
@@ -1427,6 +1989,9 @@ function renderActiveVisualization() {
     setTechEventInfo("TECH_EVENT: NONE_SELECTED");
   }
   switch (state.activeVizTab) {
+    case "unitprod":
+      renderUnitProductionTab();
+      break;
     case "spend":
       renderSpendTab();
       break;

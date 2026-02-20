@@ -101,10 +101,14 @@
           <h3 class="text-[10px] font-bold uppercase tracking-widest border-b border-[#2D3139] mb-3 pb-1">Selected_Game</h3>
           <div id="selectedGame" class="border border-[#2D3139] bg-white/40 p-3 text-[10px]">SELECT_GAME</div>
         </article>
-        <article class="border border-[#2D3139] p-4 bg-white/30">
-          <h3 class="text-[10px] font-bold uppercase tracking-widest border-b border-[#2D3139] mb-3 pb-1">Game_Detail_Visualization</h3>
+        <article id="gameDetailVizPanel" class="border border-[#2D3139] p-4 bg-white/30">
+          <div class="flex items-center justify-between border-b border-[#2D3139] mb-3 pb-1">
+            <h3 class="text-[10px] font-bold uppercase tracking-widest">Game_Detail_Visualization</h3>
+            <button id="toggleVizFullscreen" type="button" class="border border-[#2D3139] bg-white/60 px-2 py-1 text-[10px] font-bold uppercase hover:bg-white/90">크게 보기</button>
+          </div>
           <div id="vizTabs" class="mb-2 flex flex-wrap gap-1 text-[10px] font-bold uppercase">
             <button type="button" data-viz-tab="apm" class="viz-tab-btn border border-[#2D3139] bg-[#2D3139] text-[#E0E0E2] px-2 py-1">APM</button>
+            <button type="button" data-viz-tab="unitprod" class="viz-tab-btn border border-[#2D3139] bg-white/60 px-2 py-1">Unit Production</button>
             <button type="button" data-viz-tab="spend" class="viz-tab-btn border border-[#2D3139] bg-white/60 px-2 py-1">Resource Spend</button>
             <button type="button" data-viz-tab="production" class="viz-tab-btn border border-[#2D3139] bg-white/60 px-2 py-1">Production</button>
             <button type="button" data-viz-tab="tech" class="viz-tab-btn border border-[#2D3139] bg-white/60 px-2 py-1">Tech / Upgrade</button>
@@ -121,6 +125,7 @@
           <div id="techEventInfo" class="mt-1 text-[10px] font-bold text-[#4A4F59] uppercase">
             TECH_EVENT: NONE_SELECTED
           </div>
+          <div id="techTreeSummary" class="mt-2"></div>
         </article>
       </section>
 

@@ -818,8 +818,12 @@ func GetGameDetail(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"game":   g,
-		"detail": g.Edges.GameDetail,
+		"game":                     g,
+		"detail":                   g.Edges.GameDetail,
+		"tech_tree":                buildTechTreeDTO(g, g.Edges.GameDetail),
+		"unit_production":          buildUnitProductionDTO(g.Edges.GameDetail, g.Edges.Players),
+		"unit_production_versions": buildUnitProductionVersionsDTO(g.Edges.GameDetail, g.Edges.Players),
+		"resource_spend":           buildResourceSpendDTO(g.Edges.GameDetail, g.Edges.Players),
 	})
 }
 
