@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -820,11 +821,98 @@ func GetGameDetail(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"game":                     g,
 		"detail":                   g.Edges.GameDetail,
+		"analysis_status":          buildAnalysisStatus(g.Edges.GameDetail),
 		"tech_tree":                buildTechTreeDTO(g, g.Edges.GameDetail),
 		"unit_production":          buildUnitProductionDTO(g.Edges.GameDetail, g.Edges.Players),
 		"unit_production_versions": buildUnitProductionVersionsDTO(g.Edges.GameDetail, g.Edges.Players),
 		"resource_spend":           buildResourceSpendDTO(g.Edges.GameDetail, g.Edges.Players),
 	})
+}
+
+func buildAnalysisStatus(detail *ent.GameDetail) fiber.Map {
+	if detail == nil {
+		return fiber.Map{
+			"status":                "missing",
+			"recomputable":          false,
+			"recommended_action":    "reupload_replay",
+			"user_message":          "구버전 분석 데이터입니다. replay 재업로드가 필요합니다.",
+			"has_build_orders":      false,
+			"has_compressed_orders": false,
+		}
+	}
+
+	rawOrders := detail.BuildOrders
+	compressedOrders := detail.CompressedBuildOrders
+	hasRaw := len(rawOrders) > 0
+	hasCompressed := len(compressedOrders) > 0
+
+	totalEvents := 0
+	typedEvents := 0
+	for _, bo := range rawOrders {
+		for _, ev := range bo.Events {
+			totalEvents++
+			if strings.TrimSpace(ev.EventType) != "" {
+				typedEvents++
+			}
+		}
+	}
+
+	eventTypeCoverage := 0.0
+	if totalEvents > 0 {
+		eventTypeCoverage = (float64(typedEvents) / float64(totalEvents)) * 100
+	}
+
+	rawBytes := estimateJSONBytes(rawOrders)
+	compressedBytes := estimateJSONBytes(compressedOrders)
+	chatBytes := estimateJSONBytes(detail.ChatMessages)
+	totalBytes := rawBytes + compressedBytes + chatBytes
+
+	storageTier := "small"
+	switch {
+	case totalBytes >= 2*1024*1024:
+		storageTier = "large"
+	case totalBytes >= 512*1024:
+		storageTier = "medium"
+	}
+
+	status := "ready"
+	recommended := "none"
+	message := "최신 분석 데이터입니다."
+	switch {
+	case !hasRaw:
+		status = "missing"
+		recommended = "reupload_replay"
+		message = "구버전 분석 데이터입니다. replay 재업로드를 권장합니다."
+	case !hasCompressed:
+		status = "partial"
+		recommended = "reupload_replay_recommended"
+		message = "일부 분석 데이터가 누락되었습니다. replay 재업로드를 권장합니다."
+	case eventTypeCoverage < 90:
+		status = "stale"
+		recommended = "reupload_replay_recommended"
+		message = "구형 이벤트 메타가 포함되어 정확도가 낮을 수 있습니다. replay 재업로드를 권장합니다."
+	}
+
+	return fiber.Map{
+		"status":                status,
+		"recomputable":          hasRaw,
+		"recommended_action":    recommended,
+		"user_message":          message,
+		"has_build_orders":      hasRaw,
+		"has_compressed_orders": hasCompressed,
+		"raw_event_count":       totalEvents,
+		"typed_event_coverage":  math.Round(eventTypeCoverage*10) / 10,
+		"estimated_size_bytes":  totalBytes,
+		"estimated_size_tier":   storageTier,
+	}
+}
+
+func estimateJSONBytes(v interface{}) int {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return 0
+	}
+	return len(b)
 }
 
 // DeleteGame deletes a game and all related entities (cascade).

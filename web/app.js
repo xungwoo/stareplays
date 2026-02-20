@@ -24,6 +24,7 @@ const chartHintEl = document.getElementById("chartHint");
 const techEventInfoEl = document.getElementById("techEventInfo");
 const spendUserControlEl = document.getElementById("spendUserControl");
 const techTreeSummaryEl = document.getElementById("techTreeSummary");
+const analysisNoticeEl = document.getElementById("analysisNotice");
 const gameDetailVizPanelEl = document.getElementById("gameDetailVizPanel");
 const toggleVizFullscreenEl = document.getElementById("toggleVizFullscreen");
 
@@ -33,6 +34,7 @@ const state = {
   highlightedPlayer: null,
   activeVizTab: "apm",
   gameDetail: null,
+  analysisStatus: null,
   techTree: null,
   unitProduction: null,
   unitProductionVersions: null,
@@ -73,6 +75,29 @@ function applyVizFullscreenUi() {
     document.body.classList.remove("viz-fullscreen-lock");
     toggleVizFullscreenEl.textContent = "크게 보기";
   }
+}
+
+function renderAnalysisNotice() {
+  if (!analysisNoticeEl) return;
+  const s = state.analysisStatus;
+  const status = String(s?.status || "").toLowerCase();
+  if (!s || status === "ready") {
+    analysisNoticeEl.classList.add("hidden");
+    analysisNoticeEl.innerHTML = "";
+    return;
+  }
+  const msg = escapeHtml(String(s.user_message || "구버전 분석 데이터입니다. replay 재업로드를 권장합니다."));
+  const tier = escapeHtml(String(s.estimated_size_tier || "-"));
+  const sizeBytes = Number(s.estimated_size_bytes || 0);
+  const sizeKB = Math.round(sizeBytes / 102.4) / 10;
+  const typed = Number(s.typed_event_coverage || 0);
+  analysisNoticeEl.classList.remove("hidden");
+  analysisNoticeEl.className = "analysis-notice mb-2";
+  analysisNoticeEl.innerHTML = `
+    <div>${msg}</div>
+    <div class="analysis-notice-meta mt-1">STATUS: ${escapeHtml(status.toUpperCase())} | STORED_DETAIL: ${sizeKB} KB (${tier}) | TYPED_EVENT_COVERAGE: ${typed}%</div>
+    <div class="analysis-notice-meta">권장 조치: 동일 게임 replay 재업로드 후 최신 분석 반영</div>
+  `;
 }
 
 function toggleVizFullscreen() {
@@ -740,6 +765,7 @@ async function loadGameDetail(id) {
   state.highlightedPlayer = null;
   state.techFocus = null;
   state.gameDetail = null;
+  state.analysisStatus = null;
   state.techTree = null;
   state.unitProduction = null;
   state.unitProductionVersions = null;
@@ -754,6 +780,7 @@ async function loadGameDetail(id) {
       ? detailRes.detail.apm_timeline
       : [];
     state.gameDetail = detailRes.detail || null;
+    state.analysisStatus = detailRes.analysis_status || null;
     state.techTree = detailRes.tech_tree || null;
     state.unitProduction = detailRes.unit_production || null;
     state.unitProductionVersions = detailRes.unit_production_versions || null;
@@ -768,6 +795,7 @@ async function loadGameDetail(id) {
     state.highlightedPlayer = null;
     state.techFocus = null;
     state.gameDetail = null;
+    state.analysisStatus = null;
     state.techTree = null;
     state.unitProduction = null;
     state.unitProductionVersions = null;
@@ -1983,6 +2011,7 @@ function syncVizTabUi() {
 }
 
 function renderActiveVisualization() {
+  renderAnalysisNotice();
   syncVizTabUi();
   if (state.activeVizTab !== "tech") {
     state.techMarkers = [];

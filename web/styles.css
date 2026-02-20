@@ -553,6 +553,21 @@ body.viz-fullscreen-lock {
   overflow: hidden;
 }
 
+.analysis-notice {
+  border: 1px solid #8a2f2f;
+  background: #f2d9d9;
+  color: #8a2f2f;
+  padding: 6px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.analysis-notice-meta {
+  color: #4a4f59;
+  font-weight: 600;
+}
+
 #gameDetailVizPanel.viz-panel-fullscreen #techTreeSummary .tt-wrap {
   display: inline-block;
   width: auto;
