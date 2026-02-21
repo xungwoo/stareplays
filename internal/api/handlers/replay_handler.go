@@ -30,10 +30,11 @@ import (
 var errAlreadyUploadedByUser = errors.New("this user already uploaded a replay for the game")
 
 const (
-	defaultReplayUploadDir       = "/tmp/stareplays/uploads"
-	defaultReplayMaxSizeMB       = 30
-	maxReplayParseWorkers        = 4
-	bytesPerMB             int64 = 1024 * 1024
+	defaultReplayUploadDir              = "/tmp/stareplays/uploads"
+	defaultReplayMaxSizeMB              = 30
+	maxReplayParseWorkers               = 4
+	invalidGameMaxDurationSeconds       = 120
+	bytesPerMB                    int64 = 1024 * 1024
 )
 
 // ParseReplayRequest represents the request to parse a replay file.
@@ -248,6 +249,9 @@ func processParsedReplayResult(ctx context.Context, parsed *parser.ParsedGame, u
 			"details": err.Error(),
 		}
 	}
+
+	// Game policy: playtime <= 2 minutes is treated as invalid draw (no winner/loser).
+	normalizeParsedOutcomeForShortGame(parsed)
 
 	// Same replay hash already exists: do not re-parse game data, only increase reliability.
 	existingReplay, err := database.Client.ReplayFile.
@@ -1026,6 +1030,21 @@ func ensureUsers(ctx context.Context, tx *ent.Tx, players []parser.ParsedPlayer)
 	return nil
 }
 
+func isInvalidShortGameLength(seconds int) bool {
+	return seconds > 0 && seconds <= invalidGameMaxDurationSeconds
+}
+
+func normalizeParsedOutcomeForShortGame(parsed *parser.ParsedGame) {
+	if parsed == nil || !isInvalidShortGameLength(parsed.GameLength) {
+		return
+	}
+	parsed.WinnerTeam = 0
+	for i := range parsed.Players {
+		parsed.Players[i].IsWinner = false
+		parsed.Players[i].Result = "draw"
+	}
+}
+
 func isUploaderInParsedPlayers(players []parser.ParsedPlayer, uploaderName string) bool {
 	name := strings.TrimSpace(uploaderName)
 	for _, p := range players {
@@ -1094,7 +1113,10 @@ func GetPlayerStats(c *fiber.Ctx) error {
 	// Get all player records with game data
 	playerRecords, err := database.Client.Player.
 		Query().
-		Where(player.NameEQ(playerName)).
+		Where(
+			player.NameEQ(playerName),
+			player.HasGameWith(game.GameLengthGT(invalidGameMaxDurationSeconds)),
+		).
 		WithGame().
 		All(ctx)
 	if err != nil {
@@ -1147,7 +1169,10 @@ func GetPlayerStats(c *fiber.Ctx) error {
 	if len(gameIDs) > 0 {
 		playersInGames, err := database.Client.Player.
 			Query().
-			Where(player.HasGameWith(game.IDIn(gameIDs...))).
+			Where(player.HasGameWith(
+				game.IDIn(gameIDs...),
+				game.GameLengthGT(invalidGameMaxDurationSeconds),
+			)).
 			WithGame().
 			All(ctx)
 		if err != nil {

@@ -6,6 +6,7 @@ const previewSummaryEl = document.getElementById("previewSummary");
 const parsedUploaderSelectEl = document.getElementById("parsedUploaderSelect");
 const uploadWithSelectedBtnEl = document.getElementById("uploadWithSelectedBtn");
 const currentUserDisplayEl = document.getElementById("currentUserDisplay");
+const navCurrentUserEl = document.getElementById("navCurrentUser");
 const refreshGamesEl = document.getElementById("refreshGames");
 const refreshRankingsEl = document.getElementById("refreshRankings");
 const gamesPrevPageEl = document.getElementById("gamesPrevPage");
@@ -27,6 +28,8 @@ const techTreeSummaryEl = document.getElementById("techTreeSummary");
 const analysisNoticeEl = document.getElementById("analysisNotice");
 const gameDetailVizPanelEl = document.getElementById("gameDetailVizPanel");
 const toggleVizFullscreenEl = document.getElementById("toggleVizFullscreen");
+const gameDetailInlineSectionEl = document.getElementById("gameDetailInlineSection");
+const openAnalyzerBtnEl = document.getElementById("openAnalyzerBtn");
 
 const state = {
   games: [],
@@ -47,12 +50,14 @@ const state = {
   currentUser: "",
   suggestionTimer: null,
   gamesPage: 1,
-  gamesPageSize: 6,
+  gamesPageSize: 10,
   gamesTotal: 0,
   rankings: [],
   vizFullscreen: false,
+  selectedGameId: null,
 };
 const chartPalette = ["#2D3139", "#275DAD", "#7B2CBF", "#C44536", "#0A8F6A", "#AF6E0D", "#5A4FCF", "#39424E"];
+const INVALID_GAME_MAX_SECONDS = 120;
 
 function addLog(message) {
   const item = document.createElement("p");
@@ -100,6 +105,36 @@ function renderAnalysisNotice() {
   `;
 }
 
+function stickyTopOffset() {
+  const nav = document.querySelector("nav.sticky");
+  const navHeight = nav ? Math.ceil(nav.getBoundingClientRect().height) : 0;
+  return navHeight + 8;
+}
+
+function scrollSelectedGameRowIntoTop(gameID, force = false) {
+  const gid = Number(gameID || 0);
+  if (!gid || !gamesTableBodyEl) return;
+  const row = gamesTableBodyEl.querySelector(`tr[data-game-id="${gid}"]`);
+  if (!row) return;
+
+  const offset = stickyTopOffset();
+  const rect = row.getBoundingClientRect();
+  const needScroll = force || rect.top < offset || rect.top > (offset + 40);
+  if (!needScroll) return;
+
+  const rowTopOnDoc = window.scrollY + rect.top;
+  const targetTop = Math.max(0, rowTopOnDoc - offset);
+  window.scrollTo({ top: targetTop, behavior: "auto" });
+}
+
+function syncSelectedRowViewport(gameID, force = false) {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      scrollSelectedGameRowIntoTop(gameID, force);
+    });
+  });
+}
+
 function toggleVizFullscreen() {
   state.vizFullscreen = !state.vizFullscreen;
   applyVizFullscreenUi();
@@ -127,7 +162,13 @@ function fmtDate(s) {
   if (!s) return "-";
   const d = new Date(s);
   if (Number.isNaN(d.getTime())) return s;
-  return d.toLocaleString();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  const ss = String(d.getSeconds()).padStart(2, "0");
+  return `${y}-${m}-${day} ${hh}:${mm}:${ss}`;
 }
 
 function raceMeta(raceName) {
@@ -143,6 +184,21 @@ function fmtGameTime(seconds) {
   const m = Math.floor(s / 60);
   const sec = s % 60;
   return `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+}
+
+function resolveGameLengthSeconds(gameRow) {
+  if (!gameRow || typeof gameRow !== "object") return 0;
+  const candidates = [
+    gameRow.game_length,
+    gameRow.gameLength,
+    gameRow.length_seconds,
+    gameRow.lengthSeconds,
+  ];
+  for (const v of candidates) {
+    const n = Number(v);
+    if (Number.isFinite(n) && n > 0) return Math.floor(n);
+  }
+  return 0;
 }
 
 function computeTeamRaceStr(players, winnerTeam) {
@@ -187,9 +243,11 @@ function setCurrentUser(name) {
 
 function renderCurrentUser() {
   const current = getCurrentUser();
-  currentUserDisplayEl.innerHTML = current
+  const html = current
     ? `CURRENT_USER: <span class="session-user-chip">${escapeHtml(current)}</span>`
-    : "CURRENT_USER: NONE";
+    : "CURRENT_USER: NOT_LOGGED_IN";
+  currentUserDisplayEl.innerHTML = html;
+  if (navCurrentUserEl) navCurrentUserEl.innerHTML = html;
 }
 
 function normalizeGridIndex(value, min, max) {
@@ -198,15 +256,22 @@ function normalizeGridIndex(value, min, max) {
   return Math.max(0, Math.min(2, Math.round(ratio * 2)));
 }
 
-function playerResultClass(player, winnerTeam) {
-  const winner = Number(winnerTeam || 0);
+function isInvalidShortGame(gameData) {
+  const seconds = Number(gameData?.game_length || 0);
+  return seconds > 0 && seconds <= INVALID_GAME_MAX_SECONDS;
+}
+
+function playerResultClass(player, gameData) {
+  if (isInvalidShortGame(gameData)) return "sg-card-unknown";
+  const winner = Number(gameData?.winner_team || 0);
   if (winner <= 0) return "sg-card-unknown";
   return Number(player.team || 0) === winner ? "sg-card-winner" : "sg-card-loser";
 }
 
-function playerResultLabel(player, winnerTeam) {
-  const winner = Number(winnerTeam || 0);
-  if (winner <= 0) return "UNKNOWN";
+function playerResultLabel(player, gameData) {
+  if (isInvalidShortGame(gameData)) return "INVALID";
+  const winner = Number(gameData?.winner_team || 0);
+  if (winner <= 0) return "DRAW";
   return Number(player.team || 0) === winner ? "WINNER" : "LOSER";
 }
 
@@ -273,6 +338,7 @@ function renderSelectedGameBoard(gameData) {
   `;
 
   const gameTimeStr = gameData.game_length ? fmtGameTime(gameData.game_length) : "--:--";
+  const invalidGame = isInvalidShortGame(gameData);
   const matchupStr = computeMatchup(players);
 
   const board = cells.map((p, idx) => {
@@ -284,7 +350,7 @@ function renderSelectedGameBoard(gameData) {
           if (!byTeam.has(t)) byTeam.set(t, []);
           byTeam.get(t).push(tp);
         }
-        const winner = Number(gameData.winner_team || 0);
+        const winner = invalidGame ? 0 : Number(gameData.winner_team || 0);
         const sortedTeams = Array.from(byTeam.keys()).sort((a, b) => {
           if (winner > 0) {
             if (a === winner) return -1;
@@ -303,8 +369,8 @@ function renderSelectedGameBoard(gameData) {
       return `<div class="sg-cell sg-empty"></div>`;
     }
     const rm = raceMeta(p.race);
-    const resultClass = playerResultClass(p, gameData.winner_team);
-    const resultLabel = playerResultLabel(p, gameData.winner_team);
+    const resultClass = playerResultClass(p, gameData);
+    const resultLabel = playerResultLabel(p, gameData);
     const effPct = effectivePercent(p.cmd_count, p.effective_cmd_count);
     const prodCount = productionCountByPlayerName(p.name);
     return `
@@ -573,15 +639,16 @@ function perspectiveTeam(players, perspectiveName) {
   return me ? Number(me.team || 0) : null;
 }
 
-function teamPanelHtml(teamNumber, members, winnerTeam, perspectiveName) {
+function teamPanelHtml(teamNumber, members, gameData, perspectiveName) {
   if (!members.length) {
     return `<div class="text-[10px] text-[#4A4F59]">NO_DATA</div>`;
   }
 
-  const winner = Number(winnerTeam || 0);
+  const invalidGame = isInvalidShortGame(gameData);
+  const winner = invalidGame ? 0 : Number(gameData?.winner_team || 0);
   let badgeClass = "result-chip unknown-chip";
-  let badgeText = "UNKNOWN";
-  if (winner > 0) {
+  let badgeText = invalidGame ? "INVALID" : "DRAW";
+  if (!invalidGame && winner > 0) {
     if (Number(teamNumber) === winner) {
       badgeClass = "result-chip winner-chip";
       badgeText = "WINNER";
@@ -631,10 +698,14 @@ function splitOurEnemy(players, perspectiveName) {
 
 function renderGamesTable(games, summaries) {
   gamesTableBodyEl.innerHTML = "";
+  let inlineRendered = false;
   if (!games.length) {
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td colspan="6" class="p-3 text-center text-[11px] text-[#4A4F59]">NO_GAMES_FOUND</td>`;
+    tr.innerHTML = `<td colspan="7" class="p-3 text-center text-[11px] text-[#4A4F59]">NO_GAMES_FOUND</td>`;
     gamesTableBodyEl.appendChild(tr);
+    if (gameDetailInlineSectionEl) {
+      gameDetailInlineSectionEl.classList.add("hidden");
+    }
     return;
   }
 
@@ -643,22 +714,59 @@ function renderGamesTable(games, summaries) {
     const matchup = computeMatchup(players);
     const perspectiveName = getCurrentUser();
     const groups = splitOurEnemy(players, perspectiveName);
-    const ourHtml = teamPanelHtml(groups.ourTeam, groups.ourMembers, g.winner_team, perspectiveName);
+    const ourHtml = teamPanelHtml(groups.ourTeam, groups.ourMembers, g, perspectiveName);
     const enemyLabelTeam = groups.enemyTeams.length ? groups.enemyTeams[0] : null;
-    const enemyHtml = teamPanelHtml(enemyLabelTeam, groups.enemyMembers, g.winner_team, perspectiveName);
+    const enemyHtml = teamPanelHtml(enemyLabelTeam, groups.enemyMembers, g, perspectiveName);
+    const gameLengthSeconds = resolveGameLengthSeconds(g);
+    const playTime = gameLengthSeconds > 0 ? fmtGameTime(gameLengthSeconds) : "--:--";
 
     const tr = document.createElement("tr");
     tr.className = "border-b border-[#2D3139]/30 cursor-pointer";
+    tr.dataset.gameId = String(g.id);
+    if (Number(state.selectedGameId || 0) === Number(g.id)) {
+      tr.classList.add("bg-white/40");
+    }
     tr.innerHTML = `
       <td class="p-3 border-r border-[#2D3139]/30">#${g.id}</td>
       <td class="p-3 border-r border-[#2D3139]/30 uppercase">${g.map_name || "-"}</td>
       <td class="p-3 border-r border-[#2D3139]/30 text-center">${matchup}</td>
       <td class="p-3 border-r border-[#2D3139]/30">${ourHtml}</td>
       <td class="p-3 border-r border-[#2D3139]/30">${enemyHtml}</td>
+      <td class="p-3 border-r border-[#2D3139]/30 text-right text-[#4A4F59]">${playTime}</td>
       <td class="p-3 text-right text-[#4A4F59]">${fmtDate(g.start_time)}</td>
     `;
-    tr.addEventListener("click", () => loadGameDetail(g.id));
+    tr.addEventListener("click", () => {
+      if (Number(state.selectedGameId || 0) === Number(g.id)) {
+        state.selectedGameId = null;
+        if (gameDetailInlineSectionEl) {
+          gameDetailInlineSectionEl.classList.add("hidden");
+        }
+        renderGamesTable(state.games || [], summaries || {});
+        return;
+      }
+      loadGameDetail(g.id);
+    });
     gamesTableBodyEl.appendChild(tr);
+
+    if (Number(state.selectedGameId || 0) === Number(g.id) && gameDetailInlineSectionEl) {
+      const detailTr = document.createElement("tr");
+      detailTr.className = "border-b border-[#2D3139]/30";
+      const detailTd = document.createElement("td");
+      detailTd.colSpan = 7;
+      detailTd.className = "p-3 bg-white/20";
+      gameDetailInlineSectionEl.classList.remove("hidden");
+      const detailWrap = document.createElement("div");
+      detailWrap.className = "w-full overflow-x-auto";
+      detailWrap.appendChild(gameDetailInlineSectionEl);
+      detailTd.appendChild(detailWrap);
+      detailTr.appendChild(detailTd);
+      gamesTableBodyEl.appendChild(detailTr);
+      inlineRendered = true;
+    }
+  }
+
+  if (!inlineRendered && gameDetailInlineSectionEl) {
+    gameDetailInlineSectionEl.classList.add("hidden");
   }
 }
 
@@ -708,13 +816,16 @@ async function loadRankings() {
 function renderGamesTableMessage(message) {
   gamesTableBodyEl.innerHTML = "";
   const tr = document.createElement("tr");
-  tr.innerHTML = `<td colspan="6" class="p-3 text-center text-[11px] text-[#4A4F59]">${escapeHtml(message)}</td>`;
+  tr.innerHTML = `<td colspan="7" class="p-3 text-center text-[11px] text-[#4A4F59]">${escapeHtml(message)}</td>`;
   gamesTableBodyEl.appendChild(tr);
+  if (gameDetailInlineSectionEl) {
+    gameDetailInlineSectionEl.classList.add("hidden");
+  }
 }
 
 function renderGamesPager() {
   const total = Number(state.gamesTotal || 0);
-  const pageSize = Number(state.gamesPageSize || 6);
+  const pageSize = Number(state.gamesPageSize || 10);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const current = Math.min(Math.max(1, Number(state.gamesPage || 1)), totalPages);
   state.gamesPage = current;
@@ -761,6 +872,9 @@ async function loadGames(resetPage = false) {
 }
 
 async function loadGameDetail(id) {
+  state.selectedGameId = Number(id);
+  renderGamesTable(state.games || [], {});
+  syncSelectedRowViewport(id, true);
   selectedGameEl.innerHTML = '<div class="text-[#4A4F59]">FETCHING_GAME...</div>';
   state.highlightedPlayer = null;
   state.techFocus = null;
@@ -788,6 +902,7 @@ async function loadGameDetail(id) {
     renderSelectedGameBoard(gameRes.game || null);
     state.chartTimelines = apmTimeline;
     renderActiveVisualization();
+    syncSelectedRowViewport(id, false);
     addLog(`SELECT_GAME: #${id}`);
   } catch (err) {
     selectedGameEl.innerHTML = `<div class="text-[#8a2f2f] font-bold">ERROR: ${escapeHtml(err.message)}</div>`;
@@ -801,6 +916,7 @@ async function loadGameDetail(id) {
     state.unitProductionVersions = null;
     state.resourceSpend = null;
     renderActiveVisualization();
+    syncSelectedRowViewport(id, false);
     addLog(`ERROR_LOAD_DETAIL: #${id}`);
   }
 }
@@ -1208,6 +1324,15 @@ function schedulePlayerSuggestion() {
   }, 280);
 }
 
+function openSelectedGameInAnalyzer() {
+  const gid = Number(state.selectedGameId || 0);
+  if (gid > 0) {
+    window.location.href = `/analyzer.html?game_id=${gid}`;
+    return;
+  }
+  window.location.href = "/analyzer.html";
+}
+
 uploadFormEl.addEventListener("submit", previewReplay);
 parsedUploaderSelectEl.addEventListener("change", () => {
   const selected = parsedUploaderSelectEl.value.trim();
@@ -1230,7 +1355,7 @@ if (gamesPrevPageEl) {
 }
 if (gamesNextPageEl) {
   gamesNextPageEl.addEventListener("click", () => {
-    const totalPages = Math.max(1, Math.ceil(Number(state.gamesTotal || 0) / Number(state.gamesPageSize || 6)));
+    const totalPages = Math.max(1, Math.ceil(Number(state.gamesTotal || 0) / Number(state.gamesPageSize || 10)));
     if (state.gamesPage >= totalPages) return;
     state.gamesPage += 1;
     loadGames();
@@ -1251,6 +1376,9 @@ if (vizTabsEl) {
 }
 if (toggleVizFullscreenEl) {
   toggleVizFullscreenEl.addEventListener("click", toggleVizFullscreen);
+}
+if (openAnalyzerBtnEl) {
+  openAnalyzerBtnEl.addEventListener("click", openSelectedGameInAnalyzer);
 }
 window.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && state.vizFullscreen) {

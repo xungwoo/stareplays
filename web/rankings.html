@@ -14,34 +14,34 @@
       <div class="max-w-[1400px] mx-auto px-4 md:px-6 h-14 flex items-center justify-between">
         <div class="flex items-center gap-6">
           <div class="flex items-center gap-2">
-            <span class="font-bold tracking-tight text-sm md:text-base">stareplays v1.0</span>
+            <span class="font-bold tracking-tight text-sm md:text-base">StaReplays v1.0</span>
           </div>
           <div class="hidden md:flex items-center gap-4 text-[11px] font-bold uppercase">
             <a href="./index.html" class="text-[#2D3139] border border-[#2D3139] px-2 py-0.5 bg-white/30">[ Dashboard ]</a>
-            <a href="./index.html" class="text-[#4A4F59] hover:text-[#2D3139]">Replay_Vault</a>
-            <a href="./analyzer.html" class="text-[#4A4F59] hover:text-[#2D3139]">Game_Analyzer</a>
-            <a href="./rankings.html" class="text-[#4A4F59] hover:text-[#2D3139]">Rankings</a>
+            <a href="./index.html" class="nav-main-link">Replay_Vault</a>
+            <a href="./analyzer.html" class="nav-main-link">Game_Analyzer</a>
+            <a href="./rankings.html" class="nav-main-link nav-main-link-active" aria-current="page">[ Rankings ]</a>
           </div>
         </div>
-        <div class="text-[10px] md:text-[11px] font-bold uppercase text-[#4A4F59]">SYS_STATUS: ONLINE</div>
+        <div id="rankingsCurrentUser" class="text-[10px] md:text-[11px] font-bold uppercase text-[#4A4F59]">CURRENT_USER: NOT_LOGGED_IN</div>
       </div>
     </nav>
 
     <main class="max-w-[1400px] mx-auto w-full px-4 md:px-6 py-6 md:py-8 flex-grow">
-      <section class="mb-8">
+      <section class="mb-3">
+        <div class="flex flex-wrap gap-2 text-[10px] font-bold uppercase">
+          <button id="tabRankings3v3" type="button" class="border border-[#2D3139] bg-[#2D3139] text-[#E0E0E2] px-3 py-1">Rankings_3v3</button>
+          <button id="tabRaceComp" type="button" class="border border-[#2D3139] bg-white/60 px-3 py-1">Race_Composition_WinRate</button>
+        </div>
+      </section>
+
+      <section id="rankingsPanel" class="mb-8">
         <div class="flex items-center justify-between mb-3">
           <h2 class="text-xs font-bold uppercase tracking-[0.18em] flex items-center gap-2">
             <span class="w-2 h-2 bg-[#2D3139]"></span>
             Rankings_3v3
           </h2>
           <div class="flex items-center gap-2">
-            <label for="rankingsSortBy" class="text-[10px] font-bold uppercase text-[#4A4F59]">Sort_By</label>
-            <select id="rankingsSortBy" class="border border-[#2D3139] bg-white/60 px-2 py-1 text-[10px] font-bold uppercase">
-              <option value="default">WIN_RATE</option>
-              <option value="avg_apm">AVG_APM</option>
-              <option value="avg_eapm">AVG_EAPM</option>
-            </select>
-            <button id="rankingsSortDir" class="border border-[#2D3139] px-2 py-1 text-[10px] font-bold uppercase hover:bg-white/50">DESC</button>
             <button id="refreshRankings" class="border border-[#2D3139] px-3 py-1 text-[10px] font-bold uppercase hover:bg-white/50">Refresh</button>
           </div>
         </div>
@@ -51,20 +51,73 @@
               <tr class="bg-[#D1D1D4] text-[10px] font-bold uppercase tracking-widest border-b border-[#2D3139]">
                 <th class="p-3 border-r border-[#2D3139]">RANK</th>
                 <th class="p-3 border-r border-[#2D3139]">USER</th>
-                <th class="p-3 border-r border-[#2D3139] text-right">WIN_RATE</th>
+                <th class="p-3 border-r border-[#2D3139] text-right">
+                  <button id="rankSortWinRate" type="button" class="w-full inline-flex items-center justify-end gap-1 hover:text-[#2D3139]">
+                    <span>WIN_RATE</span>
+                    <span id="rankSortWinRateArrow" class="text-[9px]">↕</span>
+                  </button>
+                </th>
                 <th class="p-3 border-r border-[#2D3139] text-right">RECORD</th>
                 <th class="p-3 border-r border-[#2D3139] text-right">GAMES</th>
-                <th class="p-3 border-r border-[#2D3139] text-right">AVG_APM</th>
-                <th class="p-3 text-right">AVG_EAPM</th>
+                <th class="p-3 border-r border-[#2D3139] text-right">
+                  <button id="rankSortAvgApm" type="button" class="w-full inline-flex items-center justify-end gap-1 hover:text-[#2D3139]">
+                    <span>AVG_APM_95P</span>
+                    <span id="rankSortAvgApmArrow" class="text-[9px]">↕</span>
+                  </button>
+                </th>
+                <th class="p-3 text-right">
+                  <button id="rankSortAvgEapm" type="button" class="w-full inline-flex items-center justify-end gap-1 hover:text-[#2D3139]">
+                    <span>AVG_EAPM_95P</span>
+                    <span id="rankSortAvgEapmArrow" class="text-[9px]">↕</span>
+                  </button>
+                </th>
               </tr>
             </thead>
             <tbody id="rankingsTableBody" class="text-[11px] font-bold"></tbody>
           </table>
         </div>
       </section>
+
+      <section id="raceCompPanel" class="mb-8 hidden">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-xs font-bold uppercase tracking-[0.18em] flex items-center gap-2">
+            <span class="w-2 h-2 bg-[#2D3139]"></span>
+            Race_Composition_WinRate (3v3)
+          </h2>
+          <div class="flex items-center gap-2">
+            <button id="refreshRaceComp" class="border border-[#2D3139] px-3 py-1 text-[10px] font-bold uppercase hover:bg-white/50">Refresh</button>
+          </div>
+        </div>
+        <div id="raceCompMeta" class="mb-2 text-[10px] font-bold text-[#4A4F59] uppercase">LOADING...</div>
+        <div class="overflow-x-auto border border-[#2D3139]">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-[#D1D1D4] text-[10px] font-bold uppercase tracking-widest border-b border-[#2D3139]">
+                <th class="p-3 border-r border-[#2D3139]">MATCHUP</th>
+                <th class="p-3 border-r border-[#2D3139] text-right">
+                  <button id="raceSortGames" type="button" class="w-full inline-flex items-center justify-end gap-1 hover:text-[#2D3139]">
+                    <span>GAMES</span>
+                    <span id="raceSortGamesArrow" class="text-[9px]">▼</span>
+                  </button>
+                </th>
+                <th class="p-3 border-r border-[#2D3139] text-right">
+                  <button id="raceSortWinRate" type="button" class="w-full inline-flex items-center justify-end gap-1 hover:text-[#2D3139]">
+                    <span>TEAM_A_WIN%</span>
+                    <span id="raceSortWinRateArrow" class="text-[9px]">↕</span>
+                  </button>
+                </th>
+                <th class="p-3 border-r border-[#2D3139] text-right">TEAM_B_WIN%</th>
+                <th class="p-3 border-r border-[#2D3139] text-right">TEAM_A_WINS</th>
+                <th class="p-3 text-right">TEAM_B_WINS</th>
+              </tr>
+            </thead>
+            <tbody id="raceCompTableBody" class="text-[11px] font-bold"></tbody>
+          </table>
+        </div>
+      </section>
     </main>
   </div>
 
-  <script src="./rankings.js?v=20260220-1"></script>
+  <script src="./rankings.js?v=20260221-rk-tabs2"></script>
 </body>
 </html>

@@ -21,6 +21,7 @@ const (
 	DefaultAnalyzerPageSize  = 50
 	MaxAnalyzerPageSize      = 500
 	DefaultAnalyzerJobLockID = int64(330044)
+	MinValidGameLengthSec    = 120
 )
 
 var ErrJobAlreadyRunning = errors.New("analyzer job already running")
@@ -194,9 +195,12 @@ func ListSnapshot(ctx context.Context, client *ent.Client, opts ListOptions) (*L
 	if totalCount > 0 {
 		totalPages = int(math.Ceil(float64(totalCount) / float64(pageSize)))
 	}
-	qualifiedGames, err := countQualifiedGames(ctx, client, teamSize)
-	if err != nil {
-		return nil, err
+	qualifiedGames := 0
+	if totalCount > 0 {
+		qualifiedGames, err = countQualifiedGames(ctx, client, teamSize)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &ListResult{
@@ -336,7 +340,9 @@ paired AS (
   FROM team_comp a
   JOIN team_comp b ON b.game_id = a.game_id AND b.team > a.team
   JOIN games g ON g.id = a.game_id
-  WHERE g.winner_team > 0 AND g.player_count = (a.team_size * 2)
+  WHERE g.winner_team > 0
+    AND g.player_count = (a.team_size * 2)
+    AND COALESCE(g.game_length, 0) > $1
 ),
 canon AS (
   SELECT
@@ -373,7 +379,7 @@ SELECT
 FROM agg
 ORDER BY team_size ASC, games DESC, team_a_win_rate DESC, matchup_key ASC`
 
-	rows, err := tx.QueryContext(ctx, aggregateSQL)
+	rows, err := tx.QueryContext(ctx, aggregateSQL, MinValidGameLengthSec)
 	if err != nil {
 		return nil, 0, fmt.Errorf("aggregate analyzer matchup snapshot: %w", err)
 	}
@@ -403,14 +409,19 @@ func countQualifiedGames(ctx context.Context, client *ent.Client, teamSize int) 
 	if teamSize > 0 {
 		q = q.Where(analyzerracematchup.TeamSizeEQ(teamSize))
 	}
-	var totals []int
+	var totals []struct {
+		Sum *int `json:"sum"`
+	}
 	if err := q.Aggregate(ent.Sum(analyzerracematchup.FieldGames)).Scan(ctx, &totals); err != nil {
 		return 0, fmt.Errorf("sum qualified analyzer games: %w", err)
 	}
 	if len(totals) == 0 {
 		return 0, nil
 	}
-	return totals[0], nil
+	if totals[0].Sum == nil {
+		return 0, nil
+	}
+	return *totals[0].Sum, nil
 }
 
 func ParseInterval(v string) time.Duration {

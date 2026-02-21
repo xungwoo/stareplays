@@ -6,7 +6,7 @@
   <title>stareplays Game Analyzer</title>
   <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
   <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="./styles.css">
 </head>
 <body class="min-h-screen bg-[#E0E0E2] text-[#2D3139]">
   <div class="min-h-screen flex flex-col">
@@ -14,58 +14,88 @@
       <div class="max-w-[1400px] mx-auto px-4 md:px-6 h-14 flex items-center justify-between">
         <div class="flex items-center gap-6">
           <div class="flex items-center gap-2">
-            <span class="font-bold tracking-tight text-sm md:text-base">stareplays v1.0</span>
+            <span class="font-bold tracking-tight text-sm md:text-base">StaReplays v1.0</span>
           </div>
           <div class="hidden md:flex items-center gap-4 text-[11px] font-bold uppercase">
-            <a href="/" class="text-[#2D3139] border border-[#2D3139] px-2 py-0.5 bg-white/30">[ Dashboard ]</a>
-            <a href="/" class="text-[#4A4F59] hover:text-[#2D3139]">Replay_Vault</a>
-            <a href="/analyzer.html" class="text-[#4A4F59] hover:text-[#2D3139]">Game_Analyzer</a>
-            <a href="/rankings.html" class="text-[#4A4F59] hover:text-[#2D3139]">Rankings</a>
+            <a href="./index.html" class="text-[#2D3139] border border-[#2D3139] px-2 py-0.5 bg-white/30">[ Dashboard ]</a>
+            <a href="./index.html" class="nav-main-link">Replay_Vault</a>
+            <a href="./analyzer.html" class="nav-main-link nav-main-link-active" aria-current="page">[ Game_Analyzer ]</a>
+            <a href="./rankings.html" class="nav-main-link">Rankings</a>
           </div>
         </div>
-        <div class="text-[10px] md:text-[11px] font-bold uppercase text-[#4A4F59]">SYS_STATUS: ONLINE</div>
+        <div class="text-[10px] md:text-[11px] font-bold uppercase text-[#4A4F59]" id="analyzerCurrentUser">CURRENT_USER: NOT_LOGGED_IN</div>
       </div>
     </nav>
 
-    <main class="max-w-[1400px] mx-auto w-full px-4 md:px-6 py-6 md:py-8 flex-grow">
-      <section class="mb-8">
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="text-xs font-bold uppercase tracking-[0.18em] flex items-center gap-2">
-            <span class="w-2 h-2 bg-[#2D3139]"></span>
-            Game_Analyzer : Race_Composition_WinRate
-          </h2>
-          <div class="flex items-center gap-2">
-            <label class="text-[10px] font-bold uppercase text-[#4A4F59]">Team_Size</label>
-            <select id="teamSizeFilter" class="border border-[#2D3139] bg-white/60 px-2 py-1 text-[10px] font-bold uppercase">
-              <option value="0">ALL</option>
-              <option value="1">1v1</option>
-              <option value="2">2v2</option>
-              <option value="3" selected>3v3</option>
-              <option value="4">4v4</option>
-            </select>
-            <button id="refreshAnalyzer" class="border border-[#2D3139] px-3 py-1 text-[10px] font-bold uppercase hover:bg-white/50">Refresh</button>
+    <main class="max-w-[1400px] mx-auto w-full px-4 md:px-6 py-6 md:py-8 flex-grow space-y-4">
+      <section class="border border-[#2D3139] bg-white/30 p-3">
+        <div class="text-[10px] font-bold uppercase tracking-widest text-[#4A4F59]">Game_Analyzer</div>
+        <div class="text-[11px] mt-1 text-[#4A4F59]">한 게임의 흐름과 플레이어별 수행 품질을 함께 보는 상세 분석 화면 (1차 구현)</div>
+      </section>
+
+      <section class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <article class="lg:col-span-4 border border-[#2D3139] bg-white/30 p-3">
+          <div class="flex items-center justify-between border-b border-[#2D3139] pb-1 mb-2">
+            <h3 class="text-[10px] font-bold uppercase tracking-widest">Game Selector</h3>
+            <button id="analyzerRefreshGames" class="border border-[#2D3139] px-2 py-1 text-[10px] font-bold uppercase hover:bg-white/50">Refresh</button>
           </div>
-        </div>
-        <div id="analyzerMeta" class="mb-2 text-[10px] font-bold text-[#4A4F59] uppercase">LOADING...</div>
-        <div class="overflow-x-auto border border-[#2D3139]">
-          <table class="w-full text-left border-collapse">
-            <thead>
-              <tr class="bg-[#D1D1D4] text-[10px] font-bold uppercase tracking-widest border-b border-[#2D3139]">
-                <th class="p-3 border-r border-[#2D3139]">MATCHUP</th>
-                <th class="p-3 border-r border-[#2D3139] text-right">GAMES</th>
-                <th class="p-3 border-r border-[#2D3139] text-right">TEAM_A_WIN%</th>
-                <th class="p-3 border-r border-[#2D3139] text-right">TEAM_B_WIN%</th>
-                <th class="p-3 border-r border-[#2D3139] text-right">TEAM_A_WINS</th>
-                <th class="p-3 text-right">TEAM_B_WINS</th>
-              </tr>
-            </thead>
-            <tbody id="analyzerTableBody" class="text-[11px] font-bold"></tbody>
-          </table>
-        </div>
+          <div class="overflow-x-auto border border-[#2D3139] bg-white/50">
+            <table class="w-full text-left border-collapse table-fixed">
+              <colgroup>
+                <col style="width: 12%"><col style="width: 34%"><col style="width: 18%"><col style="width: 36%">
+              </colgroup>
+              <thead>
+                <tr class="bg-[#D1D1D4] text-[10px] font-bold uppercase border-b border-[#2D3139]">
+                  <th class="p-2 border-r border-[#2D3139]">ID</th>
+                  <th class="p-2 border-r border-[#2D3139]">MAP</th>
+                  <th class="p-2 border-r border-[#2D3139] text-right">TIME</th>
+                  <th class="p-2 text-right">START</th>
+                </tr>
+              </thead>
+              <tbody id="analyzerGamesBody" class="text-[10px] font-bold"></tbody>
+            </table>
+          </div>
+          <div class="mt-2 flex items-center justify-end gap-2 text-[10px] font-bold uppercase">
+            <button id="analyzerPrevPage" class="border border-[#2D3139] px-2 py-1 hover:bg-white/50 disabled:opacity-40">Prev</button>
+            <span id="analyzerPageInfo" class="text-[#4A4F59] min-w-24 text-center">Page 1/1</span>
+            <button id="analyzerNextPage" class="border border-[#2D3139] px-2 py-1 hover:bg-white/50 disabled:opacity-40">Next</button>
+          </div>
+        </article>
+
+        <article class="lg:col-span-8 border border-[#2D3139] bg-white/30 p-3">
+          <h3 class="text-[10px] font-bold uppercase tracking-widest border-b border-[#2D3139] pb-1 mb-2">Top Summary Strip</h3>
+          <div id="analyzerSummary" class="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px]"></div>
+          <div id="analyzerPlayerTabs" class="mt-2 flex flex-wrap gap-1 text-[10px] font-bold uppercase"></div>
+        </article>
+      </section>
+
+      <section class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <article class="lg:col-span-8 border border-[#2D3139] bg-white/30 p-3">
+          <h3 class="text-[10px] font-bold uppercase tracking-widest border-b border-[#2D3139] pb-1 mb-2">Timeline Workspace</h3>
+          <div id="analyzerVizTabs" class="mb-2 flex flex-wrap gap-1 text-[10px] font-bold uppercase">
+            <button type="button" data-an-tab="apm" class="an-tab border border-[#2D3139] bg-[#2D3139] text-[#E0E0E2] px-2 py-1">APM</button>
+            <button type="button" data-an-tab="spend" class="an-tab border border-[#2D3139] bg-white/60 px-2 py-1">Resource Spend</button>
+            <button type="button" data-an-tab="unit" class="an-tab border border-[#2D3139] bg-white/60 px-2 py-1">Unit Production</button>
+            <button type="button" data-an-tab="tech" class="an-tab border border-[#2D3139] bg-white/60 px-2 py-1">Tech / Upgrade</button>
+            <button type="button" data-an-tab="battle" class="an-tab border border-[#2D3139] bg-white/60 px-2 py-1">Battle Intensity</button>
+            <button type="button" data-an-tab="actions" class="an-tab border border-[#2D3139] bg-white/60 px-2 py-1">Action Mix</button>
+          </div>
+          <div id="analyzerTabContent" class="border border-[#2D3139] bg-white/50 p-2 text-[10px] min-h-44"></div>
+        </article>
+
+        <article class="lg:col-span-4 border border-[#2D3139] bg-white/30 p-3">
+          <h3 class="text-[10px] font-bold uppercase tracking-widest border-b border-[#2D3139] pb-1 mb-2">Player Deep Dive</h3>
+          <div id="analyzerPlayerPanel" class="text-[10px]"></div>
+        </article>
+      </section>
+
+      <section class="border border-[#2D3139] bg-white/30 p-3">
+        <h3 class="text-[10px] font-bold uppercase tracking-widest border-b border-[#2D3139] pb-1 mb-2">Event Inspector</h3>
+        <div id="analyzerEventInspector" class="text-[10px]"></div>
       </section>
     </main>
   </div>
 
-  <script src="/analyzer.js"></script>
+  <script src="./analyzer.js?v=20260221-ga1"></script>
 </body>
 </html>
