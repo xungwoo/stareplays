@@ -23,6 +23,7 @@ const (
 	DefaultPageSize         = 20
 	MaxPageSize             = 100
 	DefaultRankingJobLockID = int64(330033)
+	MinValidGameLengthSec   = 120
 )
 
 var ErrJobAlreadyRunning = errors.New("ranking job already running")
@@ -333,6 +334,7 @@ valid_games AS (
   FROM team_counts tc
   JOIN games g ON g.id = tc.game_id
   WHERE g.player_count = 6
+    AND COALESCE(g.game_length, 0) > $2
   GROUP BY tc.game_id
   HAVING COUNT(*) = 2 AND MIN(tc.cnt) = 3 AND MAX(tc.cnt) = 3
 ),
@@ -344,8 +346,24 @@ agg AS (
     SUM(CASE WHEN LOWER(TRIM(p.result)) = 'win' OR (LOWER(TRIM(p.result)) = 'unknown' AND p.is_winner = TRUE) THEN 1 ELSE 0 END)::int AS wins,
     SUM(CASE WHEN LOWER(TRIM(p.result)) = 'loss' OR (LOWER(TRIM(p.result)) = 'unknown' AND p.is_winner = FALSE AND g.winner_team > 0) THEN 1 ELSE 0 END)::int AS losses,
     SUM(CASE WHEN LOWER(TRIM(p.result)) = 'draw' THEN 1 ELSE 0 END)::int AS draws,
-    AVG(COALESCE(p.apm, 0))::float8 AS avg_apm,
-    AVG(COALESCE(p.eapm, 0))::float8 AS avg_eapm
+    COALESCE(
+      percentile_cont(0.95) WITHIN GROUP (
+        ORDER BY CASE
+          WHEN p.apm IS NOT NULL AND p.apm BETWEEN 0 AND 1000 THEN p.apm::float8
+          ELSE NULL
+        END
+      ),
+      0
+    )::float8 AS avg_apm,
+    COALESCE(
+      percentile_cont(0.95) WITHIN GROUP (
+        ORDER BY CASE
+          WHEN p.eapm IS NOT NULL AND p.eapm BETWEEN 0 AND 1000 THEN p.eapm::float8
+          ELSE NULL
+        END
+      ),
+      0
+    )::float8 AS avg_eapm
   FROM players p
   JOIN games g ON g.id = p.game_players
   JOIN valid_games vg ON vg.game_id = p.game_players
@@ -359,7 +377,7 @@ SELECT display_name, games, wins, losses, draws,
 FROM agg
 ORDER BY win_rate DESC, wins DESC, games DESC, display_name ASC`
 
-	rows, err := tx.QueryContext(ctx, aggregateSQL, minGames)
+	rows, err := tx.QueryContext(ctx, aggregateSQL, minGames, MinValidGameLengthSec)
 	if err != nil {
 		return nil, 0, fmt.Errorf("aggregate 3v3 rankings: %w", err)
 	}
@@ -397,11 +415,12 @@ FROM (
   FROM team_counts tc
   JOIN games g ON g.id = tc.game_id
   WHERE g.player_count = 6
+    AND COALESCE(g.game_length, 0) > $1
   GROUP BY tc.game_id
   HAVING COUNT(*) = 2 AND MIN(tc.cnt) = 3 AND MAX(tc.cnt) = 3
 ) q`
 
-	rows, err := tx.QueryContext(ctx, countSQL)
+	rows, err := tx.QueryContext(ctx, countSQL, MinValidGameLengthSec)
 	if err != nil {
 		return 0, fmt.Errorf("count qualified 3v3 games: %w", err)
 	}
