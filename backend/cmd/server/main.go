@@ -101,11 +101,17 @@ func main() {
 	api.Get("/analyzer/race-matchups", handlers.GetRaceMatchupAnalyzer)
 
 	// Web UI
-	webDir := resolveWebDir()
-	app.Get("/", func(c *fiber.Ctx) error {
-		return c.SendFile(filepath.Join(webDir, "index.html"))
-	})
-	app.Static("/", webDir)
+	if webDir, ok := resolveWebDir(); ok {
+		app.Get("/", func(c *fiber.Ctx) error {
+			return c.SendFile(filepath.Join(webDir, "index.html"))
+		})
+		app.Static("/", webDir)
+	} else {
+		log.Println("Web UI assets not found. Running in API-only mode.")
+		app.Get("/", func(c *fiber.Ctx) error {
+			return c.SendString("StaReplays API is running. Web UI assets not found.")
+		})
+	}
 
 	// 서버 시작
 	port := os.Getenv("PORT")
@@ -146,9 +152,12 @@ func envIntMB(key string, fallbackMB int) int {
 	return mb * 1024 * 1024
 }
 
-func resolveWebDir() string {
+func resolveWebDir() (string, bool) {
 	if v := strings.TrimSpace(os.Getenv("WEB_DIR")); v != "" {
-		return v
+		if fi, err := os.Stat(v); err == nil && fi.IsDir() {
+			return v, true
+		}
+		log.Printf("WEB_DIR is set but not found: %s", v)
 	}
 	for _, candidate := range []string{
 		"./frontend/web",
@@ -157,8 +166,8 @@ func resolveWebDir() string {
 	} {
 		fi, err := os.Stat(candidate)
 		if err == nil && fi.IsDir() {
-			return candidate
+			return candidate, true
 		}
 	}
-	return "./frontend/web"
+	return "", false
 }
