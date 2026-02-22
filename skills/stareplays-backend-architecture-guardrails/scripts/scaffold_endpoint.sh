@@ -20,11 +20,11 @@ fi
 
 cat <<PLAN
 [Scaffold Plan] $slug
-- handler file: internal/api/handlers/${slug}_handler.go
-- service file: internal/services/${slug}/service.go
-- repository file: internal/repositories/${slug}_repository.go
+- handler file: backend/internal/api/handlers/${slug}_handler.go
+- service file: backend/internal/services/${slug}/service.go
+- repository file: backend/internal/repositories/${slug}_repository.go
 - tests:
-  - internal/api/handlers/${slug}_handler_test.go
-  - internal/services/${slug}/service_test.go
-  - internal/repositories/${slug}_repository_test.go
+  - backend/internal/api/handlers/${slug}_handler_test.go
+  - backend/internal/services/${slug}/service_test.go
+  - backend/internal/repositories/${slug}_repository_test.go
 PLAN

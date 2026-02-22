@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-server_file="cmd/server/main.go"
+server_file="backend/cmd/server/main.go"
 docs=("README.md" "API_USAGE.md")
 
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   cat <<USAGE
 Usage: $(basename "$0")
 
-Print routes found in cmd/server/main.go and missing mentions in key docs.
+Print routes found in backend/cmd/server/main.go and missing mentions in key docs.
 USAGE
   exit 0
 fi

@@ -4,9 +4,9 @@
 
 ## 구성
 
-- 실행 엔트리: `cmd/analyzer-job/main.go`
-- 집계 서비스: `internal/services/analyzer/service.go`
-- snapshot 테이블: `analyzer_race_matchups` (`ent/schema/analyzer_race_matchup.go`)
+- 실행 엔트리: `backend/cmd/analyzer-job/main.go`
+- 집계 서비스: `backend/internal/services/analyzer/service.go`
+- snapshot 테이블: `analyzer_race_matchups` (`backend/ent/schema/analyzer_race_matchup.go`)
 - 조회 API: `GET /api/v1/analyzer/race-matchups`
 
 ## 집계 방식
@@ -23,13 +23,13 @@
 ### once
 
 ```bash
-ANALYZER_JOB_MODE=once go run ./cmd/analyzer-job
+cd backend && ANALYZER_JOB_MODE=once go run ./cmd/analyzer-job
 ```
 
 ### daemon
 
 ```bash
-ANALYZER_JOB_MODE=daemon ANALYZER_JOB_INTERVAL=10m go run ./cmd/analyzer-job
+cd backend && ANALYZER_JOB_MODE=daemon ANALYZER_JOB_INTERVAL=10m go run ./cmd/analyzer-job
 ```
 
 ## Railway Cron 권장
@@ -37,7 +37,7 @@ ANALYZER_JOB_MODE=daemon ANALYZER_JOB_INTERVAL=10m go run ./cmd/analyzer-job
 cron에서는 `once` 모드 사용 권장:
 
 ```bash
-ANALYZER_JOB_MODE=once go run ./cmd/analyzer-job
+cd backend && ANALYZER_JOB_MODE=once go run ./cmd/analyzer-job
 ```
 
 예시 주기: `*/10 * * * *`

@@ -11,10 +11,12 @@ USAGE
 fi
 
 min_games="${1:-20}"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+BACKEND_DIR="${ROOT_DIR}/backend"
 
 echo "[benchmark] ranking job start"
 start=$(date +%s)
-RANKING_JOB_MODE=once RANKING_MIN_GAMES="$min_games" go run ./cmd/ranking-job >/tmp/ranking-job-bench.log 2>&1 || {
+(cd "$BACKEND_DIR" && RANKING_JOB_MODE=once RANKING_MIN_GAMES="$min_games" go run ./cmd/ranking-job) >/tmp/ranking-job-bench.log 2>&1 || {
   cat /tmp/ranking-job-bench.log
   exit 1
 }
@@ -23,7 +25,7 @@ echo "[benchmark] ranking job elapsed: $((end-start))s"
 
 echo "[benchmark] analyzer job start"
 start=$(date +%s)
-ANALYZER_JOB_MODE=once go run ./cmd/analyzer-job >/tmp/analyzer-job-bench.log 2>&1 || {
+(cd "$BACKEND_DIR" && ANALYZER_JOB_MODE=once go run ./cmd/analyzer-job) >/tmp/analyzer-job-bench.log 2>&1 || {
   cat /tmp/analyzer-job-bench.log
   exit 1
 }

@@ -1,8 +1,8 @@
 [build]
 builder = "NIXPACKS"
-buildCommand = "go mod download && go build -o bin/ranking-job ./cmd/ranking-job/main.go"
+buildCommand = "cd backend && go mod download && go build -o bin/ranking-job ./cmd/ranking-job/main.go"
 
 [deploy]
-startCommand = "./bin/ranking-job"
+startCommand = "cd backend && ./bin/ranking-job"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3

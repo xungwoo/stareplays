@@ -11,7 +11,7 @@
 
 ## Run Once (Local/Production)
 ```bash
-go run ./cmd/migration-job/main.go
+cd backend && go run ./cmd/migration-job/main.go
 ```
 
 ## Environment Variables
@@ -25,6 +25,6 @@ go run ./cmd/migration-job/main.go
 
 ## Example (Railway Cron once command)
 ```bash
-MIGRATION_SHORT_GAME_MAX_SECONDS=120 MIGRATION_REFRESH_SNAPSHOTS=true go run ./cmd/migration-job/main.go
+cd backend && MIGRATION_SHORT_GAME_MAX_SECONDS=120 MIGRATION_REFRESH_SNAPSHOTS=true go run ./cmd/migration-job/main.go
 ```
 

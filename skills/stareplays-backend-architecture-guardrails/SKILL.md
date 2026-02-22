@@ -26,7 +26,7 @@ Follow a layered backend structure that keeps HTTP concerns, business logic, and
 
 ## Refactor Priorities For This Repo
 
-1. Split `internal/api/handlers/replay_handler.go` into multiple files by endpoint group.
+1. Split `backend/internal/api/handlers/replay_handler.go` into multiple files by endpoint group.
 2. Extract player stats aggregation from handler into a service package.
 3. Standardize error types across upload/ranking/analyzer flows.
 4. Add shared pagination and sorting validator helpers.

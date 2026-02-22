@@ -16,8 +16,8 @@
 - New server code is already deployed (runtime rule + aggregation exclusions).
 - DB credentials available in production environment.
 - Job commands available:
-  - `go run ./cmd/ranking-job/main.go`
-  - `go run ./cmd/analyzer-job/main.go`
+  - `cd backend && go run ./cmd/ranking-job/main.go`
+  - `cd backend && go run ./cmd/analyzer-job/main.go`
 
 ## Safe Rollout Strategy
 1. Pre-check (read-only)

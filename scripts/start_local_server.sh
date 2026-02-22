@@ -8,7 +8,7 @@ REPLAY_UPLOAD_DIR="${REPLAY_UPLOAD_DIR:-/tmp/stareps/uploads}"
 DISABLE_LOCAL_PARSE="${DISABLE_LOCAL_PARSE:-true}"
 LOG_FILE="${LOG_FILE:-/tmp/stareplays_server.log}"
 PID_FILE="${PID_FILE:-/tmp/stareplays_server.pid}"
-BIN_PATH="${BIN_PATH:-${ROOT_DIR}/bin/server}"
+BIN_PATH="${BIN_PATH:-${ROOT_DIR}/backend/bin/server}"
 ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env}"
 
 echo "[start] project: ${ROOT_DIR}"
@@ -36,7 +36,7 @@ if [[ -n "${LISTENER_PID}" ]]; then
 fi
 
 echo "[start] building binary..."
-cd "${ROOT_DIR}"
+cd "${ROOT_DIR}/backend"
 go build -o "${BIN_PATH}" ./cmd/server
 
 echo "[start] launching binary..."
