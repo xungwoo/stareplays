@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -100,10 +101,11 @@ func main() {
 	api.Get("/analyzer/race-matchups", handlers.GetRaceMatchupAnalyzer)
 
 	// Web UI
+	webDir := resolveWebDir()
 	app.Get("/", func(c *fiber.Ctx) error {
-		return c.SendFile("./web/index.html")
+		return c.SendFile(filepath.Join(webDir, "index.html"))
 	})
-	app.Static("/", "./web")
+	app.Static("/", webDir)
 
 	// 서버 시작
 	port := os.Getenv("PORT")
@@ -142,4 +144,21 @@ func envIntMB(key string, fallbackMB int) int {
 		return fallbackMB * 1024 * 1024
 	}
 	return mb * 1024 * 1024
+}
+
+func resolveWebDir() string {
+	if v := strings.TrimSpace(os.Getenv("WEB_DIR")); v != "" {
+		return v
+	}
+	for _, candidate := range []string{
+		"./frontend/web",
+		"../frontend/web",
+		"./web",
+	} {
+		fi, err := os.Stat(candidate)
+		if err == nil && fi.IsDir() {
+			return candidate
+		}
+	}
+	return "./frontend/web"
 }

@@ -62,7 +62,7 @@ Railway API 서비스 Variables에 아래 값 설정:
 - [ ] 실행 커맨드:
 
 ```bash
-RANKING_JOB_MODE=once RANKING_MIN_GAMES=20 go run ./cmd/ranking-job
+cd backend && RANKING_JOB_MODE=once RANKING_MIN_GAMES=20 go run ./cmd/ranking-job
 ```
 
 - [ ] 스케줄 예시: 10분 간격 (`*/10 * * * *`)
@@ -77,7 +77,7 @@ RANKING_JOB_MODE=once RANKING_MIN_GAMES=20 go run ./cmd/ranking-job
 - [ ] 실행 커맨드:
 
 ```bash
-ANALYZER_JOB_MODE=once go run ./cmd/analyzer-job
+cd backend && ANALYZER_JOB_MODE=once go run ./cmd/analyzer-job
 ```
 
 - [ ] 스케줄 예시: 10분 간격 (`*/10 * * * *`)
@@ -85,7 +85,7 @@ ANALYZER_JOB_MODE=once go run ./cmd/analyzer-job
 
 ## 7. 현재 코드 기준 주의사항
 
-- [ ] 현재 일부 문서와 엔드포인트 구현이 다를 수 있으니, 실제 라우트는 `cmd/server/main.go` 기준으로 확인
+- [ ] 현재 일부 문서와 엔드포인트 구현이 다를 수 있으니, 실제 라우트는 `backend/cmd/server/main.go` 기준으로 확인
 - [ ] 로컬 경로(`file_path`) 기반 파싱 API를 운영에서 사용할 경우, 서버에서 접근 가능한 파일만 처리 가능
 - [ ] 외부 사용자 업로드를 받으려면 multipart 업로드 엔드포인트로 전환 권장
 

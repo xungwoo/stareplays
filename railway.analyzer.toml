@@ -1,8 +1,8 @@
 [build]
 builder = "NIXPACKS"
-buildCommand = "go mod download && go build -o bin/analyzer-job ./cmd/analyzer-job/main.go"
+buildCommand = "cd backend && go mod download && go build -o bin/analyzer-job ./cmd/analyzer-job/main.go"
 
 [deploy]
-startCommand = "./bin/analyzer-job"
+startCommand = "cd backend && ./bin/analyzer-job"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3

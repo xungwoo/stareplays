@@ -1,9 +1,8 @@
 [build]
 builder = "NIXPACKS"
-buildCommand = "go mod download && go build -o bin/migration-job ./cmd/migration-job/main.go"
+buildCommand = "cd backend && go mod download && go build -o bin/migration-job ./cmd/migration-job/main.go"
 
 [deploy]
-startCommand = "./bin/migration-job"
+startCommand = "cd backend && ./bin/migration-job"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
-

@@ -2,13 +2,13 @@
 
 ## Suggested Structure
 
-- internal/api/handlers/
-- internal/services/replay/
-- internal/services/playerstats/
-- internal/services/ranking/
-- internal/services/analyzer/
-- internal/repositories/
-- internal/domain/
+- backend/internal/api/handlers/
+- backend/internal/services/replay/
+- backend/internal/services/playerstats/
+- backend/internal/services/ranking/
+- backend/internal/services/analyzer/
+- backend/internal/repositories/
+- backend/internal/domain/
 
 ## Handler Conventions
 

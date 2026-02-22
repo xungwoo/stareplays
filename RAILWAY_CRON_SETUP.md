@@ -11,7 +11,7 @@
 ## 전제
 
 - Railway 프로젝트에 Postgres가 연결되어 있어야 함
-- API 서비스(`cmd/server`)는 별도 서비스로 상시 실행 중
+- API 서비스(`backend/cmd/server`)는 별도 서비스로 상시 실행 중
 - 본 문서의 잡 서비스는 각각 별도 서비스로 생성
 
 ## 서비스 구성 권장안
@@ -37,7 +37,7 @@
 - Build Command
 
 ```bash
-go mod download && go build -o bin/ranking-job ./cmd/ranking-job/main.go
+cd backend && go mod download && go build -o bin/ranking-job ./cmd/ranking-job/main.go
 ```
 
 - Start Command
@@ -82,7 +82,7 @@ go mod download && go build -o bin/ranking-job ./cmd/ranking-job/main.go
 - Build Command
 
 ```bash
-go mod download && go build -o bin/analyzer-job ./cmd/analyzer-job/main.go
+cd backend && go mod download && go build -o bin/analyzer-job ./cmd/analyzer-job/main.go
 ```
 
 - Start Command
@@ -166,8 +166,8 @@ curl -sS "https://<your-api-domain>/api/v1/analyzer/race-matchups?team_size=3&pa
 
 3. 빌드 실패
 - Build Command 경로 오타 확인:
-  - `./cmd/ranking-job/main.go`
-  - `./cmd/analyzer-job/main.go`
+  - `cd backend && ... ./cmd/ranking-job/main.go`
+  - `cd backend && ... ./cmd/analyzer-job/main.go`
 
 4. 성능 저하
 - 두 Cron 주기를 분리

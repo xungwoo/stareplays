@@ -34,7 +34,7 @@ make run
 make test
 
 # Or use go test directly
-go test -v ./...
+cd backend && go test -v ./...
 ```
 
 ### Maintenance
@@ -58,22 +58,17 @@ make docker-run
 
 ```
 stareplays/
-├── cmd/server/           # Application entry point
-│   └── main.go          # HTTP server initialization, middleware setup, route definitions
-├── internal/            # Private application code
-│   ├── api/            # HTTP layer
-│   │   ├── handlers/   # HTTP request handlers (empty - to be implemented)
-│   │   └── middleware/ # Custom middleware (empty - to be implemented)
-│   ├── database/       # Database connection and configuration
-│   │   └── postgres.go # GORM connection, auto-migration
-│   ├── models/         # Data models
-│   │   └── replay.go   # Replay and PlayerStats models
-│   └── parser/         # Replay file parsing logic (empty - to be implemented)
-├── pkg/                # Public/reusable packages
-│   └── utils/          # Utility functions (empty)
-├── configs/            # Configuration files (empty)
-├── migrations/         # SQL migrations (empty - using GORM AutoMigrate)
-└── uploads/            # Replay file upload storage (gitignored)
+├── backend/
+│   ├── cmd/server/           # Application entry point
+│   │   └── main.go           # HTTP server initialization, middleware setup, route definitions
+│   ├── internal/             # Private application code
+│   │   ├── api/              # HTTP layer
+│   │   ├── database/         # Database connection and configuration
+│   │   ├── models/           # Data models
+│   │   └── parser/           # Replay file parsing logic
+│   ├── ent/                  # Ent schema + generated code
+│   └── pkg/                  # Public/reusable packages
+└── frontend/web/             # Static web UI
 ```
 
 ### Key Architectural Patterns
@@ -82,7 +77,7 @@ stareplays/
 - Uses GORM for database abstraction
 - Global `database.DB` variable stores the GORM instance
 - Auto-migration is performed in `database.Connect()` on startup
-- Import path issue: `internal/database/postgres.go:10` references incorrect module path `github.com/yourusername/starcraft-stats` instead of `github.com/xungwoo/stareplays`
+- Import path issue: `backend/internal/database/postgres.go:10` references incorrect module path `github.com/yourusername/starcraft-stats` instead of `github.com/xungwoo/stareplays`
 
 **Data Models:**
 - `models.Replay`: Core entity storing parsed replay file data
@@ -105,12 +100,12 @@ stareplays/
 
 ### Development Workflow
 
-1. **Adding New Endpoints**: Create handlers in `internal/api/handlers/`, register routes in `cmd/server/main.go`
-2. **Database Changes**: Update models in `internal/models/`, GORM will auto-migrate on next startup
-3. **Replay Parsing**: Implement in `internal/parser/` using the `github.com/icza/screp` library
+1. **Adding New Endpoints**: Create handlers in `backend/internal/api/handlers/`, register routes in `backend/cmd/server/main.go`
+2. **Database Changes**: Update models in `backend/internal/models/`, GORM will auto-migrate on next startup
+3. **Replay Parsing**: Implement in `backend/internal/parser/` using the `github.com/icza/screp` library
 4. **Testing**: Write `*_test.go` files alongside implementation files
 
 ### Known Issues
 
-- Import path in `internal/database/postgres.go:10` references wrong module (`github.com/yourusername/starcraft-stats` should be `github.com/xungwoo/stareplays`)
+- Import path in `backend/internal/database/postgres.go:10` references wrong module (`github.com/yourusername/starcraft-stats` should be `github.com/xungwoo/stareplays`)
 - Core functionality (handlers, parser, middleware) are placeholder directories awaiting implementation

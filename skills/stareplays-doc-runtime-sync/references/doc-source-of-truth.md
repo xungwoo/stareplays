@@ -1,7 +1,7 @@
 # Source Of Truth
 
-- routes and middleware: cmd/server/main.go
-- endpoint behavior: internal/api/handlers/*.go
-- ranking job behavior: cmd/ranking-job + internal/services/ranking
-- analyzer job behavior: cmd/analyzer-job + internal/services/analyzer
-- schema/index behavior: ent/schema/*.go
+- routes and middleware: backend/cmd/server/main.go
+- endpoint behavior: backend/internal/api/handlers/*.go
+- ranking job behavior: backend/cmd/ranking-job + backend/internal/services/ranking
+- analyzer job behavior: backend/cmd/analyzer-job + backend/internal/services/analyzer
+- schema/index behavior: backend/ent/schema/*.go

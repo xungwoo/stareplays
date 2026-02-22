@@ -112,8 +112,8 @@ SELECT
 
 if [[ "${REFRESH_SNAPSHOTS}" == "true" ]]; then
   echo "[migrate] refreshing snapshots"
-  (cd "${ROOT_DIR}" && RANKING_JOB_MODE=once go run ./cmd/ranking-job/main.go)
-  (cd "${ROOT_DIR}" && ANALYZER_JOB_MODE=once go run ./cmd/analyzer-job/main.go)
+  (cd "${ROOT_DIR}/backend" && RANKING_JOB_MODE=once go run ./cmd/ranking-job/main.go)
+  (cd "${ROOT_DIR}/backend" && ANALYZER_JOB_MODE=once go run ./cmd/analyzer-job/main.go)
 fi
 
 echo "[migrate] done"

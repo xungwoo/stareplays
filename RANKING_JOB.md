@@ -9,9 +9,9 @@
 
 ## 2. 동작 구조
 
-- 실행 엔트리: `cmd/ranking-job/main.go`
-- 집계 서비스: `internal/services/ranking/service.go`
-- 저장 테이블(Ent): `ent/schema/ranking3v3.go` (`ranking_3v3`)
+- 실행 엔트리: `backend/cmd/ranking-job/main.go`
+- 집계 서비스: `backend/internal/services/ranking/service.go`
+- 저장 테이블(Ent): `backend/ent/schema/ranking3v3.go` (`ranking_3v3`)
 - 조회 API: `GET /api/v1/rankings/3v3` (snapshot 기반 조회)
 
 집계 플로우:
@@ -33,19 +33,19 @@
 ### once 모드 (1회 실행 후 종료)
 
 ```bash
-RANKING_JOB_MODE=once RANKING_MIN_GAMES=20 go run ./cmd/ranking-job
+cd backend && RANKING_JOB_MODE=once RANKING_MIN_GAMES=20 go run ./cmd/ranking-job
 ```
 
 로컬 기본값으로 실행:
 
 ```bash
-RANKING_JOB_MODE=once go run ./cmd/ranking-job
+cd backend && RANKING_JOB_MODE=once go run ./cmd/ranking-job
 ```
 
 ### daemon 모드 (주기 실행)
 
 ```bash
-RANKING_JOB_MODE=daemon RANKING_MIN_GAMES=20 RANKING_JOB_INTERVAL=10m go run ./cmd/ranking-job
+cd backend && RANKING_JOB_MODE=daemon RANKING_MIN_GAMES=20 RANKING_JOB_INTERVAL=10m go run ./cmd/ranking-job
 ```
 
 ## 5. Railway Cron 권장 실행
@@ -53,7 +53,7 @@ RANKING_JOB_MODE=daemon RANKING_MIN_GAMES=20 RANKING_JOB_INTERVAL=10m go run ./c
 Railway cron에서는 `once` 모드로 주기 실행 권장:
 
 ```bash
-RANKING_JOB_MODE=once RANKING_MIN_GAMES=20 go run ./cmd/ranking-job
+cd backend && RANKING_JOB_MODE=once RANKING_MIN_GAMES=20 go run ./cmd/ranking-job
 ```
 
 예시 스케줄: `*/10 * * * *` (10분마다)

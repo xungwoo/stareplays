@@ -91,7 +91,7 @@ multipart/form-data:
 환경변수 설정 후:
 
 ```bash
-go run ./cmd/server
+cd backend && go run ./cmd/server
 ```
 
 또는
@@ -109,7 +109,7 @@ make run
 mkdir -p /tmp/stareplays/uploads
 if [ -f /tmp/stareplays_server.pid ]; then kill "$(cat /tmp/stareplays_server.pid)" 2>/dev/null || true; fi
 lsof -tiTCP:3000 -sTCP:LISTEN | xargs -I{} kill {} 2>/dev/null || true
-go build -o bin/server ./cmd/server/main.go
+cd backend && go build -o bin/server ./cmd/server/main.go
 nohup env PORT=3000 REPLAY_UPLOAD_DIR=/tmp/stareplays/uploads DISABLE_LOCAL_PARSE=true ./bin/server > /tmp/stareplays_server.log 2>&1 &
 echo $! > /tmp/stareplays_server.pid
 ```
@@ -145,13 +145,13 @@ lsof -nP -iTCP:3000 -sTCP:LISTEN
 1회 실행:
 
 ```bash
-RANKING_JOB_MODE=once RANKING_MIN_GAMES=20 go run ./cmd/ranking-job
+cd backend && RANKING_JOB_MODE=once RANKING_MIN_GAMES=20 go run ./cmd/ranking-job
 ```
 
 데몬 실행:
 
 ```bash
-RANKING_JOB_MODE=daemon RANKING_MIN_GAMES=20 RANKING_JOB_INTERVAL=10m go run ./cmd/ranking-job
+cd backend && RANKING_JOB_MODE=daemon RANKING_MIN_GAMES=20 RANKING_JOB_INTERVAL=10m go run ./cmd/ranking-job
 ```
 
 ## Analyzer 스케줄 잡 실행
@@ -159,13 +159,13 @@ RANKING_JOB_MODE=daemon RANKING_MIN_GAMES=20 RANKING_JOB_INTERVAL=10m go run ./c
 1회 실행:
 
 ```bash
-ANALYZER_JOB_MODE=once go run ./cmd/analyzer-job
+cd backend && ANALYZER_JOB_MODE=once go run ./cmd/analyzer-job
 ```
 
 데몬 실행:
 
 ```bash
-ANALYZER_JOB_MODE=daemon ANALYZER_JOB_INTERVAL=10m go run ./cmd/analyzer-job
+cd backend && ANALYZER_JOB_MODE=daemon ANALYZER_JOB_INTERVAL=10m go run ./cmd/analyzer-job
 ```
 
 ## 참고 문서
@@ -191,7 +191,7 @@ bash scripts/perf/bench_player_stats.sh \
   --player jjang9-pil \
   --requests 120 \
   --concurrency 8 \
-  --summary-file perf-results/player_stats_before.csv
+  --summary-file others/perf-results/player_stats_before.csv
 
 # batch upload 벤치
 bash scripts/perf/bench_batch_upload.sh \
@@ -201,10 +201,10 @@ bash scripts/perf/bench_batch_upload.sh \
   --batch-size 4 \
   --requests 60 \
   --concurrency 4 \
-  --summary-file perf-results/batch_upload_before.csv
+  --summary-file others/perf-results/batch_upload_before.csv
 
 # 코드 변경 후 동일 명령을 *_after.csv 로 다시 측정 후 비교
 bash scripts/perf/compare_bench_results.sh \
-  --before perf-results/player_stats_before.csv \
-  --after perf-results/player_stats_after.csv
+  --before others/perf-results/player_stats_before.csv \
+  --after others/perf-results/player_stats_after.csv
 ```
