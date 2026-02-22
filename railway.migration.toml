@@ -1,8 +1,8 @@
 [build]
 builder = "NIXPACKS"
-buildCommand = "go mod download && go build -o /backend/bin/migration-job /backend/cmd/migration-job/main.go"
+buildCommand = "if [ -f go.mod ]; then go mod download && go build -o bin/migration-job ./cmd/migration-job/main.go; else cd backend && go mod download && go build -o bin/migration-job ./cmd/migration-job/main.go; fi"
 
 [deploy]
-startCommand = "/backend/bin/migration-job"
+startCommand = "if [ -f ./bin/migration-job ]; then ./bin/migration-job; else cd backend && ./bin/migration-job; fi"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
