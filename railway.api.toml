@@ -1,9 +1,9 @@
 [build]
 builder = "NIXPACKS"
-buildCommand = "if [ -f go.mod ]; then go build -o bin/server ./cmd/server; else cd backend && go build -o bin/server ./cmd/server; fi"
+buildCommand = "cd backend && go build -o bin/server ./cmd/server"
 
 [deploy]
-startCommand = "if [ -f ./bin/server ]; then WEB_DIR=./frontend/web ./bin/server; else cd backend && WEB_DIR=../frontend/web ./bin/server; fi"
+startCommand = "cd backend && WEB_DIR=../frontend/web ./bin/server"
 healthcheckPath = "/health"
 healthcheckTimeout = 120
 restartPolicyType = "ON_FAILURE"

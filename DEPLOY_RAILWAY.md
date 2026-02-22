@@ -16,8 +16,7 @@
 
 ## 2. API 서비스 설정
 
-- [ ] API 서비스에서 Web UI(`/`)도 함께 서빙하려면 Root Directory를 저장소 루트(`/`)로 설정
-- [ ] Root Directory를 `backend`로 두면 API는 동작하지만 `frontend/web` 정적 파일은 포함되지 않아 Web UI는 서빙되지 않음
+- [ ] Root Directory가 저장소 루트(`/`)인지 확인
 - [ ] `railway.toml`가 적용되는지 확인
 - [ ] Health Check 경로를 `/health`로 확인
 
