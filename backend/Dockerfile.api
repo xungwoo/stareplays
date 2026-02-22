@@ -1,0 +1,26 @@
+# syntax=docker/dockerfile:1.7
+
+FROM golang:1.24-alpine AS builder
+
+WORKDIR /app
+COPY backend/go.mod backend/go.sum ./backend/
+WORKDIR /app/backend
+RUN go mod download
+
+COPY backend/ /app/backend/
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/server ./cmd/server
+
+FROM alpine:3.20
+
+WORKDIR /app
+RUN apk add --no-cache ca-certificates tzdata
+
+COPY --from=builder /out/server /app/server
+COPY frontend/web /app/frontend/web
+
+ENV PORT=3000
+ENV WEB_DIR=/app/frontend/web
+
+EXPOSE 3000
+
+CMD ["/app/server"]
