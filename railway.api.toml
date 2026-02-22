@@ -1,6 +1,6 @@
 [build]
 builder = "NIXPACKS"
-buildCommand = "cd backend && go build -o bin/server ./cmd/server"
+buildCommand = "cd backend && go mod download && go build -o bin/server ./cmd/server"
 
 [deploy]
 startCommand = "cd backend && WEB_DIR=../frontend/web ./bin/server"
