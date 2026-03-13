@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/xungwoo/stareplays/ent/game"
+	"github.com/xungwoo/stareplays/ent/gameanalysis"
 	"github.com/xungwoo/stareplays/ent/gamedetail"
 	"github.com/xungwoo/stareplays/ent/player"
 	"github.com/xungwoo/stareplays/ent/predicate"
@@ -29,6 +30,7 @@ type GameQuery struct {
 	withPlayers     *PlayerQuery
 	withReplayFiles *ReplayFileQuery
 	withGameDetail  *GameDetailQuery
+	withAnalysis    *GameAnalysisQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -124,6 +126,28 @@ func (_q *GameQuery) QueryGameDetail() *GameDetailQuery {
 			sqlgraph.From(game.Table, game.FieldID, selector),
 			sqlgraph.To(gamedetail.Table, gamedetail.FieldID),
 			sqlgraph.Edge(sqlgraph.O2O, false, game.GameDetailTable, game.GameDetailColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryAnalysis chains the current query on the "analysis" edge.
+func (_q *GameQuery) QueryAnalysis() *GameAnalysisQuery {
+	query := (&GameAnalysisClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(game.Table, game.FieldID, selector),
+			sqlgraph.To(gameanalysis.Table, gameanalysis.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, game.AnalysisTable, game.AnalysisColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -326,6 +350,7 @@ func (_q *GameQuery) Clone() *GameQuery {
 		withPlayers:     _q.withPlayers.Clone(),
 		withReplayFiles: _q.withReplayFiles.Clone(),
 		withGameDetail:  _q.withGameDetail.Clone(),
+		withAnalysis:    _q.withAnalysis.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -362,6 +387,17 @@ func (_q *GameQuery) WithGameDetail(opts ...func(*GameDetailQuery)) *GameQuery {
 		opt(query)
 	}
 	_q.withGameDetail = query
+	return _q
+}
+
+// WithAnalysis tells the query-builder to eager-load the nodes that are connected to
+// the "analysis" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *GameQuery) WithAnalysis(opts ...func(*GameAnalysisQuery)) *GameQuery {
+	query := (&GameAnalysisClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withAnalysis = query
 	return _q
 }
 
@@ -443,10 +479,11 @@ func (_q *GameQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Game, e
 	var (
 		nodes       = []*Game{}
 		_spec       = _q.querySpec()
-		loadedTypes = [3]bool{
+		loadedTypes = [4]bool{
 			_q.withPlayers != nil,
 			_q.withReplayFiles != nil,
 			_q.withGameDetail != nil,
+			_q.withAnalysis != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -484,6 +521,12 @@ func (_q *GameQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Game, e
 	if query := _q.withGameDetail; query != nil {
 		if err := _q.loadGameDetail(ctx, query, nodes, nil,
 			func(n *Game, e *GameDetail) { n.Edges.GameDetail = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withAnalysis; query != nil {
+		if err := _q.loadAnalysis(ctx, query, nodes, nil,
+			func(n *Game, e *GameAnalysis) { n.Edges.Analysis = e }); err != nil {
 			return nil, err
 		}
 	}
@@ -575,6 +618,33 @@ func (_q *GameQuery) loadGameDetail(ctx context.Context, query *GameDetailQuery,
 		node, ok := nodeids[*fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "game_game_detail" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *GameQuery) loadAnalysis(ctx context.Context, query *GameAnalysisQuery, nodes []*Game, init func(*Game), assign func(*Game, *GameAnalysis)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Game)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(gameanalysis.FieldGameID)
+	}
+	query.Where(predicate.GameAnalysis(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(game.AnalysisColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.GameID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "game_id" returned %v for node %v`, fk, n.ID)
 		}
 		assign(node, n)
 	}

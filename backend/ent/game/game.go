@@ -48,6 +48,8 @@ const (
 	EdgeReplayFiles = "replay_files"
 	// EdgeGameDetail holds the string denoting the game_detail edge name in mutations.
 	EdgeGameDetail = "game_detail"
+	// EdgeAnalysis holds the string denoting the analysis edge name in mutations.
+	EdgeAnalysis = "analysis"
 	// Table holds the table name of the game in the database.
 	Table = "games"
 	// PlayersTable is the table that holds the players relation/edge.
@@ -71,6 +73,13 @@ const (
 	GameDetailInverseTable = "game_details"
 	// GameDetailColumn is the table column denoting the game_detail relation/edge.
 	GameDetailColumn = "game_game_detail"
+	// AnalysisTable is the table that holds the analysis relation/edge.
+	AnalysisTable = "game_analyses"
+	// AnalysisInverseTable is the table name for the GameAnalysis entity.
+	// It exists in this package in order to avoid circular dependency with the "gameanalysis" package.
+	AnalysisInverseTable = "game_analyses"
+	// AnalysisColumn is the table column denoting the analysis relation/edge.
+	AnalysisColumn = "game_id"
 )
 
 // Columns holds all SQL columns for game fields.
@@ -231,6 +240,13 @@ func ByGameDetailField(field string, opts ...sql.OrderTermOption) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newGameDetailStep(), sql.OrderByField(field, opts...))
 	}
 }
+
+// ByAnalysisField orders the results by analysis field.
+func ByAnalysisField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newAnalysisStep(), sql.OrderByField(field, opts...))
+	}
+}
 func newPlayersStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -250,5 +266,12 @@ func newGameDetailStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(GameDetailInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2O, false, GameDetailTable, GameDetailColumn),
+	)
+}
+func newAnalysisStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(AnalysisInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2O, false, AnalysisTable, AnalysisColumn),
 	)
 }

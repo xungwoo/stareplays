@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: 215 24% 92%;
+  --fg: 220 26% 16%;
+  --surface: 220 18% 86%;
+  --line: 220 18% 28%;
+  --accent: 198 86% 39%;
+  --warning: 3 66% 36%;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  color: hsl(var(--fg));
+  background:
+    radial-gradient(circle at 15% 10%, rgba(9, 99, 139, 0.1), transparent 42%),
+    radial-gradient(circle at 87% 20%, rgba(109, 31, 31, 0.1), transparent 34%),
+    linear-gradient(135deg, #e8ebf0 0%, #d4d9e1 55%, #cfd4de 100%);
+  font-family: var(--font-sans), "Pretendard", sans-serif;
+}
+
+main {
+  width: 100%;
+}
+
+.font-mono {
+  font-family: var(--font-mono), "IBM Plex Mono", monospace;
+}

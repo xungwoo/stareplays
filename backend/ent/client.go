@@ -17,6 +17,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/xungwoo/stareplays/ent/analyzerracematchup"
 	"github.com/xungwoo/stareplays/ent/game"
+	"github.com/xungwoo/stareplays/ent/gameanalysis"
 	"github.com/xungwoo/stareplays/ent/gamedetail"
 	"github.com/xungwoo/stareplays/ent/player"
 	"github.com/xungwoo/stareplays/ent/ranking3v3"
@@ -33,6 +34,8 @@ type Client struct {
 	AnalyzerRaceMatchup *AnalyzerRaceMatchupClient
 	// Game is the client for interacting with the Game builders.
 	Game *GameClient
+	// GameAnalysis is the client for interacting with the GameAnalysis builders.
+	GameAnalysis *GameAnalysisClient
 	// GameDetail is the client for interacting with the GameDetail builders.
 	GameDetail *GameDetailClient
 	// Player is the client for interacting with the Player builders.
@@ -56,6 +59,7 @@ func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.AnalyzerRaceMatchup = NewAnalyzerRaceMatchupClient(c.config)
 	c.Game = NewGameClient(c.config)
+	c.GameAnalysis = NewGameAnalysisClient(c.config)
 	c.GameDetail = NewGameDetailClient(c.config)
 	c.Player = NewPlayerClient(c.config)
 	c.Ranking3v3 = NewRanking3v3Client(c.config)
@@ -155,6 +159,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		config:              cfg,
 		AnalyzerRaceMatchup: NewAnalyzerRaceMatchupClient(cfg),
 		Game:                NewGameClient(cfg),
+		GameAnalysis:        NewGameAnalysisClient(cfg),
 		GameDetail:          NewGameDetailClient(cfg),
 		Player:              NewPlayerClient(cfg),
 		Ranking3v3:          NewRanking3v3Client(cfg),
@@ -181,6 +186,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		config:              cfg,
 		AnalyzerRaceMatchup: NewAnalyzerRaceMatchupClient(cfg),
 		Game:                NewGameClient(cfg),
+		GameAnalysis:        NewGameAnalysisClient(cfg),
 		GameDetail:          NewGameDetailClient(cfg),
 		Player:              NewPlayerClient(cfg),
 		Ranking3v3:          NewRanking3v3Client(cfg),
@@ -215,8 +221,8 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.AnalyzerRaceMatchup, c.Game, c.GameDetail, c.Player, c.Ranking3v3,
-		c.ReplayFile, c.User,
+		c.AnalyzerRaceMatchup, c.Game, c.GameAnalysis, c.GameDetail, c.Player,
+		c.Ranking3v3, c.ReplayFile, c.User,
 	} {
 		n.Use(hooks...)
 	}
@@ -226,8 +232,8 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.AnalyzerRaceMatchup, c.Game, c.GameDetail, c.Player, c.Ranking3v3,
-		c.ReplayFile, c.User,
+		c.AnalyzerRaceMatchup, c.Game, c.GameAnalysis, c.GameDetail, c.Player,
+		c.Ranking3v3, c.ReplayFile, c.User,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -240,6 +246,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.AnalyzerRaceMatchup.mutate(ctx, m)
 	case *GameMutation:
 		return c.Game.mutate(ctx, m)
+	case *GameAnalysisMutation:
+		return c.GameAnalysis.mutate(ctx, m)
 	case *GameDetailMutation:
 		return c.GameDetail.mutate(ctx, m)
 	case *PlayerMutation:
@@ -544,6 +552,22 @@ func (c *GameClient) QueryGameDetail(_m *Game) *GameDetailQuery {
 	return query
 }
 
+// QueryAnalysis queries the analysis edge of a Game.
+func (c *GameClient) QueryAnalysis(_m *Game) *GameAnalysisQuery {
+	query := (&GameAnalysisClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(game.Table, game.FieldID, id),
+			sqlgraph.To(gameanalysis.Table, gameanalysis.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, game.AnalysisTable, game.AnalysisColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *GameClient) Hooks() []Hook {
 	return c.hooks.Game
@@ -566,6 +590,155 @@ func (c *GameClient) mutate(ctx context.Context, m *GameMutation) (Value, error)
 		return (&GameDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Game mutation op: %q", m.Op())
+	}
+}
+
+// GameAnalysisClient is a client for the GameAnalysis schema.
+type GameAnalysisClient struct {
+	config
+}
+
+// NewGameAnalysisClient returns a client for the GameAnalysis from the given config.
+func NewGameAnalysisClient(c config) *GameAnalysisClient {
+	return &GameAnalysisClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `gameanalysis.Hooks(f(g(h())))`.
+func (c *GameAnalysisClient) Use(hooks ...Hook) {
+	c.hooks.GameAnalysis = append(c.hooks.GameAnalysis, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `gameanalysis.Intercept(f(g(h())))`.
+func (c *GameAnalysisClient) Intercept(interceptors ...Interceptor) {
+	c.inters.GameAnalysis = append(c.inters.GameAnalysis, interceptors...)
+}
+
+// Create returns a builder for creating a GameAnalysis entity.
+func (c *GameAnalysisClient) Create() *GameAnalysisCreate {
+	mutation := newGameAnalysisMutation(c.config, OpCreate)
+	return &GameAnalysisCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of GameAnalysis entities.
+func (c *GameAnalysisClient) CreateBulk(builders ...*GameAnalysisCreate) *GameAnalysisCreateBulk {
+	return &GameAnalysisCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *GameAnalysisClient) MapCreateBulk(slice any, setFunc func(*GameAnalysisCreate, int)) *GameAnalysisCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &GameAnalysisCreateBulk{err: fmt.Errorf("calling to GameAnalysisClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*GameAnalysisCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &GameAnalysisCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for GameAnalysis.
+func (c *GameAnalysisClient) Update() *GameAnalysisUpdate {
+	mutation := newGameAnalysisMutation(c.config, OpUpdate)
+	return &GameAnalysisUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *GameAnalysisClient) UpdateOne(_m *GameAnalysis) *GameAnalysisUpdateOne {
+	mutation := newGameAnalysisMutation(c.config, OpUpdateOne, withGameAnalysis(_m))
+	return &GameAnalysisUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *GameAnalysisClient) UpdateOneID(id int) *GameAnalysisUpdateOne {
+	mutation := newGameAnalysisMutation(c.config, OpUpdateOne, withGameAnalysisID(id))
+	return &GameAnalysisUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for GameAnalysis.
+func (c *GameAnalysisClient) Delete() *GameAnalysisDelete {
+	mutation := newGameAnalysisMutation(c.config, OpDelete)
+	return &GameAnalysisDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *GameAnalysisClient) DeleteOne(_m *GameAnalysis) *GameAnalysisDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *GameAnalysisClient) DeleteOneID(id int) *GameAnalysisDeleteOne {
+	builder := c.Delete().Where(gameanalysis.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &GameAnalysisDeleteOne{builder}
+}
+
+// Query returns a query builder for GameAnalysis.
+func (c *GameAnalysisClient) Query() *GameAnalysisQuery {
+	return &GameAnalysisQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeGameAnalysis},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a GameAnalysis entity by its id.
+func (c *GameAnalysisClient) Get(ctx context.Context, id int) (*GameAnalysis, error) {
+	return c.Query().Where(gameanalysis.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *GameAnalysisClient) GetX(ctx context.Context, id int) *GameAnalysis {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryGame queries the game edge of a GameAnalysis.
+func (c *GameAnalysisClient) QueryGame(_m *GameAnalysis) *GameQuery {
+	query := (&GameClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(gameanalysis.Table, gameanalysis.FieldID, id),
+			sqlgraph.To(game.Table, game.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, true, gameanalysis.GameTable, gameanalysis.GameColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *GameAnalysisClient) Hooks() []Hook {
+	return c.hooks.GameAnalysis
+}
+
+// Interceptors returns the client interceptors.
+func (c *GameAnalysisClient) Interceptors() []Interceptor {
+	return c.inters.GameAnalysis
+}
+
+func (c *GameAnalysisClient) mutate(ctx context.Context, m *GameAnalysisMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&GameAnalysisCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&GameAnalysisUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&GameAnalysisUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&GameAnalysisDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown GameAnalysis mutation op: %q", m.Op())
 	}
 }
 
@@ -1317,11 +1490,11 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		AnalyzerRaceMatchup, Game, GameDetail, Player, Ranking3v3, ReplayFile,
-		User []ent.Hook
+		AnalyzerRaceMatchup, Game, GameAnalysis, GameDetail, Player, Ranking3v3,
+		ReplayFile, User []ent.Hook
 	}
 	inters struct {
-		AnalyzerRaceMatchup, Game, GameDetail, Player, Ranking3v3, ReplayFile,
-		User []ent.Interceptor
+		AnalyzerRaceMatchup, Game, GameAnalysis, GameDetail, Player, Ranking3v3,
+		ReplayFile, User []ent.Interceptor
 	}
 )

@@ -10,6 +10,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/xungwoo/stareplays/ent/game"
+	"github.com/xungwoo/stareplays/ent/gameanalysis"
 	"github.com/xungwoo/stareplays/ent/gamedetail"
 )
 
@@ -60,9 +61,11 @@ type GameEdges struct {
 	ReplayFiles []*ReplayFile `json:"replay_files,omitempty"`
 	// GameDetail holds the value of the game_detail edge.
 	GameDetail *GameDetail `json:"game_detail,omitempty"`
+	// Analysis holds the value of the analysis edge.
+	Analysis *GameAnalysis `json:"analysis,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [3]bool
+	loadedTypes [4]bool
 }
 
 // PlayersOrErr returns the Players value or an error if the edge
@@ -92,6 +95,17 @@ func (e GameEdges) GameDetailOrErr() (*GameDetail, error) {
 		return nil, &NotFoundError{label: gamedetail.Label}
 	}
 	return nil, &NotLoadedError{edge: "game_detail"}
+}
+
+// AnalysisOrErr returns the Analysis value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e GameEdges) AnalysisOrErr() (*GameAnalysis, error) {
+	if e.Analysis != nil {
+		return e.Analysis, nil
+	} else if e.loadedTypes[3] {
+		return nil, &NotFoundError{label: gameanalysis.Label}
+	}
+	return nil, &NotLoadedError{edge: "analysis"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -236,6 +250,11 @@ func (_m *Game) QueryReplayFiles() *ReplayFileQuery {
 // QueryGameDetail queries the "game_detail" edge of the Game entity.
 func (_m *Game) QueryGameDetail() *GameDetailQuery {
 	return NewGameClient(_m.config).QueryGameDetail(_m)
+}
+
+// QueryAnalysis queries the "analysis" edge of the Game entity.
+func (_m *Game) QueryAnalysis() *GameAnalysisQuery {
+	return NewGameClient(_m.config).QueryAnalysis(_m)
 }
 
 // Update returns a builder for updating this Game.

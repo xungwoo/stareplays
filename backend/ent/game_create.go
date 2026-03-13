@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/xungwoo/stareplays/ent/game"
+	"github.com/xungwoo/stareplays/ent/gameanalysis"
 	"github.com/xungwoo/stareplays/ent/gamedetail"
 	"github.com/xungwoo/stareplays/ent/player"
 	"github.com/xungwoo/stareplays/ent/replayfile"
@@ -252,6 +253,25 @@ func (_c *GameCreate) SetGameDetail(v *GameDetail) *GameCreate {
 	return _c.SetGameDetailID(v.ID)
 }
 
+// SetAnalysisID sets the "analysis" edge to the GameAnalysis entity by ID.
+func (_c *GameCreate) SetAnalysisID(id int) *GameCreate {
+	_c.mutation.SetAnalysisID(id)
+	return _c
+}
+
+// SetNillableAnalysisID sets the "analysis" edge to the GameAnalysis entity by ID if the given value is not nil.
+func (_c *GameCreate) SetNillableAnalysisID(id *int) *GameCreate {
+	if id != nil {
+		_c = _c.SetAnalysisID(*id)
+	}
+	return _c
+}
+
+// SetAnalysis sets the "analysis" edge to the GameAnalysis entity.
+func (_c *GameCreate) SetAnalysis(v *GameAnalysis) *GameCreate {
+	return _c.SetAnalysisID(v.ID)
+}
+
 // Mutation returns the GameMutation object of the builder.
 func (_c *GameCreate) Mutation() *GameMutation {
 	return _c.mutation
@@ -460,6 +480,22 @@ func (_c *GameCreate) createSpec() (*Game, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(gamedetail.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.AnalysisIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   game.AnalysisTable,
+			Columns: []string{game.AnalysisColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(gameanalysis.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

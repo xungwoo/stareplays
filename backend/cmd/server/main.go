@@ -85,6 +85,7 @@ func main() {
 	api.Get("/games", handlers.ListGames)                // 게임 목록 조회
 	api.Get("/games/:id", handlers.GetGame)              // 게임 상세 조회
 	api.Get("/games/:id/detail", handlers.GetGameDetail) // 게임 시각화 데이터
+	api.Get("/games/:id/analyzer", handlers.GetGameAnalyzer)
 	if !envBool("DISABLE_LOCAL_PARSE", false) {
 		api.Post("/games/parse", handlers.ParseLocalReplay) // 로컬 파일 파싱 (dev)
 	} else {
