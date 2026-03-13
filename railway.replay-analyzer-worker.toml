@@ -1,8 +1,7 @@
 [build]
-builder = "NIXPACKS"
-buildCommand = "if [ -f go.mod ]; then go mod download && go build -o bin/replay-analyzer-worker ./cmd/replay-analyzer-worker/main.go; else cd backend && go mod download && go build -o bin/replay-analyzer-worker ./cmd/replay-analyzer-worker/main.go; fi"
+builder = "DOCKERFILE"
+dockerfilePath = "backend/Dockerfile.replay-analyzer-worker"
 
 [deploy]
-startCommand = "if [ -f ./bin/replay-analyzer-worker ]; then ./bin/replay-analyzer-worker; else cd backend && ./bin/replay-analyzer-worker; fi"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10

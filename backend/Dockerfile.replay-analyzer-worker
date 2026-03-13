@@ -1,0 +1,123 @@
+# syntax=docker/dockerfile:1.7
+
+ARG STAREPLAYS_GO_IMAGE=golang:1.25.5-bookworm
+ARG REPLAY_ANALYZER_GO_IMAGE=golang:1.24-bookworm
+ARG RUNTIME_BASE=debian:bookworm-slim
+
+ARG REPLAY_ANALYZER_REPO_URL=https://github.com/xungwoo/replay_analyzer.git
+ARG REPLAY_ANALYZER_REF=main
+ARG OPENBW_REPO_URL=https://github.com/xungwoo/openbw-core.git
+ARG OPENBW_BWAPI_REPO_URL=https://github.com/xungwoo/openbw-bwapi-core.git
+ARG OPENBW_REF=224bb0c34ac77ef7c0fa7fe32f86af13787e1568
+ARG OPENBW_BWAPI_REF=da254761b39299d3786058365912f66fda9f800f
+
+FROM ${STAREPLAYS_GO_IMAGE} AS worker-builder
+WORKDIR /src
+
+COPY backend/go.mod backend/go.sum ./backend/
+WORKDIR /src/backend
+RUN go mod download
+
+COPY backend/ /src/backend/
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags='-s -w' -o /out/replay-analyzer-worker ./cmd/replay-analyzer-worker
+
+FROM ${REPLAY_ANALYZER_GO_IMAGE} AS analyzer-builder
+ARG REPLAY_ANALYZER_REPO_URL
+ARG REPLAY_ANALYZER_REF
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    git \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /src
+RUN git clone --depth 1 --branch "${REPLAY_ANALYZER_REF}" "${REPLAY_ANALYZER_REPO_URL}" replay_analyzer
+
+WORKDIR /src/replay_analyzer
+RUN go mod download
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags='-s -w' -o /out/replay_analyzer ./cmd/replay_analyzer && \
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags='-s -w' -o /out/openbw_sidecar ./cmd/openbw_sidecar && \
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags='-s -w' -o /out/openbw_exporter_openbw ./cmd/openbw_exporter_openbw && \
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags='-s -w' -o /out/openbw_bridge_bwapijsonl ./cmd/openbw_bridge_bwapijsonl
+
+FROM debian:bookworm-slim AS openbw-builder
+ARG REPLAY_ANALYZER_REPO_URL
+ARG REPLAY_ANALYZER_REF
+ARG OPENBW_REPO_URL
+ARG OPENBW_BWAPI_REPO_URL
+ARG OPENBW_REF
+ARG OPENBW_BWAPI_REF
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    build-essential \
+    cmake \
+    git \
+    ninja-build \
+    pkg-config \
+    zlib1g-dev \
+ && rm -rf /var/lib/apt/lists/*
+
+COPY --chmod=755 backend/docker/fetch_openbw_sources.sh /usr/local/bin/fetch_openbw_sources.sh
+RUN /usr/local/bin/fetch_openbw_sources.sh
+
+WORKDIR /opt
+RUN git clone --depth 1 --branch "${REPLAY_ANALYZER_REF}" "${REPLAY_ANALYZER_REPO_URL}" replay_analyzer
+
+RUN cmake -S /opt/openbw-bwapi -B /opt/openbw-bwapi/build \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DOPENBW_DIR=/opt/openbw \
+      -DOPENBW_ENABLE_UI=0 && \
+    cmake --build /opt/openbw-bwapi/build --target BWAPILauncher -j"$(nproc)"
+
+RUN mkdir -p /out && \
+    c++ -std=c++17 -shared -fPIC \
+      -I/opt/openbw-bwapi/bwapi/include \
+      /opt/replay_analyzer/bridge/openbw_bwapi_jsonl_module/openbw_bwapi_jsonl_module.cpp \
+      -L/opt/openbw-bwapi/build/lib -lBWAPILIB \
+      -Wl,-rpath,'$ORIGIN/lib' \
+      -o /out/openbw_bwapi_jsonl_module.so && \
+    cp /opt/openbw-bwapi/build/bin/BWAPILauncher /out/BWAPILauncher && \
+    cp -R /opt/openbw-bwapi/build/lib /out/lib
+
+FROM ${RUNTIME_BASE} AS runtime
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    bash \
+    libstdc++6 \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY --from=worker-builder /out/replay-analyzer-worker /app/replay-analyzer-worker
+COPY --from=analyzer-builder /out/replay_analyzer /app/.bin/replay_analyzer
+COPY --from=analyzer-builder /out/openbw_sidecar /app/.bin/openbw_sidecar
+COPY --from=analyzer-builder /out/openbw_exporter_openbw /app/.bin/openbw_exporter_openbw
+COPY --from=analyzer-builder /out/openbw_bridge_bwapijsonl /app/.bin/openbw_bridge_bwapijsonl
+COPY --from=openbw-builder /out/BWAPILauncher /app/.bin/BWAPILauncher
+COPY --from=openbw-builder /out/openbw_bwapi_jsonl_module.so /app/.bin/openbw_bwapi_jsonl_module.so
+COPY --from=openbw-builder /out/lib /app/.bin/lib
+COPY backend/docker/replay-analyzer-worker-entrypoint.sh /entrypoint.sh
+
+RUN mkdir -p /app/.bin /data/mpq /tmp/stareplays/replays /tmp/stareplays/analysis_jobs && \
+    chmod +x /app/replay-analyzer-worker /entrypoint.sh /app/.bin/*
+
+ENV PATH="/app/.bin:${PATH}" \
+    LD_LIBRARY_PATH="/app/.bin/lib:${LD_LIBRARY_PATH}" \
+    REPLAY_ANALYZER_BIN="/app/.bin/replay_analyzer" \
+    REPLAY_ANALYZER_SIMULATOR="openbw" \
+    REPLAY_ANALYZER_PROJECT_ROOT="/app" \
+    REPLAY_ANALYZER_OPENBW_SIDECAR_BIN="/app/.bin/openbw_sidecar" \
+    REPLAY_ANALYZER_OPENBW_EXPORTER_PROFILE="external" \
+    REPLAY_ANALYZER_OPENBW_EXPORTER_BIN="/app/.bin/openbw_exporter_openbw" \
+    REPLAY_ANALYZER_OPENBW_BRIDGE_BIN="/app/.bin/openbw_bridge_bwapijsonl" \
+    REPLAY_ANALYZER_OPENBW_BRIDGE_ARGS="--replay {replay_path} --bwapi-launcher /app/.bin/BWAPILauncher --module /app/.bin/openbw_bwapi_jsonl_module.so --cwd /data/mpq --timeout-sec 90" \
+    OPENBW_BWAPI_LAUNCHER_BIN="/app/.bin/BWAPILauncher" \
+    OPENBW_BWAPI_JSONL_MODULE_BIN="/app/.bin/openbw_bwapi_jsonl_module.so" \
+    OPENBW_BWAPI_RUN_DIR="/data/mpq" \
+    REPLAY_ANALYZER_WORKER_TMP_DIR="/tmp/stareplays/replays" \
+    REPLAY_ANALYZER_WORKER_OUTPUT_ROOT="/tmp/stareplays/analysis_jobs"
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["/app/replay-analyzer-worker"]

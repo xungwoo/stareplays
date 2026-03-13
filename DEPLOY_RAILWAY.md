@@ -54,6 +54,54 @@ Railway API 서비스 Variables에 아래 값 설정:
 - [ ] Railway Spending Limit 또는 Usage Alert 설정
 - [ ] 최소 1개 실제 replay로 업로드/조회/삭제 플로우 점검
 
+## 6-0. Replay Analyzer Worker 배포
+
+`replay_analyzer` 통합은 API 서비스만으로 끝나지 않습니다. queue consumer는 별도 worker 프로세스이며, 운영에서는 기존 `replay_analyzer` 서비스를 아래 방식으로 재사용하는 것을 권장합니다.
+
+- [ ] `replay_analyzer` 서비스의 Source Repo를 `stareplays`로 전환
+- [ ] Builder를 `Dockerfile`로 변경
+- [ ] Dockerfile Path를 `backend/Dockerfile.replay-analyzer-worker`로 설정
+- [ ] Build/Start Command는 비움 (Dockerfile `ENTRYPOINT`/`CMD` 사용)
+- [ ] 기존 `replay_analyzer-volume`를 계속 붙이고 mount path를 `/data`로 유지
+- [ ] volume 안에 `/data/mpq/Patch_rt.mpq`, `/data/mpq/BrooDat.mpq`, `/data/mpq/StarDat.mpq` 존재 확인
+- [ ] worker Variables에 `DATABASE_URL`, `REPLAY_BUCKET_*`, `REPLAY_ANALYZER_*`, `OPENBW_*` 설정
+- [ ] `REPLAY_BUCKET_PATH_STYLE=false`로 우선 적용
+
+권장 worker 변수 예시:
+
+```bash
+ENV=production
+DATABASE_URL=${{Postgres.DATABASE_URL}}
+
+REPLAY_BUCKET_NAME=${{replay-bucket.BUCKET}}
+REPLAY_BUCKET_ENDPOINT=${{replay-bucket.ENDPOINT}}
+REPLAY_BUCKET_REGION=${{replay-bucket.REGION}}
+REPLAY_BUCKET_ACCESS_KEY_ID=${{replay-bucket.ACCESS_KEY_ID}}
+REPLAY_BUCKET_SECRET_ACCESS_KEY=${{replay-bucket.SECRET_ACCESS_KEY}}
+REPLAY_BUCKET_PATH_STYLE=false
+
+REPLAY_ANALYZER_VERSION=v1
+REPLAY_ANALYZER_BIN=/app/.bin/replay_analyzer
+REPLAY_ANALYZER_SIMULATOR=openbw
+REPLAY_ANALYZER_WORKER_LISTEN_CHANNEL=replay_analysis_jobs
+REPLAY_ANALYZER_WORKER_POLL_INTERVAL_SEC=10
+REPLAY_ANALYZER_WORKER_RETRY_BACKOFF_SEC=60
+REPLAY_ANALYZER_WORKER_MAX_ATTEMPTS=3
+REPLAY_ANALYZER_WORKER_TMP_DIR=/tmp/stareplays/replays
+REPLAY_ANALYZER_WORKER_OUTPUT_ROOT=/tmp/stareplays/analysis_jobs
+
+REPLAY_ANALYZER_PROJECT_ROOT=/app
+REPLAY_ANALYZER_OPENBW_SIDECAR_BIN=/app/.bin/openbw_sidecar
+REPLAY_ANALYZER_OPENBW_EXPORTER_BIN=/app/.bin/openbw_exporter_openbw
+REPLAY_ANALYZER_OPENBW_BRIDGE_BIN=/app/.bin/openbw_bridge_bwapijsonl
+REPLAY_ANALYZER_FORCE_MPQ_CHECK=1
+
+OPENBW_BWAPI_RUN_DIR=/data/mpq
+OPENBW_BWAPI_LAUNCHER_BIN=/app/.bin/BWAPILauncher
+OPENBW_BWAPI_JSONL_MODULE_BIN=/app/.bin/openbw_bwapi_jsonl_module.so
+REPLAY_ANALYZER_OPENBW_BRIDGE_ARGS=--replay {replay_path} --bwapi-launcher /app/.bin/BWAPILauncher --module /app/.bin/openbw_bwapi_jsonl_module.so --cwd /data/mpq --timeout-sec 90
+```
+
 ## 6-1. Rankings Cron Job (권장)
 
 `rankings_3v3`는 snapshot 기반 조회이므로, 주기적 집계 job을 별도 실행해야 합니다.
