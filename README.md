@@ -9,6 +9,7 @@ StarCraft: Brood War replay 파싱/저장 API 서버입니다.
 - 게임 식별 키: `host + start_time` (unique)
 - 동일 게임 복수 업로드 지원 (`m/N` 신뢰도 모델)
 - 동일 replay 재업로드 시 파싱 데이터는 유지하고 `upload_count`(신뢰도)만 갱신
+- replay analyzer는 `same game_id + same file_hash + same analyzer_version`이면 중복 큐잉하지 않고, analyzer 버전이 달라질 때만 재큐잉
 
 ## 신뢰도 모델
 
@@ -55,6 +56,15 @@ multipart/form-data:
 `GET /games/:id/detail`
 
 - `APM timeline`, `build orders`, `chat messages`
+
+### 4-1) Replay Analyzer 상태/결과
+
+`GET /games/:id/analyzer`
+
+- 상태: `not_requested | queued | running | succeeded | failed`
+- 결과 메타에 `analyzer_version` 포함
+- `succeeded`일 때 `quality_report`, `summary`, `analysis_phase` 요약 반환
+- `analyzer.html`은 polling 없이 새로고침 버튼으로 상태를 갱신
 
 ### 5) 게임 삭제
 
@@ -127,6 +137,12 @@ lsof -nP -iTCP:3000 -sTCP:LISTEN
   - multipart 업로드 파일의 임시 저장 디렉토리
 - `REPLAY_MAX_SIZE_MB` (기본: `30`)
   - 업로드 파일 최대 크기(MB), Fiber BodyLimit에도 동일 반영
+- `REPLAY_BUCKET_NAME`, `REPLAY_BUCKET_ENDPOINT`, `REPLAY_BUCKET_REGION`
+- `REPLAY_BUCKET_ACCESS_KEY_ID`, `REPLAY_BUCKET_SECRET_ACCESS_KEY`
+- `REPLAY_BUCKET_PATH_STYLE` (기본: `true`)
+  - 신규 업로드 replay 원본을 Railway Bucket(`replays/{file_hash}.rep`)에 저장
+- `REPLAY_ANALYZER_VERSION` (기본: `v1`)
+  - 동일 replay hash라도 analyzer 버전이 달라지면 재큐잉 판단에 사용
 - `DISABLE_LOCAL_PARSE` (기본: `false`)
   - `true`면 `/api/v1/games/parse` 로컬 경로 파싱 API 비활성화
 - `RANKING_MIN_GAMES` (기본: `20`)
@@ -139,6 +155,15 @@ lsof -nP -iTCP:3000 -sTCP:LISTEN
   - `once` 또는 `daemon`
 - `ANALYZER_JOB_INTERVAL` (기본: `10m`)
   - analyzer daemon 모드 실행 주기
+- `REPLAY_ANALYZER_WORKER_LISTEN_CHANNEL` (기본: `replay_analysis_jobs`)
+- `REPLAY_ANALYZER_WORKER_POLL_INTERVAL_SEC` (기본: `10`)
+- `REPLAY_ANALYZER_WORKER_EXEC_TIMEOUT_SEC` (기본: `1200`)
+- `REPLAY_ANALYZER_WORKER_MAX_ATTEMPTS` (기본: `3`)
+- `REPLAY_ANALYZER_WORKER_RETRY_BACKOFF_SEC` (기본: `60`)
+- `REPLAY_ANALYZER_WORKER_TMP_DIR` (기본: `/tmp/stareplays/replays`)
+- `REPLAY_ANALYZER_WORKER_OUTPUT_ROOT` (기본: `/tmp/stareplays/analysis_jobs`)
+- `REPLAY_ANALYZER_BIN` (기본: `replay_analyzer`)
+- `REPLAY_ANALYZER_SIMULATOR` (기본: `openbw`)
 
 ## 랭킹 스케줄 잡 실행
 

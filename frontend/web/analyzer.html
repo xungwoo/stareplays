@@ -42,12 +42,13 @@
           <div class="overflow-x-auto border border-[#2D3139] bg-white/50">
             <table class="w-full text-left border-collapse table-fixed">
               <colgroup>
-                <col style="width: 12%"><col style="width: 34%"><col style="width: 18%"><col style="width: 36%">
+                <col style="width: 10%"><col style="width: 28%"><col style="width: 20%"><col style="width: 14%"><col style="width: 28%">
               </colgroup>
               <thead>
                 <tr class="bg-[#D1D1D4] text-[10px] font-bold uppercase border-b border-[#2D3139]">
                   <th class="p-2 border-r border-[#2D3139]">ID</th>
                   <th class="p-2 border-r border-[#2D3139]">MAP</th>
+                  <th class="p-2 border-r border-[#2D3139] text-center">ANALYZER</th>
                   <th class="p-2 border-r border-[#2D3139] text-right">TIME</th>
                   <th class="p-2 text-right">START</th>
                 </tr>
@@ -63,8 +64,12 @@
         </article>
 
         <article class="lg:col-span-8 border border-[#2D3139] bg-white/30 p-3">
-          <h3 class="text-[10px] font-bold uppercase tracking-widest border-b border-[#2D3139] pb-1 mb-2">Top Summary Strip</h3>
+          <div class="flex items-center justify-between border-b border-[#2D3139] pb-1 mb-2">
+            <h3 class="text-[10px] font-bold uppercase tracking-widest">Top Summary Strip</h3>
+            <button id="analyzerRefreshStatus" class="border border-[#2D3139] px-2 py-1 text-[10px] font-bold uppercase hover:bg-white/50">Refresh Status</button>
+          </div>
           <div id="analyzerSummary" class="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px]"></div>
+          <div id="analyzerJobStatus" class="mt-2 border border-[#2D3139] bg-white/60 p-2 text-[10px] text-[#4A4F59]">SELECT_GAME_FIRST</div>
           <div id="analyzerPlayerTabs" class="mt-2 flex flex-wrap gap-1 text-[10px] font-bold uppercase"></div>
         </article>
       </section>

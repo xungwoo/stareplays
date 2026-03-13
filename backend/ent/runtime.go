@@ -7,6 +7,7 @@ import (
 
 	"github.com/xungwoo/stareplays/ent/analyzerracematchup"
 	"github.com/xungwoo/stareplays/ent/game"
+	"github.com/xungwoo/stareplays/ent/gameanalysis"
 	"github.com/xungwoo/stareplays/ent/player"
 	"github.com/xungwoo/stareplays/ent/ranking3v3"
 	"github.com/xungwoo/stareplays/ent/replayfile"
@@ -98,6 +99,56 @@ func init() {
 	game.DefaultUpdatedAt = gameDescUpdatedAt.Default.(func() time.Time)
 	// game.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	game.UpdateDefaultUpdatedAt = gameDescUpdatedAt.UpdateDefault.(func() time.Time)
+	gameanalysisFields := schema.GameAnalysis{}.Fields()
+	_ = gameanalysisFields
+	// gameanalysisDescGameID is the schema descriptor for game_id field.
+	gameanalysisDescGameID := gameanalysisFields[0].Descriptor()
+	// gameanalysis.GameIDValidator is a validator for the "game_id" field. It is called by the builders before save.
+	gameanalysis.GameIDValidator = gameanalysisDescGameID.Validators[0].(func(int) error)
+	// gameanalysisDescFileHash is the schema descriptor for file_hash field.
+	gameanalysisDescFileHash := gameanalysisFields[1].Descriptor()
+	// gameanalysis.FileHashValidator is a validator for the "file_hash" field. It is called by the builders before save.
+	gameanalysis.FileHashValidator = gameanalysisDescFileHash.Validators[0].(func(string) error)
+	// gameanalysisDescBucketKey is the schema descriptor for bucket_key field.
+	gameanalysisDescBucketKey := gameanalysisFields[2].Descriptor()
+	// gameanalysis.BucketKeyValidator is a validator for the "bucket_key" field. It is called by the builders before save.
+	gameanalysis.BucketKeyValidator = gameanalysisDescBucketKey.Validators[0].(func(string) error)
+	// gameanalysisDescAnalyzerVersion is the schema descriptor for analyzer_version field.
+	gameanalysisDescAnalyzerVersion := gameanalysisFields[3].Descriptor()
+	// gameanalysis.DefaultAnalyzerVersion holds the default value on creation for the analyzer_version field.
+	gameanalysis.DefaultAnalyzerVersion = gameanalysisDescAnalyzerVersion.Default.(string)
+	// gameanalysis.AnalyzerVersionValidator is a validator for the "analyzer_version" field. It is called by the builders before save.
+	gameanalysis.AnalyzerVersionValidator = gameanalysisDescAnalyzerVersion.Validators[0].(func(string) error)
+	// gameanalysisDescStatus is the schema descriptor for status field.
+	gameanalysisDescStatus := gameanalysisFields[4].Descriptor()
+	// gameanalysis.DefaultStatus holds the default value on creation for the status field.
+	gameanalysis.DefaultStatus = gameanalysisDescStatus.Default.(string)
+	// gameanalysisDescAttemptCount is the schema descriptor for attempt_count field.
+	gameanalysisDescAttemptCount := gameanalysisFields[5].Descriptor()
+	// gameanalysis.DefaultAttemptCount holds the default value on creation for the attempt_count field.
+	gameanalysis.DefaultAttemptCount = gameanalysisDescAttemptCount.Default.(int)
+	// gameanalysisDescPriority is the schema descriptor for priority field.
+	gameanalysisDescPriority := gameanalysisFields[6].Descriptor()
+	// gameanalysis.DefaultPriority holds the default value on creation for the priority field.
+	gameanalysis.DefaultPriority = gameanalysisDescPriority.Default.(int)
+	// gameanalysisDescRequestedAt is the schema descriptor for requested_at field.
+	gameanalysisDescRequestedAt := gameanalysisFields[7].Descriptor()
+	// gameanalysis.DefaultRequestedAt holds the default value on creation for the requested_at field.
+	gameanalysis.DefaultRequestedAt = gameanalysisDescRequestedAt.Default.(func() time.Time)
+	// gameanalysisDescNextRetryAt is the schema descriptor for next_retry_at field.
+	gameanalysisDescNextRetryAt := gameanalysisFields[10].Descriptor()
+	// gameanalysis.DefaultNextRetryAt holds the default value on creation for the next_retry_at field.
+	gameanalysis.DefaultNextRetryAt = gameanalysisDescNextRetryAt.Default.(func() time.Time)
+	// gameanalysisDescCreatedAt is the schema descriptor for created_at field.
+	gameanalysisDescCreatedAt := gameanalysisFields[15].Descriptor()
+	// gameanalysis.DefaultCreatedAt holds the default value on creation for the created_at field.
+	gameanalysis.DefaultCreatedAt = gameanalysisDescCreatedAt.Default.(func() time.Time)
+	// gameanalysisDescUpdatedAt is the schema descriptor for updated_at field.
+	gameanalysisDescUpdatedAt := gameanalysisFields[16].Descriptor()
+	// gameanalysis.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	gameanalysis.DefaultUpdatedAt = gameanalysisDescUpdatedAt.Default.(func() time.Time)
+	// gameanalysis.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	gameanalysis.UpdateDefaultUpdatedAt = gameanalysisDescUpdatedAt.UpdateDefault.(func() time.Time)
 	playerFields := schema.Player{}.Fields()
 	_ = playerFields
 	// playerDescName is the schema descriptor for name field.

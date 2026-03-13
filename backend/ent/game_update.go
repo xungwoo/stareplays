@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/xungwoo/stareplays/ent/game"
+	"github.com/xungwoo/stareplays/ent/gameanalysis"
 	"github.com/xungwoo/stareplays/ent/gamedetail"
 	"github.com/xungwoo/stareplays/ent/player"
 	"github.com/xungwoo/stareplays/ent/predicate"
@@ -338,6 +339,25 @@ func (_u *GameUpdate) SetGameDetail(v *GameDetail) *GameUpdate {
 	return _u.SetGameDetailID(v.ID)
 }
 
+// SetAnalysisID sets the "analysis" edge to the GameAnalysis entity by ID.
+func (_u *GameUpdate) SetAnalysisID(id int) *GameUpdate {
+	_u.mutation.SetAnalysisID(id)
+	return _u
+}
+
+// SetNillableAnalysisID sets the "analysis" edge to the GameAnalysis entity by ID if the given value is not nil.
+func (_u *GameUpdate) SetNillableAnalysisID(id *int) *GameUpdate {
+	if id != nil {
+		_u = _u.SetAnalysisID(*id)
+	}
+	return _u
+}
+
+// SetAnalysis sets the "analysis" edge to the GameAnalysis entity.
+func (_u *GameUpdate) SetAnalysis(v *GameAnalysis) *GameUpdate {
+	return _u.SetAnalysisID(v.ID)
+}
+
 // Mutation returns the GameMutation object of the builder.
 func (_u *GameUpdate) Mutation() *GameMutation {
 	return _u.mutation
@@ -388,6 +408,12 @@ func (_u *GameUpdate) RemoveReplayFiles(v ...*ReplayFile) *GameUpdate {
 // ClearGameDetail clears the "game_detail" edge to the GameDetail entity.
 func (_u *GameUpdate) ClearGameDetail() *GameUpdate {
 	_u.mutation.ClearGameDetail()
+	return _u
+}
+
+// ClearAnalysis clears the "analysis" edge to the GameAnalysis entity.
+func (_u *GameUpdate) ClearAnalysis() *GameUpdate {
+	_u.mutation.ClearAnalysis()
 	return _u
 }
 
@@ -639,6 +665,35 @@ func (_u *GameUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(gamedetail.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.AnalysisCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   game.AnalysisTable,
+			Columns: []string{game.AnalysisColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(gameanalysis.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.AnalysisIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   game.AnalysisTable,
+			Columns: []string{game.AnalysisColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(gameanalysis.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -973,6 +1028,25 @@ func (_u *GameUpdateOne) SetGameDetail(v *GameDetail) *GameUpdateOne {
 	return _u.SetGameDetailID(v.ID)
 }
 
+// SetAnalysisID sets the "analysis" edge to the GameAnalysis entity by ID.
+func (_u *GameUpdateOne) SetAnalysisID(id int) *GameUpdateOne {
+	_u.mutation.SetAnalysisID(id)
+	return _u
+}
+
+// SetNillableAnalysisID sets the "analysis" edge to the GameAnalysis entity by ID if the given value is not nil.
+func (_u *GameUpdateOne) SetNillableAnalysisID(id *int) *GameUpdateOne {
+	if id != nil {
+		_u = _u.SetAnalysisID(*id)
+	}
+	return _u
+}
+
+// SetAnalysis sets the "analysis" edge to the GameAnalysis entity.
+func (_u *GameUpdateOne) SetAnalysis(v *GameAnalysis) *GameUpdateOne {
+	return _u.SetAnalysisID(v.ID)
+}
+
 // Mutation returns the GameMutation object of the builder.
 func (_u *GameUpdateOne) Mutation() *GameMutation {
 	return _u.mutation
@@ -1023,6 +1097,12 @@ func (_u *GameUpdateOne) RemoveReplayFiles(v ...*ReplayFile) *GameUpdateOne {
 // ClearGameDetail clears the "game_detail" edge to the GameDetail entity.
 func (_u *GameUpdateOne) ClearGameDetail() *GameUpdateOne {
 	_u.mutation.ClearGameDetail()
+	return _u
+}
+
+// ClearAnalysis clears the "analysis" edge to the GameAnalysis entity.
+func (_u *GameUpdateOne) ClearAnalysis() *GameUpdateOne {
+	_u.mutation.ClearAnalysis()
 	return _u
 }
 
@@ -1304,6 +1384,35 @@ func (_u *GameUpdateOne) sqlSave(ctx context.Context) (_node *Game, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(gamedetail.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.AnalysisCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   game.AnalysisTable,
+			Columns: []string{game.AnalysisColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(gameanalysis.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.AnalysisIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   game.AnalysisTable,
+			Columns: []string{game.AnalysisColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(gameanalysis.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

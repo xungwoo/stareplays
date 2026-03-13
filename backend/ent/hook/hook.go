@@ -33,6 +33,18 @@ func (f GameFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error)
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.GameMutation", m)
 }
 
+// The GameAnalysisFunc type is an adapter to allow the use of ordinary
+// function as GameAnalysis mutator.
+type GameAnalysisFunc func(context.Context, *ent.GameAnalysisMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f GameAnalysisFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.GameAnalysisMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.GameAnalysisMutation", m)
+}
+
 // The GameDetailFunc type is an adapter to allow the use of ordinary
 // function as GameDetail mutator.
 type GameDetailFunc func(context.Context, *ent.GameDetailMutation) (ent.Value, error)

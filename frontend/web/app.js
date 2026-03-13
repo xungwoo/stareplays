@@ -33,6 +33,7 @@ const openAnalyzerBtnEl = document.getElementById("openAnalyzerBtn");
 
 const state = {
   games: [],
+  analysisStatuses: {},
   chartTimelines: [],
   highlightedPlayer: null,
   activeVizTab: "apm",
@@ -226,6 +227,21 @@ function reliabilitySummary(game, summaries) {
 
 function getCurrentUser() {
   return (state.currentUser || "").trim();
+}
+
+function normalizeAnalysisJobStatus(v) {
+  const s = String(v || "").toLowerCase().trim();
+  if (s === "queued" || s === "running" || s === "succeeded" || s === "failed") return s;
+  return "not_requested";
+}
+
+function analysisBadge(status) {
+  const s = normalizeAnalysisJobStatus(status);
+  if (s === "queued") return `<span class="inline-block border border-[#2D3139] bg-white/70 px-2 py-0.5 text-[10px]">QUEUED</span>`;
+  if (s === "running") return `<span class="inline-block border border-[#2D3139] bg-[#275DAD]/20 px-2 py-0.5 text-[10px]">RUNNING</span>`;
+  if (s === "succeeded") return `<span class="inline-block border border-[#2D3139] bg-[#0A8F6A]/20 px-2 py-0.5 text-[10px]">DONE</span>`;
+  if (s === "failed") return `<span class="inline-block border border-[#2D3139] bg-[#C44536]/20 px-2 py-0.5 text-[10px]">FAILED</span>`;
+  return `<span class="inline-block border border-[#2D3139] bg-white/30 px-2 py-0.5 text-[10px] text-[#4A4F59]">N/A</span>`;
 }
 
 function setCurrentUser(name) {
@@ -696,12 +712,12 @@ function splitOurEnemy(players, perspectiveName) {
   };
 }
 
-function renderGamesTable(games, summaries) {
+function renderGamesTable(games, analysisStatuses) {
   gamesTableBodyEl.innerHTML = "";
   let inlineRendered = false;
   if (!games.length) {
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td colspan="7" class="p-3 text-center text-[11px] text-[#4A4F59]">NO_GAMES_FOUND</td>`;
+    tr.innerHTML = `<td colspan="8" class="p-3 text-center text-[11px] text-[#4A4F59]">NO_GAMES_FOUND</td>`;
     gamesTableBodyEl.appendChild(tr);
     if (gameDetailInlineSectionEl) {
       gameDetailInlineSectionEl.classList.add("hidden");
@@ -719,6 +735,7 @@ function renderGamesTable(games, summaries) {
     const enemyHtml = teamPanelHtml(enemyLabelTeam, groups.enemyMembers, g, perspectiveName);
     const gameLengthSeconds = resolveGameLengthSeconds(g);
     const playTime = gameLengthSeconds > 0 ? fmtGameTime(gameLengthSeconds) : "--:--";
+    const analyzerStatus = normalizeAnalysisJobStatus(analysisStatuses?.[g.id]);
 
     const tr = document.createElement("tr");
     tr.className = "border-b border-[#2D3139]/30 cursor-pointer";
@@ -732,6 +749,7 @@ function renderGamesTable(games, summaries) {
       <td class="p-3 border-r border-[#2D3139]/30 text-center">${matchup}</td>
       <td class="p-3 border-r border-[#2D3139]/30">${ourHtml}</td>
       <td class="p-3 border-r border-[#2D3139]/30">${enemyHtml}</td>
+      <td class="p-3 border-r border-[#2D3139]/30 text-center">${analysisBadge(analyzerStatus)}</td>
       <td class="p-3 border-r border-[#2D3139]/30 text-right text-[#4A4F59]">${playTime}</td>
       <td class="p-3 text-right text-[#4A4F59]">${fmtDate(g.start_time)}</td>
     `;
@@ -741,7 +759,7 @@ function renderGamesTable(games, summaries) {
         if (gameDetailInlineSectionEl) {
           gameDetailInlineSectionEl.classList.add("hidden");
         }
-        renderGamesTable(state.games || [], summaries || {});
+        renderGamesTable(state.games || [], state.analysisStatuses || {});
         return;
       }
       loadGameDetail(g.id);
@@ -752,7 +770,7 @@ function renderGamesTable(games, summaries) {
       const detailTr = document.createElement("tr");
       detailTr.className = "border-b border-[#2D3139]/30";
       const detailTd = document.createElement("td");
-      detailTd.colSpan = 7;
+      detailTd.colSpan = 8;
       detailTd.className = "p-3 bg-white/20";
       gameDetailInlineSectionEl.classList.remove("hidden");
       const detailWrap = document.createElement("div");
@@ -816,7 +834,7 @@ async function loadRankings() {
 function renderGamesTableMessage(message) {
   gamesTableBodyEl.innerHTML = "";
   const tr = document.createElement("tr");
-  tr.innerHTML = `<td colspan="7" class="p-3 text-center text-[11px] text-[#4A4F59]">${escapeHtml(message)}</td>`;
+  tr.innerHTML = `<td colspan="8" class="p-3 text-center text-[11px] text-[#4A4F59]">${escapeHtml(message)}</td>`;
   gamesTableBodyEl.appendChild(tr);
   if (gameDetailInlineSectionEl) {
     gameDetailInlineSectionEl.classList.add("hidden");
@@ -858,8 +876,9 @@ async function loadGames(resetPage = false) {
     const offset = (state.gamesPage - 1) * state.gamesPageSize;
     const data = await api(`/api/v1/games?limit=${limit}&offset=${offset}&user_name=${encodeURIComponent(currentUser)}`);
     state.games = data.games || [];
+    state.analysisStatuses = data.analysis_statuses || {};
     state.gamesTotal = Number(data.total || 0);
-    renderGamesTable(state.games, data.reliability_summaries || {});
+    renderGamesTable(state.games, state.analysisStatuses);
     renderGamesPager();
     addLog(`LOADED_GAMES: ${state.games.length} (USER=${currentUser}, PAGE=${state.gamesPage})`);
   } catch (err) {
@@ -873,7 +892,7 @@ async function loadGames(resetPage = false) {
 
 async function loadGameDetail(id) {
   state.selectedGameId = Number(id);
-  renderGamesTable(state.games || [], {});
+  renderGamesTable(state.games || [], state.analysisStatuses || {});
   syncSelectedRowViewport(id, true);
   selectedGameEl.innerHTML = '<div class="text-[#4A4F59]">FETCHING_GAME...</div>';
   state.highlightedPlayer = null;

@@ -14,6 +14,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/xungwoo/stareplays/ent/analyzerracematchup"
 	"github.com/xungwoo/stareplays/ent/game"
+	"github.com/xungwoo/stareplays/ent/gameanalysis"
 	"github.com/xungwoo/stareplays/ent/gamedetail"
 	"github.com/xungwoo/stareplays/ent/player"
 	"github.com/xungwoo/stareplays/ent/ranking3v3"
@@ -81,6 +82,7 @@ func checkColumn(t, c string) error {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
 			analyzerracematchup.Table: analyzerracematchup.ValidColumn,
 			game.Table:                game.ValidColumn,
+			gameanalysis.Table:        gameanalysis.ValidColumn,
 			gamedetail.Table:          gamedetail.ValidColumn,
 			player.Table:              player.ValidColumn,
 			ranking3v3.Table:          ranking3v3.ValidColumn,

@@ -12,6 +12,9 @@ type AnalyzerRaceMatchup func(*sql.Selector)
 // Game is the predicate function for game builders.
 type Game func(*sql.Selector)
 
+// GameAnalysis is the predicate function for gameanalysis builders.
+type GameAnalysis func(*sql.Selector)
+
 // GameDetail is the predicate function for gamedetail builders.
 type GameDetail func(*sql.Selector)
 

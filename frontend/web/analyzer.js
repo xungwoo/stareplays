@@ -1,11 +1,13 @@
 const currentUserEl = document.getElementById("analyzerCurrentUser");
 const refreshGamesEl = document.getElementById("analyzerRefreshGames");
+const refreshStatusEl = document.getElementById("analyzerRefreshStatus");
 const gamesBodyEl = document.getElementById("analyzerGamesBody");
 const prevPageEl = document.getElementById("analyzerPrevPage");
 const nextPageEl = document.getElementById("analyzerNextPage");
 const pageInfoEl = document.getElementById("analyzerPageInfo");
 
 const summaryEl = document.getElementById("analyzerSummary");
+const analyzerJobStatusEl = document.getElementById("analyzerJobStatus");
 const playerTabsEl = document.getElementById("analyzerPlayerTabs");
 const playerPanelEl = document.getElementById("analyzerPlayerPanel");
 
@@ -18,9 +20,11 @@ const state = {
   page: 1,
   pageSize: 10,
   total: 0,
+  analysisStatuses: {},
   selectedGameId: 0,
   selectedGame: null,
   selectedDetail: null,
+  selectedAnalysis: null,
   selectedPlayer: "",
   activeTab: "apm",
 };
@@ -78,6 +82,21 @@ function reliabilityText(game) {
   return `${Math.round((upload / players) * 100)}%`;
 }
 
+function normalizeAnalysisJobStatus(v) {
+  const s = String(v || "").toLowerCase().trim();
+  if (s === "queued" || s === "running" || s === "succeeded" || s === "failed") return s;
+  return "not_requested";
+}
+
+function analysisBadge(status) {
+  const s = normalizeAnalysisJobStatus(status);
+  if (s === "queued") return `<span class="inline-block border border-[#2D3139] bg-white/70 px-2 py-0.5 text-[10px]">QUEUED</span>`;
+  if (s === "running") return `<span class="inline-block border border-[#2D3139] bg-[#275DAD]/20 px-2 py-0.5 text-[10px]">RUNNING</span>`;
+  if (s === "succeeded") return `<span class="inline-block border border-[#2D3139] bg-[#0A8F6A]/20 px-2 py-0.5 text-[10px]">DONE</span>`;
+  if (s === "failed") return `<span class="inline-block border border-[#2D3139] bg-[#C44536]/20 px-2 py-0.5 text-[10px]">FAILED</span>`;
+  return `<span class="inline-block border border-[#2D3139] bg-white/30 px-2 py-0.5 text-[10px] text-[#4A4F59]">N/A</span>`;
+}
+
 function computeMatchup(players) {
   const byTeam = new Map();
   for (const p of players || []) {
@@ -120,7 +139,7 @@ function renderGames() {
   gamesBodyEl.innerHTML = "";
   if (!state.games.length) {
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td colspan="4" class="p-2 text-center text-[#4A4F59]">NO_GAMES</td>`;
+    tr.innerHTML = `<td colspan="5" class="p-2 text-center text-[#4A4F59]">NO_GAMES</td>`;
     gamesBodyEl.appendChild(tr);
     return;
   }
@@ -132,6 +151,7 @@ function renderGames() {
     tr.innerHTML = `
       <td class="p-2 border-r border-[#2D3139]/30">#${Number(g.id)}</td>
       <td class="p-2 border-r border-[#2D3139]/30 uppercase truncate">${escapeHtml(g.map_name || "-")}</td>
+      <td class="p-2 border-r border-[#2D3139]/30 text-center">${analysisBadge(state.analysisStatuses?.[g.id])}</td>
       <td class="p-2 border-r border-[#2D3139]/30 text-right">${fmtGameTime(getGameLength(g))}</td>
       <td class="p-2 text-right text-[#4A4F59]">${escapeHtml(fmtDate(g.start_time))}</td>
     `;
@@ -161,6 +181,33 @@ function renderSummary() {
     <div class="border border-[#2D3139] bg-white/60 p-2">PLAYER_COUNT: ${Number(g.player_count || 0)}</div>
     <div class="border border-[#2D3139] bg-white/60 p-2">UPLOAD: ${Number(g.upload_count || 0)}</div>
   `;
+}
+
+function renderAnalyzerJobStatus() {
+  if (!analyzerJobStatusEl) return;
+  const status = normalizeAnalysisJobStatus(state.selectedAnalysis?.status);
+  if (!state.selectedGame) {
+    analyzerJobStatusEl.innerHTML = "SELECT_GAME_FIRST";
+    return;
+  }
+  if (status === "not_requested") {
+    analyzerJobStatusEl.innerHTML = "REPLAY_ANALYZER_STATUS: NOT_REQUESTED (기존 업로드 게임이거나 아직 분석 큐 등록 전)";
+    return;
+  }
+  if (status === "queued" || status === "running") {
+    analyzerJobStatusEl.innerHTML = `REPLAY_ANALYZER_STATUS: ${status.toUpperCase()} | 분석 진행 중입니다. [Refresh Status] 버튼으로 갱신하세요.`;
+    return;
+  }
+  if (status === "failed") {
+    const err = escapeHtml(String(state.selectedAnalysis?.last_error || "unknown error"));
+    analyzerJobStatusEl.innerHTML = `REPLAY_ANALYZER_STATUS: FAILED | ${err}`;
+    return;
+  }
+
+  const q = state.selectedAnalysis?.result?.quality_report || {};
+  const kd = Number(q?.metric_confidence?.kd || 0).toFixed(3);
+  const withKiller = Number(q?.coverage?.destroy_events_with_killer_ratio || 0).toFixed(3);
+  analyzerJobStatusEl.innerHTML = `REPLAY_ANALYZER_STATUS: DONE | KD_CONFIDENCE=${kd} | DESTROY_WITH_KILLER=${withKiller}`;
 }
 
 function renderPlayerTabs() {
@@ -294,13 +341,16 @@ async function selectGame(id) {
   renderGames();
 
   tabContentEl.innerHTML = "<div class='text-[#4A4F59]'>LOADING_GAME_DETAIL...</div>";
+  renderAnalyzerJobStatus();
   try {
-    const [gRes, dRes] = await Promise.all([
+    const [gRes, dRes, aRes] = await Promise.all([
       api(`/api/v1/games/${id}`),
       api(`/api/v1/games/${id}/detail`),
+      api(`/api/v1/games/${id}/analyzer`),
     ]);
     state.selectedGame = gRes.game || null;
     state.selectedDetail = dRes || null;
+    state.selectedAnalysis = aRes || null;
 
     const players = state.selectedGame?.edges?.players || [];
     if (!players.some((p) => p.name === state.selectedPlayer)) {
@@ -312,12 +362,14 @@ async function selectGame(id) {
     window.history.replaceState({}, "", url.toString());
 
     renderSummary();
+    renderAnalyzerJobStatus();
     renderPlayerTabs();
     renderPlayerPanel();
     renderTab();
     renderEventInspector();
   } catch (err) {
     summaryEl.innerHTML = `<div class='border border-[#8a2f2f] bg-[#f2d9d9] p-2 col-span-4'>ERROR_LOAD_GAME: ${escapeHtml(err.message)}</div>`;
+    analyzerJobStatusEl.innerHTML = `<span class="text-[#8a2f2f]">ERROR_LOAD_ANALYZER_STATUS: ${escapeHtml(err.message)}</span>`;
     playerTabsEl.innerHTML = "";
     playerPanelEl.innerHTML = "";
     tabContentEl.innerHTML = "";
@@ -331,6 +383,7 @@ async function loadGames() {
   const q = user ? `&user_name=${encodeURIComponent(user)}` : "";
   const data = await api(`/api/v1/games?limit=${state.pageSize}&offset=${offset}${q}`);
   state.games = Array.isArray(data.games) ? data.games : [];
+  state.analysisStatuses = data.analysis_statuses || {};
   state.total = Number(data.total || 0);
   renderGames();
   renderPager();
@@ -347,6 +400,7 @@ async function loadGames() {
   }
   if (!state.games.length) {
     summaryEl.innerHTML = `<div class="border border-[#2D3139] bg-white/60 p-2 col-span-4">NO_GAMES_FOR_ANALYZER</div>`;
+    analyzerJobStatusEl.innerHTML = "NO_GAMES_FOR_ANALYZER";
     playerTabsEl.innerHTML = "";
     playerPanelEl.innerHTML = "";
     tabContentEl.innerHTML = "";
@@ -373,6 +427,20 @@ function bindTabs() {
 }
 
 refreshGamesEl.addEventListener("click", () => loadGames());
+if (refreshStatusEl) {
+  refreshStatusEl.addEventListener("click", async () => {
+    const id = Number(state.selectedGameId || 0);
+    if (!id) return;
+    analyzerJobStatusEl.innerHTML = "REFRESHING_ANALYZER_STATUS...";
+    try {
+      state.selectedAnalysis = await api(`/api/v1/games/${id}/analyzer`);
+      renderAnalyzerJobStatus();
+      await loadGames();
+    } catch (err) {
+      analyzerJobStatusEl.innerHTML = `<span class="text-[#8a2f2f]">ERROR_REFRESH_ANALYZER_STATUS: ${escapeHtml(err.message)}</span>`;
+    }
+  });
+}
 prevPageEl.addEventListener("click", () => {
   if (state.page <= 1) return;
   state.page -= 1;

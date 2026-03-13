@@ -89,6 +89,53 @@ var (
 			},
 		},
 	}
+	// GameAnalysesColumns holds the columns for the "game_analyses" table.
+	GameAnalysesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "file_hash", Type: field.TypeString},
+		{Name: "bucket_key", Type: field.TypeString},
+		{Name: "analyzer_version", Type: field.TypeString, Default: "v1"},
+		{Name: "status", Type: field.TypeString, Default: "queued"},
+		{Name: "attempt_count", Type: field.TypeInt, Default: 0},
+		{Name: "priority", Type: field.TypeInt, Default: 0},
+		{Name: "requested_at", Type: field.TypeTime},
+		{Name: "started_at", Type: field.TypeTime, Nullable: true},
+		{Name: "finished_at", Type: field.TypeTime, Nullable: true},
+		{Name: "next_retry_at", Type: field.TypeTime},
+		{Name: "last_error", Type: field.TypeString, Nullable: true},
+		{Name: "quality_report_json", Type: field.TypeJSON, Nullable: true},
+		{Name: "summary_json", Type: field.TypeJSON, Nullable: true},
+		{Name: "analysis_phase_json", Type: field.TypeJSON, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "game_id", Type: field.TypeInt, Unique: true},
+	}
+	// GameAnalysesTable holds the schema information for the "game_analyses" table.
+	GameAnalysesTable = &schema.Table{
+		Name:       "game_analyses",
+		Columns:    GameAnalysesColumns,
+		PrimaryKey: []*schema.Column{GameAnalysesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "game_analyses_games_analysis",
+				Columns:    []*schema.Column{GameAnalysesColumns[17]},
+				RefColumns: []*schema.Column{GamesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "gameanalysis_game_id",
+				Unique:  true,
+				Columns: []*schema.Column{GameAnalysesColumns[17]},
+			},
+			{
+				Name:    "gameanalysis_status_next_retry_at_priority_requested_at",
+				Unique:  false,
+				Columns: []*schema.Column{GameAnalysesColumns[4], GameAnalysesColumns[10], GameAnalysesColumns[6], GameAnalysesColumns[7]},
+			},
+		},
+	}
 	// GameDetailsColumns holds the columns for the "game_details" table.
 	GameDetailsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -283,6 +330,7 @@ var (
 	Tables = []*schema.Table{
 		AnalyzerRaceMatchupsTable,
 		GamesTable,
+		GameAnalysesTable,
 		GameDetailsTable,
 		PlayersTable,
 		Ranking3v3Table,
@@ -295,6 +343,7 @@ func init() {
 	AnalyzerRaceMatchupsTable.Annotation = &entsql.Annotation{
 		Table: "analyzer_race_matchups",
 	}
+	GameAnalysesTable.ForeignKeys[0].RefTable = GamesTable
 	GameDetailsTable.ForeignKeys[0].RefTable = GamesTable
 	PlayersTable.ForeignKeys[0].RefTable = GamesTable
 	Ranking3v3Table.Annotation = &entsql.Annotation{

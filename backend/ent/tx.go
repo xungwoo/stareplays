@@ -16,6 +16,8 @@ type Tx struct {
 	AnalyzerRaceMatchup *AnalyzerRaceMatchupClient
 	// Game is the client for interacting with the Game builders.
 	Game *GameClient
+	// GameAnalysis is the client for interacting with the GameAnalysis builders.
+	GameAnalysis *GameAnalysisClient
 	// GameDetail is the client for interacting with the GameDetail builders.
 	GameDetail *GameDetailClient
 	// Player is the client for interacting with the Player builders.
@@ -159,6 +161,7 @@ func (tx *Tx) Client() *Client {
 func (tx *Tx) init() {
 	tx.AnalyzerRaceMatchup = NewAnalyzerRaceMatchupClient(tx.config)
 	tx.Game = NewGameClient(tx.config)
+	tx.GameAnalysis = NewGameAnalysisClient(tx.config)
 	tx.GameDetail = NewGameDetailClient(tx.config)
 	tx.Player = NewPlayerClient(tx.config)
 	tx.Ranking3v3 = NewRanking3v3Client(tx.config)

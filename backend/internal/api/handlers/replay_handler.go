@@ -2,10 +2,12 @@ package handlers
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"math"
 	"mime/multipart"
 	"os"
@@ -14,17 +16,21 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/xungwoo/stareplays/ent"
 	"github.com/xungwoo/stareplays/ent/game"
+	"github.com/xungwoo/stareplays/ent/gameanalysis"
 	"github.com/xungwoo/stareplays/ent/player"
 	"github.com/xungwoo/stareplays/ent/replayfile"
 	"github.com/xungwoo/stareplays/ent/user"
 	"github.com/xungwoo/stareplays/internal/database"
 	"github.com/xungwoo/stareplays/internal/parser"
+	"github.com/xungwoo/stareplays/internal/replayanalysis"
 	"github.com/xungwoo/stareplays/internal/services/analyzer"
 	"github.com/xungwoo/stareplays/internal/services/ranking"
+	"github.com/xungwoo/stareplays/internal/storage/replaybucket"
 )
 
 var errAlreadyUploadedByUser = errors.New("this user already uploaded a replay for the game")
@@ -55,8 +61,18 @@ type ReplayPreview struct {
 type parsedUploadFile struct {
 	FileHeader *multipart.FileHeader
 	Parsed     *parser.ParsedGame
+	ReplayData []byte
 	Err        error
 }
+
+var (
+	replayBucketOnce   sync.Once
+	replayBucketClient *replaybucket.Client
+	replayBucketErr    error
+	notifyDBOnce       sync.Once
+	notifyDB           *sql.DB
+	notifyDBErr        error
+)
 
 // ParseLocalReplay parses a local replay file and saves it to database.
 func ParseLocalReplay(c *fiber.Ctx) error {
@@ -82,7 +98,7 @@ func ParseLocalReplay(c *fiber.Ctx) error {
 		})
 	}
 
-	return processParsedReplay(c, parsed, req.UploaderName)
+	return processParsedReplay(c, parsed, req.UploaderName, nil)
 }
 
 // ParseUploadedReplay parses an uploaded replay file (multipart/form-data) and saves it.
@@ -111,14 +127,14 @@ func ParseUploadedReplay(c *fiber.Ctx) error {
 
 	// Backward compatibility: single upload keeps original response shape.
 	if len(files) == 1 {
-		parsed, err := parseUploadedFile(files[0])
+		parsed, replayData, err := parseUploadedFile(files[0])
 		if err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error":   "Failed to parse replay file",
 				"details": err.Error(),
 			})
 		}
-		return processParsedReplay(c, parsed, uploaderName)
+		return processParsedReplay(c, parsed, uploaderName, replayData)
 	}
 
 	results := make([]fiber.Map, 0, len(files))
@@ -139,7 +155,7 @@ func ParseUploadedReplay(c *fiber.Ctx) error {
 			continue
 		}
 
-		status, payload := processParsedReplayResult(c.Context(), parsedFile.Parsed, uploaderName)
+		status, payload := processParsedReplayResult(c.Context(), parsedFile.Parsed, uploaderName, parsedFile.ReplayData)
 		ok := status < 400
 		if ok {
 			successCount++
@@ -230,12 +246,12 @@ func PreviewUploadedReplay(c *fiber.Ctx) error {
 	})
 }
 
-func processParsedReplay(c *fiber.Ctx, parsed *parser.ParsedGame, uploaderName string) error {
-	status, payload := processParsedReplayResult(c.Context(), parsed, uploaderName)
+func processParsedReplay(c *fiber.Ctx, parsed *parser.ParsedGame, uploaderName string, replayData []byte) error {
+	status, payload := processParsedReplayResult(c.Context(), parsed, uploaderName, replayData)
 	return c.Status(status).JSON(payload)
 }
 
-func processParsedReplayResult(ctx context.Context, parsed *parser.ParsedGame, uploaderName string) (int, fiber.Map) {
+func processParsedReplayResult(ctx context.Context, parsed *parser.ParsedGame, uploaderName string, replayData []byte) (int, fiber.Map) {
 	if strings.TrimSpace(uploaderName) == "" {
 		return fiber.StatusBadRequest, fiber.Map{
 			"error": "uploader_name is required",
@@ -290,7 +306,7 @@ func processParsedReplayResult(ctx context.Context, parsed *parser.ParsedGame, u
 			}
 		}
 
-		savedGame, err := addReplayFileToGame(ctx, hashGame, uploader, parsed)
+		savedGame, err := addReplayFileToGame(ctx, hashGame, uploader, parsed, replayData)
 		if err != nil {
 			if errors.Is(err, errAlreadyUploadedByUser) {
 				return fiber.StatusConflict, fiber.Map{
@@ -336,7 +352,7 @@ func processParsedReplayResult(ctx context.Context, parsed *parser.ParsedGame, u
 		}
 
 		// Same game exists — add replay file and increment upload count
-		savedGame, err := addReplayFileToGame(ctx, existingGame, uploader, parsed)
+		savedGame, err := addReplayFileToGame(ctx, existingGame, uploader, parsed, replayData)
 		if err != nil {
 			if errors.Is(err, errAlreadyUploadedByUser) {
 				return fiber.StatusConflict, fiber.Map{
@@ -363,7 +379,7 @@ func processParsedReplayResult(ctx context.Context, parsed *parser.ParsedGame, u
 	}
 
 	// New game — create everything in a transaction
-	savedGame, err := createNewGame(ctx, parsed, uploader)
+	savedGame, err := createNewGame(ctx, parsed, uploader, replayData)
 	if err != nil {
 		return fiber.StatusInternalServerError, fiber.Map{
 			"error":   "Failed to save game to database",
@@ -387,51 +403,32 @@ func collectReplayFiles(form *multipart.Form) []*multipart.FileHeader {
 	return files
 }
 
-func parseUploadedFile(fileHeader *multipart.FileHeader) (*parser.ParsedGame, error) {
+func parseUploadedFile(fileHeader *multipart.FileHeader) (*parser.ParsedGame, []byte, error) {
 	if err := validateReplayUpload(fileHeader); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-
-	uploadDir := replayUploadDir()
-	if err := os.MkdirAll(uploadDir, 0o755); err != nil {
-		return nil, fmt.Errorf("failed to prepare upload temp directory: %w", err)
-	}
-
-	tempFile, err := os.CreateTemp(uploadDir, "replay-*.rep")
-	if err != nil {
-		return nil, fmt.Errorf("failed to create temp replay file: %w", err)
-	}
-	tempPath := tempFile.Name()
-	tempClosed := false
-	defer func() {
-		if !tempClosed {
-			_ = tempFile.Close()
-		}
-		if err := os.Remove(tempPath); err != nil && !os.IsNotExist(err) {
-			// best-effort cleanup for temp upload file
-		}
-	}()
 
 	f, err := fileHeader.Open()
 	if err != nil {
-		return nil, fmt.Errorf("failed to open uploaded file: %w", err)
+		return nil, nil, fmt.Errorf("failed to open uploaded file: %w", err)
 	}
 	defer func() { _ = f.Close() }()
 
-	if _, err := io.Copy(tempFile, f); err != nil {
-		return nil, fmt.Errorf("failed to write temp replay file: %w", err)
-	}
-	if err := tempFile.Close(); err != nil {
-		return nil, fmt.Errorf("failed to close temp replay file: %w", err)
-	}
-	tempClosed = true
-
-	parsed, err := parser.ParseReplayFile(tempPath)
+	maxBytes := replayMaxUploadBytes()
+	payload, err := io.ReadAll(io.LimitReader(f, maxBytes+1))
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse replay file: %w", err)
+		return nil, nil, fmt.Errorf("failed to read uploaded replay file: %w", err)
+	}
+	if int64(len(payload)) > maxBytes {
+		return nil, nil, fmt.Errorf("replay file is too large: %d bytes (max %d bytes)", len(payload), maxBytes)
+	}
+
+	parsed, err := parser.ParseReplayData(fileHeader.Filename, payload)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to parse replay file: %w", err)
 	}
 	parsed.Filename = fileHeader.Filename
-	return parsed, nil
+	return parsed, payload, nil
 }
 
 func parseUploadedFilesInParallel(files []*multipart.FileHeader) []parsedUploadFile {
@@ -445,10 +442,11 @@ func parseUploadedFilesInParallel(files []*multipart.FileHeader) []parsedUploadF
 	}
 	if workers <= 1 {
 		fh := files[0]
-		parsed, err := parseUploadedFile(fh)
+		parsed, replayData, err := parseUploadedFile(fh)
 		results[0] = parsedUploadFile{
 			FileHeader: fh,
 			Parsed:     parsed,
+			ReplayData: replayData,
 			Err:        err,
 		}
 		return results
@@ -462,10 +460,11 @@ func parseUploadedFilesInParallel(files []*multipart.FileHeader) []parsedUploadF
 			defer wg.Done()
 			for idx := range jobCh {
 				fh := files[idx]
-				parsed, err := parseUploadedFile(fh)
+				parsed, replayData, err := parseUploadedFile(fh)
 				results[idx] = parsedUploadFile{
 					FileHeader: fh,
 					Parsed:     parsed,
+					ReplayData: replayData,
 					Err:        err,
 				}
 			}
@@ -513,6 +512,159 @@ func validateReplayUpload(fileHeader *multipart.FileHeader) error {
 	return nil
 }
 
+func getReplayBucketClient(ctx context.Context) (*replaybucket.Client, error) {
+	_ = ctx
+	replayBucketOnce.Do(func() {
+		replayBucketClient, replayBucketErr = replaybucket.NewFromEnv(context.Background())
+		if replayBucketErr != nil {
+			replayBucketErr = fmt.Errorf("init replay bucket client: %w", replayBucketErr)
+			log.Printf("replay bucket init failed: %v", replayBucketErr)
+		}
+	})
+	return replayBucketClient, replayBucketErr
+}
+
+func getNotifyDB() (*sql.DB, error) {
+	notifyDBOnce.Do(func() {
+		dsn := strings.TrimSpace(os.Getenv("DATABASE_URL"))
+		if dsn == "" {
+			dsn = fmt.Sprintf(
+				"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+				os.Getenv("DB_HOST"),
+				os.Getenv("DB_PORT"),
+				os.Getenv("DB_USER"),
+				os.Getenv("DB_PASSWORD"),
+				os.Getenv("DB_NAME"),
+				os.Getenv("DB_SSLMODE"),
+			)
+		}
+		notifyDB, notifyDBErr = sql.Open("postgres", dsn)
+		if notifyDBErr != nil {
+			notifyDBErr = fmt.Errorf("open notify db: %w", notifyDBErr)
+			return
+		}
+		if pingErr := notifyDB.Ping(); pingErr != nil {
+			notifyDBErr = fmt.Errorf("ping notify db: %w", pingErr)
+		}
+	})
+	return notifyDB, notifyDBErr
+}
+
+func notifyReplayAnalysisQueued(ctx context.Context, gameID int) error {
+	db, err := getNotifyDB()
+	if err != nil {
+		return err
+	}
+	_, err = db.ExecContext(ctx, `SELECT pg_notify('replay_analysis_jobs', $1)`, strconv.Itoa(gameID))
+	if err != nil {
+		return fmt.Errorf("pg_notify replay_analysis_jobs: %w", err)
+	}
+	return nil
+}
+
+func ensureReplayInBucket(ctx context.Context, parsed *parser.ParsedGame, replayData []byte) (string, error) {
+	if parsed == nil {
+		return "", errors.New("nil parsed replay")
+	}
+	if len(replayData) == 0 {
+		return "", errors.New("empty replay payload")
+	}
+	client, err := getReplayBucketClient(ctx)
+	if err != nil {
+		return "", err
+	}
+	key, err := client.PutReplay(ctx, parsed.FileHash, replayData)
+	if err != nil {
+		return "", fmt.Errorf("upload replay object: %w", err)
+	}
+	return key, nil
+}
+
+func upsertGameAnalysisQueuedTx(ctx context.Context, tx *ent.Tx, gameID int, fileHash, bucketKey string) (bool, error) {
+	if tx == nil {
+		return false, errors.New("nil tx")
+	}
+	if gameID <= 0 {
+		return false, fmt.Errorf("invalid game id: %d", gameID)
+	}
+	fileHash = strings.TrimSpace(fileHash)
+	bucketKey = strings.TrimSpace(bucketKey)
+	if fileHash == "" || bucketKey == "" {
+		return false, errors.New("file hash and bucket key are required")
+	}
+
+	now := time.Now()
+	analyzerVersion := replayanalysis.AnalyzerVersion()
+
+	const q = `
+INSERT INTO game_analyses (
+  game_id,
+  file_hash,
+  bucket_key,
+  analyzer_version,
+  status,
+  attempt_count,
+  priority,
+  requested_at,
+  next_retry_at,
+  quality_report_json,
+  summary_json,
+  analysis_phase_json,
+  created_at,
+  updated_at
+)
+VALUES (
+  $1, $2, $3, $4, $5, 0, 0, $6, $6,
+  '{}'::jsonb, '{}'::jsonb, '{}'::jsonb, $6, $6
+)
+ON CONFLICT (game_id) DO UPDATE
+SET file_hash = EXCLUDED.file_hash,
+    bucket_key = EXCLUDED.bucket_key,
+    analyzer_version = EXCLUDED.analyzer_version,
+    status = EXCLUDED.status,
+    attempt_count = 0,
+    priority = EXCLUDED.priority,
+    requested_at = EXCLUDED.requested_at,
+    started_at = NULL,
+    finished_at = NULL,
+    next_retry_at = EXCLUDED.next_retry_at,
+    last_error = NULL,
+    quality_report_json = '{}'::jsonb,
+    summary_json = '{}'::jsonb,
+    analysis_phase_json = '{}'::jsonb,
+    updated_at = EXCLUDED.updated_at
+WHERE game_analyses.file_hash = EXCLUDED.file_hash
+  AND game_analyses.analyzer_version <> EXCLUDED.analyzer_version
+RETURNING id`
+
+	rows, err := tx.QueryContext(
+		ctx,
+		q,
+		gameID,
+		fileHash,
+		bucketKey,
+		analyzerVersion,
+		replayanalysis.StatusQueued,
+		now,
+	)
+	if err != nil {
+		return false, fmt.Errorf("upsert queued analysis row: %w", err)
+	}
+	defer rows.Close()
+
+	var id int
+	if rows.Next() {
+		if err := rows.Scan(&id); err != nil {
+			return false, fmt.Errorf("scan upsert queued analysis row: %w", err)
+		}
+		return true, nil
+	}
+	if err := rows.Err(); err != nil {
+		return false, fmt.Errorf("iterate upsert queued analysis row: %w", err)
+	}
+	return false, nil
+}
+
 func previewPlayerNames(parsed *parser.ParsedGame) []string {
 	names := make([]string, 0, len(parsed.Players))
 	seen := make(map[string]struct{})
@@ -542,11 +694,12 @@ func replayPreviewFromParsed(parsed *parser.ParsedGame) ReplayPreview {
 }
 
 // addReplayFileToGame adds a replay file to an existing game and increments upload_count.
-func addReplayFileToGame(ctx context.Context, existingGame *ent.Game, uploader *ent.User, parsed *parser.ParsedGame) (*ent.Game, error) {
+func addReplayFileToGame(ctx context.Context, existingGame *ent.Game, uploader *ent.User, parsed *parser.ParsedGame, replayData []byte) (*ent.Game, error) {
 	tx, err := database.Client.Tx(ctx)
 	if err != nil {
 		return nil, err
 	}
+	analysisQueued := false
 	defer func() {
 		if err != nil {
 			_ = tx.Rollback()
@@ -577,6 +730,26 @@ func addReplayFileToGame(ctx context.Context, existingGame *ent.Game, uploader *
 		return nil, err
 	}
 
+	if len(replayData) > 0 {
+		bucketKey, err := ensureReplayInBucket(ctx, parsed, replayData)
+		if err != nil {
+			return nil, err
+		}
+		queued, err := upsertGameAnalysisQueuedTx(ctx, tx, existingGame.ID, parsed.FileHash, bucketKey)
+		if err != nil {
+			return nil, err
+		}
+		analysisQueued = queued
+		if !queued {
+			log.Printf(
+				"info: skip replay analysis enqueue game_id=%d file_hash=%s analyzer_version=%s",
+				existingGame.ID,
+				parsed.FileHash,
+				replayanalysis.AnalyzerVersion(),
+			)
+		}
+	}
+
 	// Increment upload count
 	updatedGame, err := tx.Game.UpdateOneID(existingGame.ID).
 		AddUploadCount(1).
@@ -588,16 +761,22 @@ func addReplayFileToGame(ctx context.Context, existingGame *ent.Game, uploader *
 	if err = tx.Commit(); err != nil {
 		return nil, err
 	}
+	if len(replayData) > 0 && analysisQueued {
+		if err := notifyReplayAnalysisQueued(ctx, existingGame.ID); err != nil {
+			log.Printf("warn: notify replay analysis game_id=%d failed: %v", existingGame.ID, err)
+		}
+	}
 
 	return updatedGame, nil
 }
 
 // createNewGame creates a new game with all related entities in a transaction.
-func createNewGame(ctx context.Context, parsed *parser.ParsedGame, uploader *ent.User) (*ent.Game, error) {
+func createNewGame(ctx context.Context, parsed *parser.ParsedGame, uploader *ent.User, replayData []byte) (*ent.Game, error) {
 	tx, err := database.Client.Tx(ctx)
 	if err != nil {
 		return nil, err
 	}
+	analysisQueued := false
 	defer func() {
 		if err != nil {
 			_ = tx.Rollback()
@@ -664,6 +843,26 @@ func createNewGame(ctx context.Context, parsed *parser.ParsedGame, uploader *ent
 		return nil, fmt.Errorf("failed to create replay file: %w", err)
 	}
 
+	if len(replayData) > 0 {
+		bucketKey, err := ensureReplayInBucket(ctx, parsed, replayData)
+		if err != nil {
+			return nil, fmt.Errorf("failed to upload replay to bucket: %w", err)
+		}
+		queued, err := upsertGameAnalysisQueuedTx(ctx, tx, savedGame.ID, parsed.FileHash, bucketKey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to enqueue replay analysis: %w", err)
+		}
+		analysisQueued = queued
+		if !queued {
+			log.Printf(
+				"info: skip replay analysis enqueue game_id=%d file_hash=%s analyzer_version=%s",
+				savedGame.ID,
+				parsed.FileHash,
+				replayanalysis.AnalyzerVersion(),
+			)
+		}
+	}
+
 	// Create game detail
 	if parsed.Detail != nil {
 		detailCreate := tx.GameDetail.Create().
@@ -690,6 +889,11 @@ func createNewGame(ctx context.Context, parsed *parser.ParsedGame, uploader *ent
 
 	if err = tx.Commit(); err != nil {
 		return nil, err
+	}
+	if len(replayData) > 0 && analysisQueued {
+		if err := notifyReplayAnalysisQueued(ctx, savedGame.ID); err != nil {
+			log.Printf("warn: notify replay analysis game_id=%d failed: %v", savedGame.ID, err)
+		}
 	}
 
 	// Re-query with edges for response
@@ -747,6 +951,14 @@ func ListGames(c *fiber.Ctx) error {
 		})
 	}
 
+	analysisStatuses, err := buildAnalysisStatusMap(ctx, games)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to fetch analysis statuses",
+			"details": err.Error(),
+		})
+	}
+
 	return c.JSON(fiber.Map{
 		"games":                 games,
 		"total":                 total,
@@ -754,6 +966,7 @@ func ListGames(c *fiber.Ctx) error {
 		"offset":                offset,
 		"user_name":             userName,
 		"reliability_summaries": buildReliabilitySummaryMap(games),
+		"analysis_statuses":     analysisStatuses,
 	})
 }
 
@@ -830,6 +1043,89 @@ func GetGameDetail(c *fiber.Ctx) error {
 		"unit_production":          buildUnitProductionDTO(g.Edges.GameDetail, g.Edges.Players),
 		"unit_production_versions": buildUnitProductionVersionsDTO(g.Edges.GameDetail, g.Edges.Players),
 		"resource_spend":           buildResourceSpendDTO(g.Edges.GameDetail, g.Edges.Players),
+	})
+}
+
+// GetGameAnalyzer returns replay_analyzer job status and, when ready, summarized outputs.
+func GetGameAnalyzer(c *fiber.Ctx) error {
+	ctx := c.Context()
+	id, err := c.ParamsInt("id")
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid game ID",
+		})
+	}
+
+	exists, err := database.Client.Game.Query().Where(game.IDEQ(id)).Exist(ctx)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to query game",
+			"details": err.Error(),
+		})
+	}
+	if !exists {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "Game not found",
+		})
+	}
+
+	row, err := database.Client.GameAnalysis.Query().
+		Where(gameanalysis.GameIDEQ(id)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return c.JSON(fiber.Map{
+				"game_id":           id,
+				"status":            replayanalysis.StatusNotRequested,
+				"progress_message":  "analysis not requested for this game",
+				"attempt_count":     0,
+				"last_error":        "",
+				"result":            nil,
+				"next_refresh_hint": "manual_refresh",
+			})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to fetch analyzer status",
+			"details": err.Error(),
+		})
+	}
+
+	status := replayanalysis.NormalizeStatus(row.Status)
+	message := "analysis status is available"
+	switch status {
+	case replayanalysis.StatusQueued:
+		message = "analysis is queued"
+	case replayanalysis.StatusRunning:
+		message = "analysis is running"
+	case replayanalysis.StatusSucceeded:
+		message = "analysis completed"
+	case replayanalysis.StatusFailed:
+		message = "analysis failed"
+	}
+
+	result := fiber.Map(nil)
+	if status == replayanalysis.StatusSucceeded {
+		result = fiber.Map{
+			"quality_report": row.QualityReportJSON,
+			"summary":        row.SummaryJSON,
+			"analysis_phase": row.AnalysisPhaseJSON,
+		}
+	}
+
+	return c.JSON(fiber.Map{
+		"game_id":           id,
+		"analyzer_version":  row.AnalyzerVersion,
+		"status":            status,
+		"progress_message":  message,
+		"attempt_count":     row.AttemptCount,
+		"last_error":        strings.TrimSpace(stringPtr(row.LastError)),
+		"requested_at":      row.RequestedAt,
+		"started_at":        row.StartedAt,
+		"finished_at":       row.FinishedAt,
+		"updated_at":        row.UpdatedAt,
+		"next_retry_at":     row.NextRetryAt,
+		"result":            result,
+		"next_refresh_hint": "manual_refresh",
 	})
 }
 
@@ -1065,6 +1361,13 @@ func isUploaderParticipant(players []*ent.Player, uploaderName string) bool {
 	return false
 }
 
+func stringPtr(v *string) string {
+	if v == nil {
+		return ""
+	}
+	return *v
+}
+
 func reliabilityText(uploadCount, playerCount int) string {
 	if playerCount <= 0 {
 		return "0%"
@@ -1097,6 +1400,34 @@ func buildReliabilitySummaryMap(games []*ent.Game) map[int]fiber.Map {
 		}
 	}
 	return summary
+}
+
+func buildAnalysisStatusMap(ctx context.Context, games []*ent.Game) (map[int]string, error) {
+	out := make(map[int]string, len(games))
+	if len(games) == 0 {
+		return out, nil
+	}
+	ids := make([]int, 0, len(games))
+	for _, g := range games {
+		if g == nil {
+			continue
+		}
+		ids = append(ids, g.ID)
+		out[g.ID] = replayanalysis.StatusNotRequested
+	}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	rows, err := database.Client.GameAnalysis.Query().
+		Where(gameanalysis.GameIDIn(ids...)).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		out[row.GameID] = replayanalysis.NormalizeStatus(row.Status)
+	}
+	return out, nil
 }
 
 // GetPlayerStats returns statistics for a specific player.

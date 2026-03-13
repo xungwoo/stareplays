@@ -65,6 +65,8 @@ func (Game) Edges() []ent.Edge {
 		edge.To("replay_files", ReplayFile.Type),
 		edge.To("game_detail", GameDetail.Type).
 			Unique(),
+		edge.To("analysis", GameAnalysis.Type).
+			Unique(),
 	}
 }
 

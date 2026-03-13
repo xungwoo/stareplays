@@ -949,6 +949,29 @@ func HasGameDetailWith(preds ...predicate.GameDetail) predicate.Game {
 	})
 }
 
+// HasAnalysis applies the HasEdge predicate on the "analysis" edge.
+func HasAnalysis() predicate.Game {
+	return predicate.Game(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, AnalysisTable, AnalysisColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasAnalysisWith applies the HasEdge predicate on the "analysis" edge with a given conditions (other predicates).
+func HasAnalysisWith(preds ...predicate.GameAnalysis) predicate.Game {
+	return predicate.Game(func(s *sql.Selector) {
+		step := newAnalysisStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.Game) predicate.Game {
 	return predicate.Game(sql.AndPredicates(predicates...))
