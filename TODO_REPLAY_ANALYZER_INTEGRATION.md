@@ -15,7 +15,8 @@
   - 현재 운영 웹은 `legacy web (frontend/web)` 기준
   - 현재 운영 배포에는 Railway Bucket이 아직 생성되지 않음
   - 따라서 운영 환경에서는 replay 원본 bucket 저장 및 worker 기반 `replay_analyzer` E2E가 아직 미완료
-  - `railway.replay-analyzer-worker.toml`과 worker 코드는 준비되어 있으나, 실제 서비스 분리 배포/env 연결/실증은 아직 안 됨
+  - 운영에서는 새 `replay-analyzer-worker` 서비스를 따로 늘리기보다, 기존 `replay_analyzer` 서비스를 `stareplays` worker 이미지로 재목적화하는 방향이 더 적합함
+  - 이유: `replay_analyzer-volume`에 MPQ가 이미 적재되어 있고, worker가 `/data/mpq`를 그대로 재사용할 수 있음
 - [ ] E2E 검증 및 수용 기준(AC) 실증 완료
 
 ## 운영 현재 상태 메모 (2026-03-13)
@@ -374,7 +375,7 @@ export REPLAY_ANALYZER_WORKER_POLL_INTERVAL_SEC=10
 
 4. `P0` Railway 운영 마무리
 - [ ] Railway Bucket 생성
-- [ ] `replay-analyzer-worker` 서비스 배포
+- [ ] 기존 `replay_analyzer` 서비스를 `stareplays` repo 기반 worker 이미지로 전환
 - [ ] API/Worker env/secret/Bucket 변수 연결
 - [ ] 장애 로그(재시도/최종 실패) 관측 가능성 점검
 
