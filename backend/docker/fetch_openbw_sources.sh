@@ -6,6 +6,26 @@ set -eu
 : "${OPENBW_REF:?OPENBW_REF is required}"
 : "${OPENBW_BWAPI_REF:?OPENBW_BWAPI_REF is required}"
 
+normalize_github_url() {
+  url="$1"
+  token="${2:-}"
+
+  if [ -z "$token" ]; then
+    printf '%s' "$url"
+    return
+  fi
+
+  case "$url" in
+    https://github.com/*)
+      path="${url#https://github.com/}"
+      printf 'https://x-access-token:%s@github.com/%s' "$token" "$path"
+      ;;
+    *)
+      printf '%s' "$url"
+      ;;
+  esac
+}
+
 fetch_repo() {
   dest="$1"
   url="$2"
@@ -18,7 +38,11 @@ fetch_repo() {
 }
 
 rm -rf /opt/openbw /opt/openbw-bwapi
-fetch_repo /opt/openbw "${OPENBW_REPO_URL}" "${OPENBW_REF}"
-fetch_repo /opt/openbw-bwapi "${OPENBW_BWAPI_REPO_URL}" "${OPENBW_BWAPI_REF}"
+
+core_token="${OPENBW_CORE_GIT_TOKEN:-${GITHUB_TOKEN:-}}"
+bwapi_token="${OPENBW_BWAPI_GIT_TOKEN:-${GITHUB_TOKEN:-}}"
+
+fetch_repo /opt/openbw "$(normalize_github_url "${OPENBW_REPO_URL}" "${core_token}")" "${OPENBW_REF}"
+fetch_repo /opt/openbw-bwapi "$(normalize_github_url "${OPENBW_BWAPI_REPO_URL}" "${bwapi_token}")" "${OPENBW_BWAPI_REF}"
 
 test -f /opt/openbw-bwapi/CMakeLists.txt

@@ -66,6 +66,10 @@ Railway API 서비스 Variables에 아래 값 설정:
 - [ ] volume 안에 `/data/mpq/Patch_rt.mpq`, `/data/mpq/BrooDat.mpq`, `/data/mpq/StarDat.mpq` 존재 확인
 - [ ] worker Variables에 `DATABASE_URL`, `REPLAY_BUCKET_*`, `REPLAY_ANALYZER_*`, `OPENBW_*` 설정
 - [ ] `REPLAY_BUCKET_PATH_STYLE=false`로 우선 적용
+- [ ] `openbw-core`, `openbw-bwapi-core`가 private repo면 build-time GitHub token 변수 추가
+  - 공통 토큰: `GITHUB_TOKEN`
+  - 또는 repo별 토큰: `OPENBW_CORE_GIT_TOKEN`, `OPENBW_BWAPI_GIT_TOKEN`
+  - `backend/docker/fetch_openbw_sources.sh`가 `https://github.com/...` URL에 대해 token 인증을 붙여 clone
 
 권장 worker 변수 예시:
 
@@ -100,6 +104,19 @@ OPENBW_BWAPI_RUN_DIR=/data/mpq
 OPENBW_BWAPI_LAUNCHER_BIN=/app/.bin/BWAPILauncher
 OPENBW_BWAPI_JSONL_MODULE_BIN=/app/.bin/openbw_bwapi_jsonl_module.so
 REPLAY_ANALYZER_OPENBW_BRIDGE_ARGS=--replay {replay_path} --bwapi-launcher /app/.bin/BWAPILauncher --module /app/.bin/openbw_bwapi_jsonl_module.so --cwd /data/mpq --timeout-sec 90
+```
+
+private OpenBW fork를 쓰는 경우 추가:
+
+```bash
+GITHUB_TOKEN=<github_pat_with_repo_read>
+```
+
+또는 repo별로 분리:
+
+```bash
+OPENBW_CORE_GIT_TOKEN=<github_pat_with_repo_read>
+OPENBW_BWAPI_GIT_TOKEN=<github_pat_with_repo_read>
 ```
 
 ## 6-1. Rankings Cron Job (권장)
