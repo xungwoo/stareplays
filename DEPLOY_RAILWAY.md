@@ -69,7 +69,7 @@ Railway API 서비스 Variables에 아래 값 설정:
 - [ ] `openbw-core`, `openbw-bwapi-core`가 private repo면 build-time GitHub token 변수 추가
   - 공통 토큰: `GITHUB_TOKEN`
   - 또는 repo별 토큰: `OPENBW_CORE_GIT_TOKEN`, `OPENBW_BWAPI_GIT_TOKEN`
-  - `backend/docker/fetch_openbw_sources.sh`가 `https://github.com/...` URL에 대해 token 인증을 붙여 clone
+  - `backend/docker/fetch_openbw_sources.sh`가 `https://github.com/...` URL에 대해 `username:token` 형식으로 clone
 - [ ] `replay_analyzer` repo도 private면 build-time token 변수 추가
   - 공통 토큰: `GITHUB_TOKEN`
   - 또는 전용 토큰: `REPLAY_ANALYZER_GIT_TOKEN`

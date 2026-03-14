@@ -18,7 +18,7 @@ normalize_github_url() {
   case "$url" in
     https://github.com/*)
       path="${url#https://github.com/}"
-      printf 'https://x-access-token:%s@github.com/%s' "$token" "$path"
+      printf 'https://railway:%s@github.com/%s' "$token" "$path"
       ;;
     *)
       printf '%s' "$url"

@@ -41,7 +41,7 @@ RUN token="${REPLAY_ANALYZER_GIT_TOKEN:-${GITHUB_TOKEN:-}}" && \
       https://github.com/*) \
         if [ -n "$token" ]; then \
           path="${url#https://github.com/}" && \
-          url="https://x-access-token:${token}@github.com/${path}"; \
+          url="https://railway:${token}@github.com/${path}"; \
         fi ;; \
     esac && \
     git clone --depth 1 --branch "${REPLAY_ANALYZER_REF}" "$url" replay_analyzer
@@ -83,7 +83,7 @@ RUN token="${REPLAY_ANALYZER_GIT_TOKEN:-${GITHUB_TOKEN:-}}" && \
       https://github.com/*) \
         if [ -n "$token" ]; then \
           path="${url#https://github.com/}" && \
-          url="https://x-access-token:${token}@github.com/${path}"; \
+          url="https://railway:${token}@github.com/${path}"; \
         fi ;; \
     esac && \
     git clone --depth 1 --branch "${REPLAY_ANALYZER_REF}" "$url" replay_analyzer
