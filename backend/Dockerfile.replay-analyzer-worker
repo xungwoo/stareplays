@@ -6,6 +6,8 @@ ARG RUNTIME_BASE=debian:bookworm-slim
 
 ARG REPLAY_ANALYZER_REPO_URL=https://github.com/xungwoo/replay_analyzer.git
 ARG REPLAY_ANALYZER_REF=main
+ARG REPLAY_ANALYZER_GIT_TOKEN
+ARG GITHUB_TOKEN
 ARG OPENBW_REPO_URL=https://github.com/xungwoo/openbw-core.git
 ARG OPENBW_BWAPI_REPO_URL=https://github.com/xungwoo/openbw-bwapi-core.git
 ARG OPENBW_REF=224bb0c34ac77ef7c0fa7fe32f86af13787e1568
@@ -24,6 +26,8 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags='-s -w' -o
 FROM ${REPLAY_ANALYZER_GO_IMAGE} AS analyzer-builder
 ARG REPLAY_ANALYZER_REPO_URL
 ARG REPLAY_ANALYZER_REF
+ARG REPLAY_ANALYZER_GIT_TOKEN
+ARG GITHUB_TOKEN
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
@@ -31,7 +35,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
-RUN git clone --depth 1 --branch "${REPLAY_ANALYZER_REF}" "${REPLAY_ANALYZER_REPO_URL}" replay_analyzer
+RUN token="${REPLAY_ANALYZER_GIT_TOKEN:-${GITHUB_TOKEN:-}}" && \
+    url="${REPLAY_ANALYZER_REPO_URL}" && \
+    case "$url" in \
+      https://github.com/*) \
+        if [ -n "$token" ]; then \
+          path="${url#https://github.com/}" && \
+          url="https://x-access-token:${token}@github.com/${path}"; \
+        fi ;; \
+    esac && \
+    git clone --depth 1 --branch "${REPLAY_ANALYZER_REF}" "$url" replay_analyzer
 
 WORKDIR /src/replay_analyzer
 RUN go mod download
@@ -43,6 +56,8 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags='-s -w' -o
 FROM debian:bookworm-slim AS openbw-builder
 ARG REPLAY_ANALYZER_REPO_URL
 ARG REPLAY_ANALYZER_REF
+ARG REPLAY_ANALYZER_GIT_TOKEN
+ARG GITHUB_TOKEN
 ARG OPENBW_REPO_URL
 ARG OPENBW_BWAPI_REPO_URL
 ARG OPENBW_REF
@@ -62,7 +77,16 @@ COPY --chmod=755 backend/docker/fetch_openbw_sources.sh /usr/local/bin/fetch_ope
 RUN /usr/local/bin/fetch_openbw_sources.sh
 
 WORKDIR /opt
-RUN git clone --depth 1 --branch "${REPLAY_ANALYZER_REF}" "${REPLAY_ANALYZER_REPO_URL}" replay_analyzer
+RUN token="${REPLAY_ANALYZER_GIT_TOKEN:-${GITHUB_TOKEN:-}}" && \
+    url="${REPLAY_ANALYZER_REPO_URL}" && \
+    case "$url" in \
+      https://github.com/*) \
+        if [ -n "$token" ]; then \
+          path="${url#https://github.com/}" && \
+          url="https://x-access-token:${token}@github.com/${path}"; \
+        fi ;; \
+    esac && \
+    git clone --depth 1 --branch "${REPLAY_ANALYZER_REF}" "$url" replay_analyzer
 
 RUN cmake -S /opt/openbw-bwapi -B /opt/openbw-bwapi/build \
       -DCMAKE_BUILD_TYPE=Release \
