@@ -52,28 +52,37 @@ Railway API 서비스 Variables에 아래 값 설정:
 
 - [ ] PostgreSQL Daily Backup 활성화
 - [ ] Railway Spending Limit 또는 Usage Alert 설정
-- [ ] 최소 1개 실제 replay로 업로드/조회/삭제 플로우 점검
+- [x] 최소 1개 실제 replay로 업로드/조회/삭제 플로우 점검
 
 ## 6-0. Replay Analyzer Worker 배포
 
 `replay_analyzer` 통합은 API 서비스만으로 끝나지 않습니다. queue consumer는 별도 worker 프로세스이며, 운영에서는 기존 `replay_analyzer` 서비스를 아래 방식으로 재사용하는 것을 권장합니다.
 
-- [ ] `replay_analyzer` 서비스의 Source Repo를 `stareplays`로 전환
-- [ ] Builder를 `Dockerfile`로 변경
-- [ ] Dockerfile Path를 `backend/Dockerfile.replay-analyzer-worker`로 설정
-- [ ] Build/Start Command는 비움 (Dockerfile `ENTRYPOINT`/`CMD` 사용)
-- [ ] 기존 `replay_analyzer-volume`를 계속 붙이고 mount path를 `/data`로 유지
-- [ ] volume 안에 `/data/mpq/Patch_rt.mpq`, `/data/mpq/BrooDat.mpq`, `/data/mpq/StarDat.mpq` 존재 확인
-- [ ] worker Variables에 `DATABASE_URL`, `REPLAY_BUCKET_*`, `REPLAY_ANALYZER_*`, `OPENBW_*` 설정
-- [ ] `REPLAY_BUCKET_PATH_STYLE=false`로 우선 적용
-- [ ] `openbw-core`, `openbw-bwapi-core`가 private repo면 build-time GitHub token 변수 추가
+- [x] `replay_analyzer` 서비스의 Source Repo를 `stareplays`로 전환
+- [x] Builder를 `Dockerfile`로 변경
+- [x] Dockerfile Path를 `backend/Dockerfile.replay-analyzer-worker`로 설정
+- [x] Build/Start Command는 비움 (Dockerfile `ENTRYPOINT`/`CMD` 사용)
+- [x] 기존 `replay_analyzer-volume`를 계속 붙이고 mount path를 `/data`로 유지
+- [x] volume 안에 `/data/mpq/Patch_rt.mpq`, `/data/mpq/BrooDat.mpq`, `/data/mpq/StarDat.mpq` 존재 확인
+- [x] worker Variables에 `DATABASE_URL`, `REPLAY_BUCKET_*`, `REPLAY_ANALYZER_*`, `OPENBW_*` 설정
+- [x] `REPLAY_BUCKET_PATH_STYLE=false`로 우선 적용
+- [x] `openbw-core`, `openbw-bwapi-core`가 private repo면 build-time GitHub token 변수 추가
   - 공통 토큰: `GITHUB_TOKEN`
   - 또는 repo별 토큰: `OPENBW_CORE_GIT_TOKEN`, `OPENBW_BWAPI_GIT_TOKEN`
   - `backend/docker/fetch_openbw_sources.sh`가 `https://github.com/...` URL에 대해 `username:token` 형식으로 clone
-- [ ] `replay_analyzer` repo도 private면 build-time token 변수 추가
+- [x] `replay_analyzer` repo도 private면 build-time token 변수 추가
   - 공통 토큰: `GITHUB_TOKEN`
   - 또는 전용 토큰: `REPLAY_ANALYZER_GIT_TOKEN`
   - Railway는 Dockerfile build-time 변수 사용 시 해당 stage에 `ARG` 선언이 있어야 전달됨
+
+운영 검증 결과 (2026-03-14):
+
+- [x] worker 기동 로그 확인
+  - `2026/03/14 06:42:14 worker started: channel=replay_analysis_jobs poll=10s`
+- [x] 실제 업로드 replay 처리 성공 확인
+  - `2026/03/14 06:48:28 job succeeded id=1 game_id=38 result_dir=/tmp/stareplays/analysis_jobs/job_1/sha1:febfad22fbcbc91d1be53111ee11547eea4d6025`
+- [x] 운영 API `GET /api/v1/games`, `GET /api/v1/games/38/analyzer` 확인
+- [x] 운영 legacy web Recent Games / Analyzer 수동 새로고침 UX 확인
 
 권장 worker 변수 예시:
 

@@ -1,30 +1,46 @@
 # TODO_REPLAY_ANALYZER_INTEGRATION
 
-## 작업 우선순위 (2026-03-13 기준)
-- `P0 (현재 1순위)`: Replay Analyzer Integration 마무리 및 운영 검증
+## 작업 우선순위 (2026-03-14 기준)
+- `P0 (현재 1순위)`: Replay Analyzer 운영 안정화 및 후속 모니터링
 - `P1 (보류)`: Frontend Refactor 작업 (Next.js + Fastify) 재개 대기
 
-## 현재 진행 상태 스냅샷 (2026-03-13)
+## 현재 진행 상태 스냅샷 (2026-03-14)
 - [x] `game_analyses` 스키마/ent 코드 추가
 - [x] 업로드 경로에서 Bucket 업로드 + 분석 큐 upsert + `pg_notify` 구현
 - [x] Worker(`cmd/replay-analyzer-worker`) 추가
 - [x] `SKIP LOCKED` claim + `LISTEN/NOTIFY` + fallback poll 구현
 - [x] `GET /games/:id/analyzer` 및 `GET /games` 상태 응답 확장
 - [x] 레거시 UI(`frontend/web`)에 분석 상태 배지/수동 새로고침 반영
-- [ ] Railway 운영 배포 완료
-  - 현재 운영 웹은 `legacy web (frontend/web)` 기준
-  - 현재 운영 배포에는 Railway Bucket이 아직 생성되지 않음
-  - 따라서 운영 환경에서는 replay 원본 bucket 저장 및 worker 기반 `replay_analyzer` E2E가 아직 미완료
-  - 운영에서는 새 `replay-analyzer-worker` 서비스를 따로 늘리기보다, 기존 `replay_analyzer` 서비스를 `stareplays` worker 이미지로 재목적화하는 방향이 더 적합함
-  - 이유: `replay_analyzer-volume`에 MPQ가 이미 적재되어 있고, worker가 `/data/mpq`를 그대로 재사용할 수 있음
-- [ ] E2E 검증 및 수용 기준(AC) 실증 완료
+- [x] Railway Bucket 생성 및 API/Worker env 연결 완료
+- [x] 기존 `replay_analyzer` 서비스를 `stareplays` worker 이미지로 재목적화 완료
+- [x] 운영 E2E 검증 및 수용 기준(AC) 실증 완료
 
-## 운영 현재 상태 메모 (2026-03-13)
+## 운영 현재 상태 메모 (2026-03-14)
 - 현재 운영 사용자 트래픽은 `frontend/web`(legacy web) 기준으로 처리한다.
 - `frontend/app-next` 전환 작업은 현재 보류 상태이며, replay analyzer 통합 완료 범위에 포함하지 않는다.
-- Railway API는 운영 중이지만, Railway Bucket은 아직 생성되지 않았다.
-- 따라서 운영 환경의 replay analyzer 통합 상태는 "코드 반영 완료, bucket/worker 운영 연결 전"으로 본다.
-- 운영 검증은 `Railway Bucket 생성 -> API/Worker env 연결 -> worker 서비스 배포 -> 신규 업로드 replay E2E 확인` 순서로 마무리해야 한다.
+- Railway Bucket 생성 및 서비스 변수 연결이 완료되었다.
+- 운영 worker는 별도 새 서비스를 추가하지 않고, 기존 `replay_analyzer` 서비스를 `stareplays` 기반 `replay-analyzer-worker` Docker 이미지로 전환해 사용한다.
+- `replay_analyzer-volume`의 MPQ 자산은 `/data/mpq`에서 계속 재사용한다.
+- 현재 운영 환경의 replay analyzer 통합 상태는 "운영 연결 및 실제 업로드 E2E 검증 완료"로 본다.
+
+## 운영 E2E 실제 검증 결과 (2026-03-14)
+- Railway `replay_analyzer` 서비스가 `2026/03/14 06:42:14`에 아래 로그로 정상 기동함을 확인:
+  - `worker started: channel=replay_analysis_jobs poll=10s`
+- 운영 신규 업로드 1건에 대해 worker가 실제 claim/success 처리함을 확인:
+  - `2026/03/14 06:48:28 job succeeded id=1 game_id=38 result_dir=/tmp/stareplays/analysis_jobs/job_1/sha1:febfad22fbcbc91d1be53111ee11547eea4d6025`
+- 위 로그로 아래 운영 경로가 end-to-end로 통과했음을 확인:
+  - replay 업로드
+  - Railway Bucket 원본 저장
+  - `game_analyses` enqueue
+  - worker claim
+  - `replay_analyzer(openbw)` 실행
+  - 결과 JSON 저장
+- API 확인:
+  - `GET /api/v1/games`에서 `analysis_statuses` 반영 확인
+  - `GET /api/v1/games/38/analyzer` 결과 확인
+- UI 확인:
+  - 운영 웹은 계속 `frontend/web`(legacy web) 기준으로 사용
+  - Recent Games / Analyzer 수동 새로고침 UX 확인 완료
 
 ## 로컬 E2E 실제 검증 결과 (2026-03-13)
 - `MinIO + local API + local worker + fake analyzer stub` 조합으로 bucket 포함 로컬 E2E를 실제 실행했다.
@@ -256,6 +272,11 @@ RETURNING g.*;
 4. 보안
 - Bucket은 private 전제
 - 파일 제공은 presigned URL 또는 API proxy로만
+
+## 남은 운영 후속 작업
+- [ ] replay analyzer worker 로그/실패율 모니터링 기준 정리
+- [ ] GitHub private repo clone에 사용한 token 운영 관리 방식 정리
+- [ ] 문서/API_USAGE 최신화 여부 최종 점검
 
 ---
 
