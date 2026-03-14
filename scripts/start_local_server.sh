@@ -10,6 +10,7 @@ LOG_FILE="${LOG_FILE:-/tmp/stareplays_server.log}"
 PID_FILE="${PID_FILE:-/tmp/stareplays_server.pid}"
 BIN_PATH="${BIN_PATH:-${ROOT_DIR}/backend/bin/server}"
 ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env}"
+REPLAY_BUCKET_LOCAL_DIR="${REPLAY_BUCKET_LOCAL_DIR:-${ROOT_DIR}/.local/replay-bucket}"
 
 echo "[start] project: ${ROOT_DIR}"
 echo "[start] port: ${PORT}"
@@ -28,6 +29,29 @@ if [[ -f "${ENV_FILE}" ]]; then
   set +a
 fi
 
+if [[ -n "${DATABASE_URL:-}" ]]; then
+  DATABASE_URL="${DATABASE_URL//localhost/127.0.0.1}"
+fi
+
+REPLAY_BUCKET_NAME="${REPLAY_BUCKET_NAME:-stareplays-local}"
+REPLAY_BUCKET_ENDPOINT="${REPLAY_BUCKET_ENDPOINT:-http://127.0.0.1:9000}"
+REPLAY_BUCKET_REGION="${REPLAY_BUCKET_REGION:-us-east-1}"
+REPLAY_BUCKET_ACCESS_KEY_ID="${REPLAY_BUCKET_ACCESS_KEY_ID:-minioadmin}"
+REPLAY_BUCKET_SECRET_ACCESS_KEY="${REPLAY_BUCKET_SECRET_ACCESS_KEY:-minioadmin}"
+REPLAY_BUCKET_PATH_STYLE="${REPLAY_BUCKET_PATH_STYLE:-true}"
+REPLAY_ANALYZER_VERSION="${REPLAY_ANALYZER_VERSION:-v1}"
+DISABLE_RATE_LIMITER="${DISABLE_RATE_LIMITER:-true}"
+
+echo "[start] replay_bucket_name: ${REPLAY_BUCKET_NAME}"
+echo "[start] replay_bucket_endpoint: ${REPLAY_BUCKET_ENDPOINT}"
+echo "[start] replay_bucket_region: ${REPLAY_BUCKET_REGION}"
+echo "[start] replay_bucket_path_style: ${REPLAY_BUCKET_PATH_STYLE}"
+echo "[start] replay_bucket_local_dir: ${REPLAY_BUCKET_LOCAL_DIR}"
+echo "[start] replay_analyzer_version: ${REPLAY_ANALYZER_VERSION}"
+echo "[start] disable_rate_limiter: ${DISABLE_RATE_LIMITER}"
+
+mkdir -p "${REPLAY_BUCKET_LOCAL_DIR}"
+
 LISTENER_PID="$(lsof -ti tcp:${PORT} -sTCP:LISTEN | head -n 1 || true)"
 if [[ -n "${LISTENER_PID}" ]]; then
   echo "[start] already listening on :${PORT} (pid=${LISTENER_PID})"
@@ -42,7 +66,21 @@ go build -o "${BIN_PATH}" ./cmd/server
 echo "[start] launching binary..."
 echo "" >> "${LOG_FILE}"
 echo "===== start $(date '+%Y-%m-%d %H:%M:%S') =====" >> "${LOG_FILE}"
-LAUNCH_CMD="cd '${ROOT_DIR}' && exec env PORT='${PORT}' REPLAY_UPLOAD_DIR='${REPLAY_UPLOAD_DIR}' DISABLE_LOCAL_PARSE='${DISABLE_LOCAL_PARSE}' '${BIN_PATH}' >>'${LOG_FILE}' 2>&1"
+LAUNCH_CMD="cd '${ROOT_DIR}' && exec env \
+PORT='${PORT}' \
+DATABASE_URL='${DATABASE_URL:-}' \
+REPLAY_UPLOAD_DIR='${REPLAY_UPLOAD_DIR}' \
+DISABLE_LOCAL_PARSE='${DISABLE_LOCAL_PARSE}' \
+REPLAY_BUCKET_NAME='${REPLAY_BUCKET_NAME}' \
+REPLAY_BUCKET_ENDPOINT='${REPLAY_BUCKET_ENDPOINT}' \
+REPLAY_BUCKET_REGION='${REPLAY_BUCKET_REGION}' \
+REPLAY_BUCKET_ACCESS_KEY_ID='${REPLAY_BUCKET_ACCESS_KEY_ID}' \
+REPLAY_BUCKET_SECRET_ACCESS_KEY='${REPLAY_BUCKET_SECRET_ACCESS_KEY}' \
+REPLAY_BUCKET_PATH_STYLE='${REPLAY_BUCKET_PATH_STYLE}' \
+REPLAY_BUCKET_LOCAL_DIR='${REPLAY_BUCKET_LOCAL_DIR}' \
+REPLAY_ANALYZER_VERSION='${REPLAY_ANALYZER_VERSION}' \
+DISABLE_RATE_LIMITER='${DISABLE_RATE_LIMITER}' \
+'${BIN_PATH}' >>'${LOG_FILE}' 2>&1"
 nohup /bin/sh -c "${LAUNCH_CMD}" >/dev/null 2>&1 &
 SERVER_PID=$!
 echo "${SERVER_PID}" > "${PID_FILE}"

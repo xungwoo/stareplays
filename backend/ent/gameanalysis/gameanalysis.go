@@ -44,6 +44,14 @@ const (
 	FieldSummaryJSON = "summary_json"
 	// FieldAnalysisPhaseJSON holds the string denoting the analysis_phase_json field in the database.
 	FieldAnalysisPhaseJSON = "analysis_phase_json"
+	// FieldAnalysisEventsJSON holds the string denoting the analysis_events_json field in the database.
+	FieldAnalysisEventsJSON = "analysis_events_json"
+	// FieldAnalysisTimeseriesJSON holds the string denoting the analysis_timeseries_json field in the database.
+	FieldAnalysisTimeseriesJSON = "analysis_timeseries_json"
+	// FieldArtifactResultDir holds the string denoting the artifact_result_dir field in the database.
+	FieldArtifactResultDir = "artifact_result_dir"
+	// FieldArtifactManifestJSON holds the string denoting the artifact_manifest_json field in the database.
+	FieldArtifactManifestJSON = "artifact_manifest_json"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -79,6 +87,10 @@ var Columns = []string{
 	FieldQualityReportJSON,
 	FieldSummaryJSON,
 	FieldAnalysisPhaseJSON,
+	FieldAnalysisEventsJSON,
+	FieldAnalysisTimeseriesJSON,
+	FieldArtifactResultDir,
+	FieldArtifactManifestJSON,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -188,6 +200,11 @@ func ByNextRetryAt(opts ...sql.OrderTermOption) OrderOption {
 // ByLastError orders the results by the last_error field.
 func ByLastError(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldLastError, opts...).ToFunc()
+}
+
+// ByArtifactResultDir orders the results by the artifact_result_dir field.
+func ByArtifactResultDir(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldArtifactResultDir, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

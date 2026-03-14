@@ -61,15 +61,19 @@ func main() {
 	}))
 
 	// 5. Limiter - Rate limiting (보안 관련 필터링)
-	app.Use(limiter.New(limiter.Config{
-		Max:        100,
-		Expiration: 1 * time.Minute,
-		LimitReached: func(c *fiber.Ctx) error {
-			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
-				"error": "Too many requests, please try again later",
-			})
-		},
-	}))
+	if !envBool("DISABLE_RATE_LIMITER", false) {
+		app.Use(limiter.New(limiter.Config{
+			Max:        envInt("RATE_LIMIT_MAX", 100),
+			Expiration: time.Duration(envInt("RATE_LIMIT_EXPIRATION_SEC", 60)) * time.Second,
+			LimitReached: func(c *fiber.Ctx) error {
+				return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
+					"error": "Too many requests, please try again later",
+				})
+			},
+		}))
+	} else {
+		log.Println("Rate limiter disabled by DISABLE_RATE_LIMITER=true")
+	}
 
 	// 헬스체크 엔드포인트
 	app.Get("/health", func(c *fiber.Ctx) error {
@@ -139,6 +143,18 @@ func envBool(key string, fallback bool) bool {
 	default:
 		return fallback
 	}
+}
+
+func envInt(key string, fallback int) int {
+	v := strings.TrimSpace(os.Getenv(key))
+	if v == "" {
+		return fallback
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		return fallback
+	}
+	return n
 }
 
 func envIntMB(key string, fallbackMB int) int {

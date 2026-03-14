@@ -115,6 +115,11 @@ func LastError(v string) predicate.GameAnalysis {
 	return predicate.GameAnalysis(sql.FieldEQ(FieldLastError, v))
 }
 
+// ArtifactResultDir applies equality check predicate on the "artifact_result_dir" field. It's identical to ArtifactResultDirEQ.
+func ArtifactResultDir(v string) predicate.GameAnalysis {
+	return predicate.GameAnalysis(sql.FieldEQ(FieldArtifactResultDir, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.GameAnalysis {
 	return predicate.GameAnalysis(sql.FieldEQ(FieldCreatedAt, v))
@@ -768,6 +773,111 @@ func AnalysisPhaseJSONIsNil() predicate.GameAnalysis {
 // AnalysisPhaseJSONNotNil applies the NotNil predicate on the "analysis_phase_json" field.
 func AnalysisPhaseJSONNotNil() predicate.GameAnalysis {
 	return predicate.GameAnalysis(sql.FieldNotNull(FieldAnalysisPhaseJSON))
+}
+
+// AnalysisEventsJSONIsNil applies the IsNil predicate on the "analysis_events_json" field.
+func AnalysisEventsJSONIsNil() predicate.GameAnalysis {
+	return predicate.GameAnalysis(sql.FieldIsNull(FieldAnalysisEventsJSON))
+}
+
+// AnalysisEventsJSONNotNil applies the NotNil predicate on the "analysis_events_json" field.
+func AnalysisEventsJSONNotNil() predicate.GameAnalysis {
+	return predicate.GameAnalysis(sql.FieldNotNull(FieldAnalysisEventsJSON))
+}
+
+// AnalysisTimeseriesJSONIsNil applies the IsNil predicate on the "analysis_timeseries_json" field.
+func AnalysisTimeseriesJSONIsNil() predicate.GameAnalysis {
+	return predicate.GameAnalysis(sql.FieldIsNull(FieldAnalysisTimeseriesJSON))
+}
+
+// AnalysisTimeseriesJSONNotNil applies the NotNil predicate on the "analysis_timeseries_json" field.
+func AnalysisTimeseriesJSONNotNil() predicate.GameAnalysis {
+	return predicate.GameAnalysis(sql.FieldNotNull(FieldAnalysisTimeseriesJSON))
+}
+
+// ArtifactResultDirEQ applies the EQ predicate on the "artifact_result_dir" field.
+func ArtifactResultDirEQ(v string) predicate.GameAnalysis {
+	return predicate.GameAnalysis(sql.FieldEQ(FieldArtifactResultDir, v))
+}
+
+// ArtifactResultDirNEQ applies the NEQ predicate on the "artifact_result_dir" field.
+func ArtifactResultDirNEQ(v string) predicate.GameAnalysis {
+	return predicate.GameAnalysis(sql.FieldNEQ(FieldArtifactResultDir, v))
+}
+
+// ArtifactResultDirIn applies the In predicate on the "artifact_result_dir" field.
+func ArtifactResultDirIn(vs ...string) predicate.GameAnalysis {
+	return predicate.GameAnalysis(sql.FieldIn(FieldArtifactResultDir, vs...))
+}
+
+// ArtifactResultDirNotIn applies the NotIn predicate on the "artifact_result_dir" field.
+func ArtifactResultDirNotIn(vs ...string) predicate.GameAnalysis {
+	return predicate.GameAnalysis(sql.FieldNotIn(FieldArtifactResultDir, vs...))
+}
+
+// ArtifactResultDirGT applies the GT predicate on the "artifact_result_dir" field.
+func ArtifactResultDirGT(v string) predicate.GameAnalysis {
+	return predicate.GameAnalysis(sql.FieldGT(FieldArtifactResultDir, v))
+}
+
+// ArtifactResultDirGTE applies the GTE predicate on the "artifact_result_dir" field.
+func ArtifactResultDirGTE(v string) predicate.GameAnalysis {
+	return predicate.GameAnalysis(sql.FieldGTE(FieldArtifactResultDir, v))
+}
+
+// ArtifactResultDirLT applies the LT predicate on the "artifact_result_dir" field.
+func ArtifactResultDirLT(v string) predicate.GameAnalysis {
+	return predicate.GameAnalysis(sql.FieldLT(FieldArtifactResultDir, v))
+}
+
+// ArtifactResultDirLTE applies the LTE predicate on the "artifact_result_dir" field.
+func ArtifactResultDirLTE(v string) predicate.GameAnalysis {
+	return predicate.GameAnalysis(sql.FieldLTE(FieldArtifactResultDir, v))
+}
+
+// ArtifactResultDirContains applies the Contains predicate on the "artifact_result_dir" field.
+func ArtifactResultDirContains(v string) predicate.GameAnalysis {
+	return predicate.GameAnalysis(sql.FieldContains(FieldArtifactResultDir, v))
+}
+
+// ArtifactResultDirHasPrefix applies the HasPrefix predicate on the "artifact_result_dir" field.
+func ArtifactResultDirHasPrefix(v string) predicate.GameAnalysis {
+	return predicate.GameAnalysis(sql.FieldHasPrefix(FieldArtifactResultDir, v))
+}
+
+// ArtifactResultDirHasSuffix applies the HasSuffix predicate on the "artifact_result_dir" field.
+func ArtifactResultDirHasSuffix(v string) predicate.GameAnalysis {
+	return predicate.GameAnalysis(sql.FieldHasSuffix(FieldArtifactResultDir, v))
+}
+
+// ArtifactResultDirIsNil applies the IsNil predicate on the "artifact_result_dir" field.
+func ArtifactResultDirIsNil() predicate.GameAnalysis {
+	return predicate.GameAnalysis(sql.FieldIsNull(FieldArtifactResultDir))
+}
+
+// ArtifactResultDirNotNil applies the NotNil predicate on the "artifact_result_dir" field.
+func ArtifactResultDirNotNil() predicate.GameAnalysis {
+	return predicate.GameAnalysis(sql.FieldNotNull(FieldArtifactResultDir))
+}
+
+// ArtifactResultDirEqualFold applies the EqualFold predicate on the "artifact_result_dir" field.
+func ArtifactResultDirEqualFold(v string) predicate.GameAnalysis {
+	return predicate.GameAnalysis(sql.FieldEqualFold(FieldArtifactResultDir, v))
+}
+
+// ArtifactResultDirContainsFold applies the ContainsFold predicate on the "artifact_result_dir" field.
+func ArtifactResultDirContainsFold(v string) predicate.GameAnalysis {
+	return predicate.GameAnalysis(sql.FieldContainsFold(FieldArtifactResultDir, v))
+}
+
+// ArtifactManifestJSONIsNil applies the IsNil predicate on the "artifact_manifest_json" field.
+func ArtifactManifestJSONIsNil() predicate.GameAnalysis {
+	return predicate.GameAnalysis(sql.FieldIsNull(FieldArtifactManifestJSON))
+}
+
+// ArtifactManifestJSONNotNil applies the NotNil predicate on the "artifact_manifest_json" field.
+func ArtifactManifestJSONNotNil() predicate.GameAnalysis {
+	return predicate.GameAnalysis(sql.FieldNotNull(FieldArtifactManifestJSON))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

@@ -265,6 +265,62 @@ func (_u *GameAnalysisUpdate) ClearAnalysisPhaseJSON() *GameAnalysisUpdate {
 	return _u
 }
 
+// SetAnalysisEventsJSON sets the "analysis_events_json" field.
+func (_u *GameAnalysisUpdate) SetAnalysisEventsJSON(v map[string]interface{}) *GameAnalysisUpdate {
+	_u.mutation.SetAnalysisEventsJSON(v)
+	return _u
+}
+
+// ClearAnalysisEventsJSON clears the value of the "analysis_events_json" field.
+func (_u *GameAnalysisUpdate) ClearAnalysisEventsJSON() *GameAnalysisUpdate {
+	_u.mutation.ClearAnalysisEventsJSON()
+	return _u
+}
+
+// SetAnalysisTimeseriesJSON sets the "analysis_timeseries_json" field.
+func (_u *GameAnalysisUpdate) SetAnalysisTimeseriesJSON(v map[string]interface{}) *GameAnalysisUpdate {
+	_u.mutation.SetAnalysisTimeseriesJSON(v)
+	return _u
+}
+
+// ClearAnalysisTimeseriesJSON clears the value of the "analysis_timeseries_json" field.
+func (_u *GameAnalysisUpdate) ClearAnalysisTimeseriesJSON() *GameAnalysisUpdate {
+	_u.mutation.ClearAnalysisTimeseriesJSON()
+	return _u
+}
+
+// SetArtifactResultDir sets the "artifact_result_dir" field.
+func (_u *GameAnalysisUpdate) SetArtifactResultDir(v string) *GameAnalysisUpdate {
+	_u.mutation.SetArtifactResultDir(v)
+	return _u
+}
+
+// SetNillableArtifactResultDir sets the "artifact_result_dir" field if the given value is not nil.
+func (_u *GameAnalysisUpdate) SetNillableArtifactResultDir(v *string) *GameAnalysisUpdate {
+	if v != nil {
+		_u.SetArtifactResultDir(*v)
+	}
+	return _u
+}
+
+// ClearArtifactResultDir clears the value of the "artifact_result_dir" field.
+func (_u *GameAnalysisUpdate) ClearArtifactResultDir() *GameAnalysisUpdate {
+	_u.mutation.ClearArtifactResultDir()
+	return _u
+}
+
+// SetArtifactManifestJSON sets the "artifact_manifest_json" field.
+func (_u *GameAnalysisUpdate) SetArtifactManifestJSON(v map[string]interface{}) *GameAnalysisUpdate {
+	_u.mutation.SetArtifactManifestJSON(v)
+	return _u
+}
+
+// ClearArtifactManifestJSON clears the value of the "artifact_manifest_json" field.
+func (_u *GameAnalysisUpdate) ClearArtifactManifestJSON() *GameAnalysisUpdate {
+	_u.mutation.ClearArtifactManifestJSON()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *GameAnalysisUpdate) SetUpdatedAt(v time.Time) *GameAnalysisUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -428,6 +484,30 @@ func (_u *GameAnalysisUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if _u.mutation.AnalysisPhaseJSONCleared() {
 		_spec.ClearField(gameanalysis.FieldAnalysisPhaseJSON, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.AnalysisEventsJSON(); ok {
+		_spec.SetField(gameanalysis.FieldAnalysisEventsJSON, field.TypeJSON, value)
+	}
+	if _u.mutation.AnalysisEventsJSONCleared() {
+		_spec.ClearField(gameanalysis.FieldAnalysisEventsJSON, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.AnalysisTimeseriesJSON(); ok {
+		_spec.SetField(gameanalysis.FieldAnalysisTimeseriesJSON, field.TypeJSON, value)
+	}
+	if _u.mutation.AnalysisTimeseriesJSONCleared() {
+		_spec.ClearField(gameanalysis.FieldAnalysisTimeseriesJSON, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.ArtifactResultDir(); ok {
+		_spec.SetField(gameanalysis.FieldArtifactResultDir, field.TypeString, value)
+	}
+	if _u.mutation.ArtifactResultDirCleared() {
+		_spec.ClearField(gameanalysis.FieldArtifactResultDir, field.TypeString)
+	}
+	if value, ok := _u.mutation.ArtifactManifestJSON(); ok {
+		_spec.SetField(gameanalysis.FieldArtifactManifestJSON, field.TypeJSON, value)
+	}
+	if _u.mutation.ArtifactManifestJSONCleared() {
+		_spec.ClearField(gameanalysis.FieldArtifactManifestJSON, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(gameanalysis.FieldUpdatedAt, field.TypeTime, value)
@@ -717,6 +797,62 @@ func (_u *GameAnalysisUpdateOne) ClearAnalysisPhaseJSON() *GameAnalysisUpdateOne
 	return _u
 }
 
+// SetAnalysisEventsJSON sets the "analysis_events_json" field.
+func (_u *GameAnalysisUpdateOne) SetAnalysisEventsJSON(v map[string]interface{}) *GameAnalysisUpdateOne {
+	_u.mutation.SetAnalysisEventsJSON(v)
+	return _u
+}
+
+// ClearAnalysisEventsJSON clears the value of the "analysis_events_json" field.
+func (_u *GameAnalysisUpdateOne) ClearAnalysisEventsJSON() *GameAnalysisUpdateOne {
+	_u.mutation.ClearAnalysisEventsJSON()
+	return _u
+}
+
+// SetAnalysisTimeseriesJSON sets the "analysis_timeseries_json" field.
+func (_u *GameAnalysisUpdateOne) SetAnalysisTimeseriesJSON(v map[string]interface{}) *GameAnalysisUpdateOne {
+	_u.mutation.SetAnalysisTimeseriesJSON(v)
+	return _u
+}
+
+// ClearAnalysisTimeseriesJSON clears the value of the "analysis_timeseries_json" field.
+func (_u *GameAnalysisUpdateOne) ClearAnalysisTimeseriesJSON() *GameAnalysisUpdateOne {
+	_u.mutation.ClearAnalysisTimeseriesJSON()
+	return _u
+}
+
+// SetArtifactResultDir sets the "artifact_result_dir" field.
+func (_u *GameAnalysisUpdateOne) SetArtifactResultDir(v string) *GameAnalysisUpdateOne {
+	_u.mutation.SetArtifactResultDir(v)
+	return _u
+}
+
+// SetNillableArtifactResultDir sets the "artifact_result_dir" field if the given value is not nil.
+func (_u *GameAnalysisUpdateOne) SetNillableArtifactResultDir(v *string) *GameAnalysisUpdateOne {
+	if v != nil {
+		_u.SetArtifactResultDir(*v)
+	}
+	return _u
+}
+
+// ClearArtifactResultDir clears the value of the "artifact_result_dir" field.
+func (_u *GameAnalysisUpdateOne) ClearArtifactResultDir() *GameAnalysisUpdateOne {
+	_u.mutation.ClearArtifactResultDir()
+	return _u
+}
+
+// SetArtifactManifestJSON sets the "artifact_manifest_json" field.
+func (_u *GameAnalysisUpdateOne) SetArtifactManifestJSON(v map[string]interface{}) *GameAnalysisUpdateOne {
+	_u.mutation.SetArtifactManifestJSON(v)
+	return _u
+}
+
+// ClearArtifactManifestJSON clears the value of the "artifact_manifest_json" field.
+func (_u *GameAnalysisUpdateOne) ClearArtifactManifestJSON() *GameAnalysisUpdateOne {
+	_u.mutation.ClearArtifactManifestJSON()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *GameAnalysisUpdateOne) SetUpdatedAt(v time.Time) *GameAnalysisUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
@@ -910,6 +1046,30 @@ func (_u *GameAnalysisUpdateOne) sqlSave(ctx context.Context) (_node *GameAnalys
 	}
 	if _u.mutation.AnalysisPhaseJSONCleared() {
 		_spec.ClearField(gameanalysis.FieldAnalysisPhaseJSON, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.AnalysisEventsJSON(); ok {
+		_spec.SetField(gameanalysis.FieldAnalysisEventsJSON, field.TypeJSON, value)
+	}
+	if _u.mutation.AnalysisEventsJSONCleared() {
+		_spec.ClearField(gameanalysis.FieldAnalysisEventsJSON, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.AnalysisTimeseriesJSON(); ok {
+		_spec.SetField(gameanalysis.FieldAnalysisTimeseriesJSON, field.TypeJSON, value)
+	}
+	if _u.mutation.AnalysisTimeseriesJSONCleared() {
+		_spec.ClearField(gameanalysis.FieldAnalysisTimeseriesJSON, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.ArtifactResultDir(); ok {
+		_spec.SetField(gameanalysis.FieldArtifactResultDir, field.TypeString, value)
+	}
+	if _u.mutation.ArtifactResultDirCleared() {
+		_spec.ClearField(gameanalysis.FieldArtifactResultDir, field.TypeString)
+	}
+	if value, ok := _u.mutation.ArtifactManifestJSON(); ok {
+		_spec.SetField(gameanalysis.FieldArtifactManifestJSON, field.TypeJSON, value)
+	}
+	if _u.mutation.ArtifactManifestJSONCleared() {
+		_spec.ClearField(gameanalysis.FieldArtifactManifestJSON, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(gameanalysis.FieldUpdatedAt, field.TypeTime, value)

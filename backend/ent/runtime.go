@@ -140,11 +140,11 @@ func init() {
 	// gameanalysis.DefaultNextRetryAt holds the default value on creation for the next_retry_at field.
 	gameanalysis.DefaultNextRetryAt = gameanalysisDescNextRetryAt.Default.(func() time.Time)
 	// gameanalysisDescCreatedAt is the schema descriptor for created_at field.
-	gameanalysisDescCreatedAt := gameanalysisFields[15].Descriptor()
+	gameanalysisDescCreatedAt := gameanalysisFields[19].Descriptor()
 	// gameanalysis.DefaultCreatedAt holds the default value on creation for the created_at field.
 	gameanalysis.DefaultCreatedAt = gameanalysisDescCreatedAt.Default.(func() time.Time)
 	// gameanalysisDescUpdatedAt is the schema descriptor for updated_at field.
-	gameanalysisDescUpdatedAt := gameanalysisFields[16].Descriptor()
+	gameanalysisDescUpdatedAt := gameanalysisFields[20].Descriptor()
 	// gameanalysis.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	gameanalysis.DefaultUpdatedAt = gameanalysisDescUpdatedAt.Default.(func() time.Time)
 	// gameanalysis.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
