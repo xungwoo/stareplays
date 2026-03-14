@@ -87,4 +87,5 @@ curl -sS "http://127.0.0.1:3000/api/v1/rankings/3v3?page=1&page_size=20&sort_by=
   - `make ranking-job-daemon`
 - 관련 문서:
   - `README.md`
-  - `DEPLOY_RAILWAY.md`
+  - `docs/architecture.md`
+  - `docs/histories/DEPLOY_RAILWAY.md`

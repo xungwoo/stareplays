@@ -2,6 +2,13 @@
 
 StarCraft: Brood War replay 파싱/저장 API 서버입니다.
 
+## 문서
+
+- 현재 시스템 구조: `docs/architecture.md`
+- 현재 기능 명세: `docs/spec.md`
+- 완료된 작업 기록/검증 runbook: `docs/histories/`
+- 상세 API 예시(보조 문서): `API_USAGE.md`
+
 ## 핵심 기능
 
 - Replay 파싱 후 `Game`, `Player`, `GameDetail`, `ReplayFile`, `User` 저장
@@ -77,6 +84,10 @@ multipart/form-data:
 ### 7) 헬스체크
 
 `GET /health`
+
+### 7-1) 사용자 이름 자동완성
+
+`GET /users/suggest?q=<prefix>&limit=5`
 
 ### 8) 3v3 랭킹 조회 (snapshot 기반)
 
@@ -195,8 +206,10 @@ cd backend && ANALYZER_JOB_MODE=daemon ANALYZER_JOB_INTERVAL=10m go run ./cmd/an
 
 ## 참고 문서
 
+- 현재 시스템 구조: `docs/architecture.md`
+- 현재 기능 명세: `docs/spec.md`
 - 상세 API 예시: `API_USAGE.md`
-- Railway 배포 체크리스트: `DEPLOY_RAILWAY.md`
+- 완료된 운영 배포/검증 기록: `docs/histories/DEPLOY_RAILWAY.md`
 
 ## 성능 벤치 스크립트
 

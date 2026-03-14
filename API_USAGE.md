@@ -1,5 +1,8 @@
 # stareplays API Usage
 
+현재 canonical spec은 `docs/spec.md`입니다.
+이 문서는 curl 예시 중심의 보조 문서로 유지합니다.
+
 ## Base URL
 
 - Local: `http://localhost:3000`
@@ -83,6 +86,34 @@ curl -X POST http://localhost:3000/api/v1/games/upload \
   "error": "This user already uploaded a replay for this game"
 }
 ```
+
+---
+
+## 1-1) Upload Replay Preview
+
+`POST /api/v1/games/upload/preview`
+
+업로드 전에 replay 메타와 플레이어 이름을 preview 합니다.
+
+### Request (multipart/form-data)
+
+- `replay_file`: `.rep` 파일
+
+### Example
+
+```bash
+curl -X POST http://localhost:3000/api/v1/games/upload/preview \
+  -F "replay_file=@/absolute/path/to/sample.rep"
+```
+
+---
+
+## 1-2) Local Parse Dev Endpoint
+
+`POST /api/v1/games/parse`
+
+- 로컬 파일 경로 기반 개발용 엔드포인트입니다.
+- `DISABLE_LOCAL_PARSE=true`이면 비활성화됩니다.
 
 ---
 
@@ -197,6 +228,59 @@ curl -X DELETE http://localhost:3000/api/v1/games/1
 
 ```bash
 curl http://localhost:3000/api/v1/players/jjang9-pil/stats
+```
+
+---
+
+## 6-1) Get User Suggestions
+
+`GET /api/v1/users/suggest?q=j&limit=5`
+
+사용자 이름 자동완성용 endpoint 입니다.
+
+### Example
+
+```bash
+curl "http://localhost:3000/api/v1/users/suggest?q=j&limit=5"
+```
+
+---
+
+## 6-2) Get Game Analyzer Status / Result
+
+`GET /api/v1/games/:id/analyzer`
+
+- analyzer row가 없으면 `status=not_requested`
+- 완료되면 `result.quality_report`, `result.summary`, `result.analysis_phase` 반환
+
+### Example
+
+```bash
+curl http://localhost:3000/api/v1/games/1/analyzer
+```
+
+---
+
+## 6-3) 3v3 Rankings Snapshot
+
+`GET /api/v1/rankings/3v3?page=1&page_size=20&sort_by=win_rate&sort_dir=desc&min_games=10`
+
+### Example
+
+```bash
+curl "http://localhost:3000/api/v1/rankings/3v3?page=1&page_size=20&sort_by=win_rate&sort_dir=desc&min_games=10"
+```
+
+---
+
+## 6-4) Race Matchup Snapshot
+
+`GET /api/v1/analyzer/race-matchups?team_size=3&page=1&page_size=50&sort_by=games&sort_dir=desc`
+
+### Example
+
+```bash
+curl "http://localhost:3000/api/v1/analyzer/race-matchups?team_size=3&page=1&page_size=50&sort_by=games&sort_dir=desc"
 ```
 
 ---
