@@ -49,6 +49,14 @@ type GameAnalysis struct {
 	SummaryJSON map[string]interface{} `json:"summary_json,omitempty"`
 	// AnalysisPhaseJSON holds the value of the "analysis_phase_json" field.
 	AnalysisPhaseJSON map[string]interface{} `json:"analysis_phase_json,omitempty"`
+	// AnalysisEventsJSON holds the value of the "analysis_events_json" field.
+	AnalysisEventsJSON map[string]interface{} `json:"analysis_events_json,omitempty"`
+	// AnalysisTimeseriesJSON holds the value of the "analysis_timeseries_json" field.
+	AnalysisTimeseriesJSON map[string]interface{} `json:"analysis_timeseries_json,omitempty"`
+	// ArtifactResultDir holds the value of the "artifact_result_dir" field.
+	ArtifactResultDir *string `json:"artifact_result_dir,omitempty"`
+	// ArtifactManifestJSON holds the value of the "artifact_manifest_json" field.
+	ArtifactManifestJSON map[string]interface{} `json:"artifact_manifest_json,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -84,11 +92,11 @@ func (*GameAnalysis) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case gameanalysis.FieldQualityReportJSON, gameanalysis.FieldSummaryJSON, gameanalysis.FieldAnalysisPhaseJSON:
+		case gameanalysis.FieldQualityReportJSON, gameanalysis.FieldSummaryJSON, gameanalysis.FieldAnalysisPhaseJSON, gameanalysis.FieldAnalysisEventsJSON, gameanalysis.FieldAnalysisTimeseriesJSON, gameanalysis.FieldArtifactManifestJSON:
 			values[i] = new([]byte)
 		case gameanalysis.FieldID, gameanalysis.FieldGameID, gameanalysis.FieldAttemptCount, gameanalysis.FieldPriority:
 			values[i] = new(sql.NullInt64)
-		case gameanalysis.FieldFileHash, gameanalysis.FieldBucketKey, gameanalysis.FieldAnalyzerVersion, gameanalysis.FieldStatus, gameanalysis.FieldLastError:
+		case gameanalysis.FieldFileHash, gameanalysis.FieldBucketKey, gameanalysis.FieldAnalyzerVersion, gameanalysis.FieldStatus, gameanalysis.FieldLastError, gameanalysis.FieldArtifactResultDir:
 			values[i] = new(sql.NullString)
 		case gameanalysis.FieldRequestedAt, gameanalysis.FieldStartedAt, gameanalysis.FieldFinishedAt, gameanalysis.FieldNextRetryAt, gameanalysis.FieldCreatedAt, gameanalysis.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -212,6 +220,37 @@ func (_m *GameAnalysis) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field analysis_phase_json: %w", err)
 				}
 			}
+		case gameanalysis.FieldAnalysisEventsJSON:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field analysis_events_json", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.AnalysisEventsJSON); err != nil {
+					return fmt.Errorf("unmarshal field analysis_events_json: %w", err)
+				}
+			}
+		case gameanalysis.FieldAnalysisTimeseriesJSON:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field analysis_timeseries_json", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.AnalysisTimeseriesJSON); err != nil {
+					return fmt.Errorf("unmarshal field analysis_timeseries_json: %w", err)
+				}
+			}
+		case gameanalysis.FieldArtifactResultDir:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field artifact_result_dir", values[i])
+			} else if value.Valid {
+				_m.ArtifactResultDir = new(string)
+				*_m.ArtifactResultDir = value.String
+			}
+		case gameanalysis.FieldArtifactManifestJSON:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field artifact_manifest_json", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.ArtifactManifestJSON); err != nil {
+					return fmt.Errorf("unmarshal field artifact_manifest_json: %w", err)
+				}
+			}
 		case gameanalysis.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
@@ -315,6 +354,20 @@ func (_m *GameAnalysis) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("analysis_phase_json=")
 	builder.WriteString(fmt.Sprintf("%v", _m.AnalysisPhaseJSON))
+	builder.WriteString(", ")
+	builder.WriteString("analysis_events_json=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AnalysisEventsJSON))
+	builder.WriteString(", ")
+	builder.WriteString("analysis_timeseries_json=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AnalysisTimeseriesJSON))
+	builder.WriteString(", ")
+	if v := _m.ArtifactResultDir; v != nil {
+		builder.WriteString("artifact_result_dir=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	builder.WriteString("artifact_manifest_json=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ArtifactManifestJSON))
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

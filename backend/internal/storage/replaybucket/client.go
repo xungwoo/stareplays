@@ -25,14 +25,24 @@ const (
 	envBucketAK     = "REPLAY_BUCKET_ACCESS_KEY_ID"
 	envBucketSK     = "REPLAY_BUCKET_SECRET_ACCESS_KEY"
 	envPathStyle    = "REPLAY_BUCKET_PATH_STYLE"
+	envLocalDir     = "REPLAY_BUCKET_LOCAL_DIR"
 )
 
 type Client struct {
-	bucket string
-	s3     *s3.Client
+	bucket   string
+	s3       *s3.Client
+	localDir string
 }
 
 func NewFromEnv(ctx context.Context) (*Client, error) {
+	localDir := strings.TrimSpace(os.Getenv(envLocalDir))
+	if localDir != "" {
+		if err := os.MkdirAll(localDir, 0o755); err != nil {
+			return nil, fmt.Errorf("prepare local replay bucket dir: %w", err)
+		}
+		return &Client{localDir: filepath.Clean(localDir)}, nil
+	}
+
 	bucket := strings.TrimSpace(os.Getenv(envBucketName))
 	endpoint := strings.TrimSpace(os.Getenv(envBucketEP))
 	region := strings.TrimSpace(os.Getenv(envBucketRegion))
@@ -114,13 +124,30 @@ func ReplayObjectKey(fileHash string) string {
 }
 
 func (c *Client) PutReplay(ctx context.Context, fileHash string, data []byte) (string, error) {
-	if c == nil || c.s3 == nil {
+	_ = ctx
+	if c == nil {
 		return "", errors.New("nil replay bucket client")
 	}
 	if len(data) == 0 {
 		return "", errors.New("empty replay payload")
 	}
 	key := ReplayObjectKey(fileHash)
+	if c.localDir != "" {
+		path, err := c.localPathForKey(key)
+		if err != nil {
+			return "", err
+		}
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			return "", fmt.Errorf("prepare local replay object dir: %w", err)
+		}
+		if err := os.WriteFile(path, data, 0o644); err != nil {
+			return "", fmt.Errorf("write local replay object: %w", err)
+		}
+		return key, nil
+	}
+	if c.s3 == nil {
+		return "", errors.New("nil replay bucket client")
+	}
 	_, err := c.s3.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:        aws.String(c.bucket),
 		Key:           aws.String(key),
@@ -135,7 +162,7 @@ func (c *Client) PutReplay(ctx context.Context, fileHash string, data []byte) (s
 }
 
 func (c *Client) DownloadToTempFile(ctx context.Context, key, tmpDir string) (string, error) {
-	if c == nil || c.s3 == nil {
+	if c == nil {
 		return "", errors.New("nil replay bucket client")
 	}
 	key = strings.TrimSpace(key)
@@ -147,6 +174,35 @@ func (c *Client) DownloadToTempFile(ctx context.Context, key, tmpDir string) (st
 	}
 	if err := os.MkdirAll(tmpDir, 0o755); err != nil {
 		return "", fmt.Errorf("prepare tmp dir: %w", err)
+	}
+
+	if c.localDir != "" {
+		sourcePath, err := c.localPathForKey(key)
+		if err != nil {
+			return "", err
+		}
+		payload, err := os.ReadFile(sourcePath)
+		if err != nil {
+			return "", fmt.Errorf("read local replay object: %w", err)
+		}
+		f, err := os.CreateTemp(tmpDir, "replay-*.rep")
+		if err != nil {
+			return "", fmt.Errorf("create temp replay file: %w", err)
+		}
+		path := f.Name()
+		if _, err := f.Write(payload); err != nil {
+			_ = f.Close()
+			_ = os.Remove(path)
+			return "", fmt.Errorf("write temp replay file: %w", err)
+		}
+		if err := f.Close(); err != nil {
+			_ = os.Remove(path)
+			return "", fmt.Errorf("close temp replay file: %w", err)
+		}
+		return filepath.Clean(path), nil
+	}
+	if c.s3 == nil {
+		return "", errors.New("nil replay bucket client")
 	}
 
 	resp, err := c.s3.GetObject(ctx, &s3.GetObjectInput{
@@ -176,4 +232,22 @@ func (c *Client) DownloadToTempFile(ctx context.Context, key, tmpDir string) (st
 		return "", fmt.Errorf("close temp replay file: %w", err)
 	}
 	return filepath.Clean(path), nil
+}
+
+func (c *Client) localPathForKey(key string) (string, error) {
+	if c == nil || c.localDir == "" {
+		return "", errors.New("local replay bucket is not configured")
+	}
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return "", errors.New("empty replay bucket key")
+	}
+	cleanKey := filepath.Clean(filepath.FromSlash(key))
+	if cleanKey == "." || cleanKey == string(filepath.Separator) {
+		return "", errors.New("invalid replay bucket key")
+	}
+	if strings.HasPrefix(cleanKey, ".."+string(filepath.Separator)) || cleanKey == ".." {
+		return "", errors.New("invalid replay bucket key")
+	}
+	return filepath.Join(c.localDir, cleanKey), nil
 }

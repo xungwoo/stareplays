@@ -2828,33 +2828,37 @@ func (m *GameMutation) ResetEdge(name string) error {
 // GameAnalysisMutation represents an operation that mutates the GameAnalysis nodes in the graph.
 type GameAnalysisMutation struct {
 	config
-	op                  Op
-	typ                 string
-	id                  *int
-	file_hash           *string
-	bucket_key          *string
-	analyzer_version    *string
-	status              *string
-	attempt_count       *int
-	addattempt_count    *int
-	priority            *int
-	addpriority         *int
-	requested_at        *time.Time
-	started_at          *time.Time
-	finished_at         *time.Time
-	next_retry_at       *time.Time
-	last_error          *string
-	quality_report_json *map[string]interface{}
-	summary_json        *map[string]interface{}
-	analysis_phase_json *map[string]interface{}
-	created_at          *time.Time
-	updated_at          *time.Time
-	clearedFields       map[string]struct{}
-	game                *int
-	clearedgame         bool
-	done                bool
-	oldValue            func(context.Context) (*GameAnalysis, error)
-	predicates          []predicate.GameAnalysis
+	op                       Op
+	typ                      string
+	id                       *int
+	file_hash                *string
+	bucket_key               *string
+	analyzer_version         *string
+	status                   *string
+	attempt_count            *int
+	addattempt_count         *int
+	priority                 *int
+	addpriority              *int
+	requested_at             *time.Time
+	started_at               *time.Time
+	finished_at              *time.Time
+	next_retry_at            *time.Time
+	last_error               *string
+	quality_report_json      *map[string]interface{}
+	summary_json             *map[string]interface{}
+	analysis_phase_json      *map[string]interface{}
+	analysis_events_json     *map[string]interface{}
+	analysis_timeseries_json *map[string]interface{}
+	artifact_result_dir      *string
+	artifact_manifest_json   *map[string]interface{}
+	created_at               *time.Time
+	updated_at               *time.Time
+	clearedFields            map[string]struct{}
+	game                     *int
+	clearedgame              bool
+	done                     bool
+	oldValue                 func(context.Context) (*GameAnalysis, error)
+	predicates               []predicate.GameAnalysis
 }
 
 var _ ent.Mutation = (*GameAnalysisMutation)(nil)
@@ -3613,6 +3617,202 @@ func (m *GameAnalysisMutation) ResetAnalysisPhaseJSON() {
 	delete(m.clearedFields, gameanalysis.FieldAnalysisPhaseJSON)
 }
 
+// SetAnalysisEventsJSON sets the "analysis_events_json" field.
+func (m *GameAnalysisMutation) SetAnalysisEventsJSON(value map[string]interface{}) {
+	m.analysis_events_json = &value
+}
+
+// AnalysisEventsJSON returns the value of the "analysis_events_json" field in the mutation.
+func (m *GameAnalysisMutation) AnalysisEventsJSON() (r map[string]interface{}, exists bool) {
+	v := m.analysis_events_json
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAnalysisEventsJSON returns the old "analysis_events_json" field's value of the GameAnalysis entity.
+// If the GameAnalysis object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GameAnalysisMutation) OldAnalysisEventsJSON(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAnalysisEventsJSON is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAnalysisEventsJSON requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAnalysisEventsJSON: %w", err)
+	}
+	return oldValue.AnalysisEventsJSON, nil
+}
+
+// ClearAnalysisEventsJSON clears the value of the "analysis_events_json" field.
+func (m *GameAnalysisMutation) ClearAnalysisEventsJSON() {
+	m.analysis_events_json = nil
+	m.clearedFields[gameanalysis.FieldAnalysisEventsJSON] = struct{}{}
+}
+
+// AnalysisEventsJSONCleared returns if the "analysis_events_json" field was cleared in this mutation.
+func (m *GameAnalysisMutation) AnalysisEventsJSONCleared() bool {
+	_, ok := m.clearedFields[gameanalysis.FieldAnalysisEventsJSON]
+	return ok
+}
+
+// ResetAnalysisEventsJSON resets all changes to the "analysis_events_json" field.
+func (m *GameAnalysisMutation) ResetAnalysisEventsJSON() {
+	m.analysis_events_json = nil
+	delete(m.clearedFields, gameanalysis.FieldAnalysisEventsJSON)
+}
+
+// SetAnalysisTimeseriesJSON sets the "analysis_timeseries_json" field.
+func (m *GameAnalysisMutation) SetAnalysisTimeseriesJSON(value map[string]interface{}) {
+	m.analysis_timeseries_json = &value
+}
+
+// AnalysisTimeseriesJSON returns the value of the "analysis_timeseries_json" field in the mutation.
+func (m *GameAnalysisMutation) AnalysisTimeseriesJSON() (r map[string]interface{}, exists bool) {
+	v := m.analysis_timeseries_json
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAnalysisTimeseriesJSON returns the old "analysis_timeseries_json" field's value of the GameAnalysis entity.
+// If the GameAnalysis object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GameAnalysisMutation) OldAnalysisTimeseriesJSON(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAnalysisTimeseriesJSON is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAnalysisTimeseriesJSON requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAnalysisTimeseriesJSON: %w", err)
+	}
+	return oldValue.AnalysisTimeseriesJSON, nil
+}
+
+// ClearAnalysisTimeseriesJSON clears the value of the "analysis_timeseries_json" field.
+func (m *GameAnalysisMutation) ClearAnalysisTimeseriesJSON() {
+	m.analysis_timeseries_json = nil
+	m.clearedFields[gameanalysis.FieldAnalysisTimeseriesJSON] = struct{}{}
+}
+
+// AnalysisTimeseriesJSONCleared returns if the "analysis_timeseries_json" field was cleared in this mutation.
+func (m *GameAnalysisMutation) AnalysisTimeseriesJSONCleared() bool {
+	_, ok := m.clearedFields[gameanalysis.FieldAnalysisTimeseriesJSON]
+	return ok
+}
+
+// ResetAnalysisTimeseriesJSON resets all changes to the "analysis_timeseries_json" field.
+func (m *GameAnalysisMutation) ResetAnalysisTimeseriesJSON() {
+	m.analysis_timeseries_json = nil
+	delete(m.clearedFields, gameanalysis.FieldAnalysisTimeseriesJSON)
+}
+
+// SetArtifactResultDir sets the "artifact_result_dir" field.
+func (m *GameAnalysisMutation) SetArtifactResultDir(s string) {
+	m.artifact_result_dir = &s
+}
+
+// ArtifactResultDir returns the value of the "artifact_result_dir" field in the mutation.
+func (m *GameAnalysisMutation) ArtifactResultDir() (r string, exists bool) {
+	v := m.artifact_result_dir
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldArtifactResultDir returns the old "artifact_result_dir" field's value of the GameAnalysis entity.
+// If the GameAnalysis object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GameAnalysisMutation) OldArtifactResultDir(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldArtifactResultDir is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldArtifactResultDir requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldArtifactResultDir: %w", err)
+	}
+	return oldValue.ArtifactResultDir, nil
+}
+
+// ClearArtifactResultDir clears the value of the "artifact_result_dir" field.
+func (m *GameAnalysisMutation) ClearArtifactResultDir() {
+	m.artifact_result_dir = nil
+	m.clearedFields[gameanalysis.FieldArtifactResultDir] = struct{}{}
+}
+
+// ArtifactResultDirCleared returns if the "artifact_result_dir" field was cleared in this mutation.
+func (m *GameAnalysisMutation) ArtifactResultDirCleared() bool {
+	_, ok := m.clearedFields[gameanalysis.FieldArtifactResultDir]
+	return ok
+}
+
+// ResetArtifactResultDir resets all changes to the "artifact_result_dir" field.
+func (m *GameAnalysisMutation) ResetArtifactResultDir() {
+	m.artifact_result_dir = nil
+	delete(m.clearedFields, gameanalysis.FieldArtifactResultDir)
+}
+
+// SetArtifactManifestJSON sets the "artifact_manifest_json" field.
+func (m *GameAnalysisMutation) SetArtifactManifestJSON(value map[string]interface{}) {
+	m.artifact_manifest_json = &value
+}
+
+// ArtifactManifestJSON returns the value of the "artifact_manifest_json" field in the mutation.
+func (m *GameAnalysisMutation) ArtifactManifestJSON() (r map[string]interface{}, exists bool) {
+	v := m.artifact_manifest_json
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldArtifactManifestJSON returns the old "artifact_manifest_json" field's value of the GameAnalysis entity.
+// If the GameAnalysis object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GameAnalysisMutation) OldArtifactManifestJSON(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldArtifactManifestJSON is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldArtifactManifestJSON requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldArtifactManifestJSON: %w", err)
+	}
+	return oldValue.ArtifactManifestJSON, nil
+}
+
+// ClearArtifactManifestJSON clears the value of the "artifact_manifest_json" field.
+func (m *GameAnalysisMutation) ClearArtifactManifestJSON() {
+	m.artifact_manifest_json = nil
+	m.clearedFields[gameanalysis.FieldArtifactManifestJSON] = struct{}{}
+}
+
+// ArtifactManifestJSONCleared returns if the "artifact_manifest_json" field was cleared in this mutation.
+func (m *GameAnalysisMutation) ArtifactManifestJSONCleared() bool {
+	_, ok := m.clearedFields[gameanalysis.FieldArtifactManifestJSON]
+	return ok
+}
+
+// ResetArtifactManifestJSON resets all changes to the "artifact_manifest_json" field.
+func (m *GameAnalysisMutation) ResetArtifactManifestJSON() {
+	m.artifact_manifest_json = nil
+	delete(m.clearedFields, gameanalysis.FieldArtifactManifestJSON)
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *GameAnalysisMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -3746,7 +3946,7 @@ func (m *GameAnalysisMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GameAnalysisMutation) Fields() []string {
-	fields := make([]string, 0, 17)
+	fields := make([]string, 0, 21)
 	if m.game != nil {
 		fields = append(fields, gameanalysis.FieldGameID)
 	}
@@ -3792,6 +3992,18 @@ func (m *GameAnalysisMutation) Fields() []string {
 	if m.analysis_phase_json != nil {
 		fields = append(fields, gameanalysis.FieldAnalysisPhaseJSON)
 	}
+	if m.analysis_events_json != nil {
+		fields = append(fields, gameanalysis.FieldAnalysisEventsJSON)
+	}
+	if m.analysis_timeseries_json != nil {
+		fields = append(fields, gameanalysis.FieldAnalysisTimeseriesJSON)
+	}
+	if m.artifact_result_dir != nil {
+		fields = append(fields, gameanalysis.FieldArtifactResultDir)
+	}
+	if m.artifact_manifest_json != nil {
+		fields = append(fields, gameanalysis.FieldArtifactManifestJSON)
+	}
 	if m.created_at != nil {
 		fields = append(fields, gameanalysis.FieldCreatedAt)
 	}
@@ -3836,6 +4048,14 @@ func (m *GameAnalysisMutation) Field(name string) (ent.Value, bool) {
 		return m.SummaryJSON()
 	case gameanalysis.FieldAnalysisPhaseJSON:
 		return m.AnalysisPhaseJSON()
+	case gameanalysis.FieldAnalysisEventsJSON:
+		return m.AnalysisEventsJSON()
+	case gameanalysis.FieldAnalysisTimeseriesJSON:
+		return m.AnalysisTimeseriesJSON()
+	case gameanalysis.FieldArtifactResultDir:
+		return m.ArtifactResultDir()
+	case gameanalysis.FieldArtifactManifestJSON:
+		return m.ArtifactManifestJSON()
 	case gameanalysis.FieldCreatedAt:
 		return m.CreatedAt()
 	case gameanalysis.FieldUpdatedAt:
@@ -3879,6 +4099,14 @@ func (m *GameAnalysisMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldSummaryJSON(ctx)
 	case gameanalysis.FieldAnalysisPhaseJSON:
 		return m.OldAnalysisPhaseJSON(ctx)
+	case gameanalysis.FieldAnalysisEventsJSON:
+		return m.OldAnalysisEventsJSON(ctx)
+	case gameanalysis.FieldAnalysisTimeseriesJSON:
+		return m.OldAnalysisTimeseriesJSON(ctx)
+	case gameanalysis.FieldArtifactResultDir:
+		return m.OldArtifactResultDir(ctx)
+	case gameanalysis.FieldArtifactManifestJSON:
+		return m.OldArtifactManifestJSON(ctx)
 	case gameanalysis.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case gameanalysis.FieldUpdatedAt:
@@ -3997,6 +4225,34 @@ func (m *GameAnalysisMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetAnalysisPhaseJSON(v)
 		return nil
+	case gameanalysis.FieldAnalysisEventsJSON:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAnalysisEventsJSON(v)
+		return nil
+	case gameanalysis.FieldAnalysisTimeseriesJSON:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAnalysisTimeseriesJSON(v)
+		return nil
+	case gameanalysis.FieldArtifactResultDir:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetArtifactResultDir(v)
+		return nil
+	case gameanalysis.FieldArtifactManifestJSON:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetArtifactManifestJSON(v)
+		return nil
 	case gameanalysis.FieldCreatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -4086,6 +4342,18 @@ func (m *GameAnalysisMutation) ClearedFields() []string {
 	if m.FieldCleared(gameanalysis.FieldAnalysisPhaseJSON) {
 		fields = append(fields, gameanalysis.FieldAnalysisPhaseJSON)
 	}
+	if m.FieldCleared(gameanalysis.FieldAnalysisEventsJSON) {
+		fields = append(fields, gameanalysis.FieldAnalysisEventsJSON)
+	}
+	if m.FieldCleared(gameanalysis.FieldAnalysisTimeseriesJSON) {
+		fields = append(fields, gameanalysis.FieldAnalysisTimeseriesJSON)
+	}
+	if m.FieldCleared(gameanalysis.FieldArtifactResultDir) {
+		fields = append(fields, gameanalysis.FieldArtifactResultDir)
+	}
+	if m.FieldCleared(gameanalysis.FieldArtifactManifestJSON) {
+		fields = append(fields, gameanalysis.FieldArtifactManifestJSON)
+	}
 	return fields
 }
 
@@ -4117,6 +4385,18 @@ func (m *GameAnalysisMutation) ClearField(name string) error {
 		return nil
 	case gameanalysis.FieldAnalysisPhaseJSON:
 		m.ClearAnalysisPhaseJSON()
+		return nil
+	case gameanalysis.FieldAnalysisEventsJSON:
+		m.ClearAnalysisEventsJSON()
+		return nil
+	case gameanalysis.FieldAnalysisTimeseriesJSON:
+		m.ClearAnalysisTimeseriesJSON()
+		return nil
+	case gameanalysis.FieldArtifactResultDir:
+		m.ClearArtifactResultDir()
+		return nil
+	case gameanalysis.FieldArtifactManifestJSON:
+		m.ClearArtifactManifestJSON()
 		return nil
 	}
 	return fmt.Errorf("unknown GameAnalysis nullable field %s", name)
@@ -4170,6 +4450,18 @@ func (m *GameAnalysisMutation) ResetField(name string) error {
 		return nil
 	case gameanalysis.FieldAnalysisPhaseJSON:
 		m.ResetAnalysisPhaseJSON()
+		return nil
+	case gameanalysis.FieldAnalysisEventsJSON:
+		m.ResetAnalysisEventsJSON()
+		return nil
+	case gameanalysis.FieldAnalysisTimeseriesJSON:
+		m.ResetAnalysisTimeseriesJSON()
+		return nil
+	case gameanalysis.FieldArtifactResultDir:
+		m.ResetArtifactResultDir()
+		return nil
+	case gameanalysis.FieldArtifactManifestJSON:
+		m.ResetArtifactManifestJSON()
 		return nil
 	case gameanalysis.FieldCreatedAt:
 		m.ResetCreatedAt()

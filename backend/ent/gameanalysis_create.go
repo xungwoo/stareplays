@@ -183,6 +183,38 @@ func (_c *GameAnalysisCreate) SetAnalysisPhaseJSON(v map[string]interface{}) *Ga
 	return _c
 }
 
+// SetAnalysisEventsJSON sets the "analysis_events_json" field.
+func (_c *GameAnalysisCreate) SetAnalysisEventsJSON(v map[string]interface{}) *GameAnalysisCreate {
+	_c.mutation.SetAnalysisEventsJSON(v)
+	return _c
+}
+
+// SetAnalysisTimeseriesJSON sets the "analysis_timeseries_json" field.
+func (_c *GameAnalysisCreate) SetAnalysisTimeseriesJSON(v map[string]interface{}) *GameAnalysisCreate {
+	_c.mutation.SetAnalysisTimeseriesJSON(v)
+	return _c
+}
+
+// SetArtifactResultDir sets the "artifact_result_dir" field.
+func (_c *GameAnalysisCreate) SetArtifactResultDir(v string) *GameAnalysisCreate {
+	_c.mutation.SetArtifactResultDir(v)
+	return _c
+}
+
+// SetNillableArtifactResultDir sets the "artifact_result_dir" field if the given value is not nil.
+func (_c *GameAnalysisCreate) SetNillableArtifactResultDir(v *string) *GameAnalysisCreate {
+	if v != nil {
+		_c.SetArtifactResultDir(*v)
+	}
+	return _c
+}
+
+// SetArtifactManifestJSON sets the "artifact_manifest_json" field.
+func (_c *GameAnalysisCreate) SetArtifactManifestJSON(v map[string]interface{}) *GameAnalysisCreate {
+	_c.mutation.SetArtifactManifestJSON(v)
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *GameAnalysisCreate) SetCreatedAt(v time.Time) *GameAnalysisCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -424,6 +456,22 @@ func (_c *GameAnalysisCreate) createSpec() (*GameAnalysis, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.AnalysisPhaseJSON(); ok {
 		_spec.SetField(gameanalysis.FieldAnalysisPhaseJSON, field.TypeJSON, value)
 		_node.AnalysisPhaseJSON = value
+	}
+	if value, ok := _c.mutation.AnalysisEventsJSON(); ok {
+		_spec.SetField(gameanalysis.FieldAnalysisEventsJSON, field.TypeJSON, value)
+		_node.AnalysisEventsJSON = value
+	}
+	if value, ok := _c.mutation.AnalysisTimeseriesJSON(); ok {
+		_spec.SetField(gameanalysis.FieldAnalysisTimeseriesJSON, field.TypeJSON, value)
+		_node.AnalysisTimeseriesJSON = value
+	}
+	if value, ok := _c.mutation.ArtifactResultDir(); ok {
+		_spec.SetField(gameanalysis.FieldArtifactResultDir, field.TypeString, value)
+		_node.ArtifactResultDir = &value
+	}
+	if value, ok := _c.mutation.ArtifactManifestJSON(); ok {
+		_spec.SetField(gameanalysis.FieldArtifactManifestJSON, field.TypeJSON, value)
+		_node.ArtifactManifestJSON = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(gameanalysis.FieldCreatedAt, field.TypeTime, value)

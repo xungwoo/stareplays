@@ -65,6 +65,61 @@ type parsedUploadFile struct {
 	Err        error
 }
 
+type gameResponseDTO struct {
+	ID          int                  `json:"id"`
+	Host        string               `json:"host,omitempty"`
+	StartTime   time.Time            `json:"start_time,omitempty"`
+	MapName     string               `json:"map_name,omitempty"`
+	MapWidth    uint16               `json:"map_width,omitempty"`
+	MapHeight   uint16               `json:"map_height,omitempty"`
+	GameLength  int                  `json:"game_length,omitempty"`
+	GameType    string               `json:"game_type,omitempty"`
+	GameSpeed   string               `json:"game_speed,omitempty"`
+	Title       string               `json:"title,omitempty"`
+	PlayerCount int                  `json:"player_count,omitempty"`
+	UploadCount int                  `json:"upload_count,omitempty"`
+	WinnerTeam  uint8                `json:"winner_team,omitempty"`
+	CreatedAt   time.Time            `json:"created_at,omitempty"`
+	UpdatedAt   time.Time            `json:"updated_at,omitempty"`
+	Edges       gameResponseEdgesDTO `json:"edges"`
+}
+
+type gameResponseEdgesDTO struct {
+	Players     []gamePlayerDTO     `json:"players,omitempty"`
+	ReplayFiles []gameReplayFileDTO `json:"replay_files,omitempty"`
+	Analysis    *ent.GameAnalysis   `json:"analysis,omitempty"`
+	GameDetail  *ent.GameDetail     `json:"game_detail,omitempty"`
+}
+
+type gamePlayerDTO struct {
+	ID                int       `json:"id"`
+	Name              string    `json:"name,omitempty"`
+	Race              string    `json:"race,omitempty"`
+	Team              uint8     `json:"team,omitempty"`
+	Color             string    `json:"color,omitempty"`
+	PlayerID          uint8     `json:"player_id"`
+	Apm               int32     `json:"apm,omitempty"`
+	Eapm              int32     `json:"eapm,omitempty"`
+	CmdCount          uint32    `json:"cmd_count,omitempty"`
+	EffectiveCmdCount uint32    `json:"effective_cmd_count,omitempty"`
+	StartLocationX    uint16    `json:"start_location_x,omitempty"`
+	StartLocationY    uint16    `json:"start_location_y,omitempty"`
+	StartDirection    int32     `json:"start_direction,omitempty"`
+	Redundancy        int       `json:"redundancy,omitempty"`
+	IsWinner          bool      `json:"is_winner"`
+	Result            string    `json:"result,omitempty"`
+	CreatedAt         time.Time `json:"created_at,omitempty"`
+	Edges             fiber.Map `json:"edges"`
+}
+
+type gameReplayFileDTO struct {
+	ID        int       `json:"id"`
+	FileHash  string    `json:"file_hash,omitempty"`
+	Filename  string    `json:"filename,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty"`
+	Edges     fiber.Map `json:"edges"`
+}
+
 var (
 	replayBucketOnce   sync.Once
 	replayBucketClient *replaybucket.Client
@@ -393,6 +448,67 @@ func processParsedReplayResult(ctx context.Context, parsed *parser.ParsedGame, u
 	}
 }
 
+func buildGameResponseDTO(g *ent.Game) gameResponseDTO {
+	dto := gameResponseDTO{
+		ID:          g.ID,
+		Host:        g.Host,
+		StartTime:   g.StartTime,
+		MapName:     g.MapName,
+		MapWidth:    g.MapWidth,
+		MapHeight:   g.MapHeight,
+		GameLength:  g.GameLength,
+		GameType:    g.GameType,
+		GameSpeed:   g.GameSpeed,
+		Title:       g.Title,
+		PlayerCount: g.PlayerCount,
+		UploadCount: g.UploadCount,
+		WinnerTeam:  g.WinnerTeam,
+		CreatedAt:   g.CreatedAt,
+		UpdatedAt:   g.UpdatedAt,
+		Edges: gameResponseEdgesDTO{
+			Players:     make([]gamePlayerDTO, 0, len(g.Edges.Players)),
+			ReplayFiles: make([]gameReplayFileDTO, 0, len(g.Edges.ReplayFiles)),
+			Analysis:    g.Edges.Analysis,
+			GameDetail:  g.Edges.GameDetail,
+		},
+	}
+
+	for _, p := range g.Edges.Players {
+		dto.Edges.Players = append(dto.Edges.Players, gamePlayerDTO{
+			ID:                p.ID,
+			Name:              p.Name,
+			Race:              p.Race,
+			Team:              p.Team,
+			Color:             p.Color,
+			PlayerID:          p.PlayerID,
+			Apm:               p.Apm,
+			Eapm:              p.Eapm,
+			CmdCount:          p.CmdCount,
+			EffectiveCmdCount: p.EffectiveCmdCount,
+			StartLocationX:    p.StartLocationX,
+			StartLocationY:    p.StartLocationY,
+			StartDirection:    p.StartDirection,
+			Redundancy:        p.Redundancy,
+			IsWinner:          p.IsWinner,
+			Result:            p.Result,
+			CreatedAt:         p.CreatedAt,
+			Edges:             fiber.Map{},
+		})
+	}
+
+	for _, rf := range g.Edges.ReplayFiles {
+		dto.Edges.ReplayFiles = append(dto.Edges.ReplayFiles, gameReplayFileDTO{
+			ID:        rf.ID,
+			FileHash:  rf.FileHash,
+			Filename:  rf.Filename,
+			CreatedAt: rf.CreatedAt,
+			Edges:     fiber.Map{},
+		})
+	}
+
+	return dto
+}
+
 func collectReplayFiles(form *multipart.Form) []*multipart.FileHeader {
 	if form == nil || form.File == nil {
 		return nil
@@ -610,12 +726,16 @@ INSERT INTO game_analyses (
   quality_report_json,
   summary_json,
   analysis_phase_json,
+  analysis_events_json,
+  analysis_timeseries_json,
+  artifact_result_dir,
+  artifact_manifest_json,
   created_at,
   updated_at
 )
 VALUES (
   $1, $2, $3, $4, $5, 0, 0, $6, $6,
-  '{}'::jsonb, '{}'::jsonb, '{}'::jsonb, $6, $6
+  '{}'::jsonb, '{}'::jsonb, '{}'::jsonb, '{}'::jsonb, '{}'::jsonb, NULL, '{}'::jsonb, $6, $6
 )
 ON CONFLICT (game_id) DO UPDATE
 SET file_hash = EXCLUDED.file_hash,
@@ -632,6 +752,10 @@ SET file_hash = EXCLUDED.file_hash,
     quality_report_json = '{}'::jsonb,
     summary_json = '{}'::jsonb,
     analysis_phase_json = '{}'::jsonb,
+    analysis_events_json = '{}'::jsonb,
+    analysis_timeseries_json = '{}'::jsonb,
+    artifact_result_dir = NULL,
+    artifact_manifest_json = '{}'::jsonb,
     updated_at = EXCLUDED.updated_at
 WHERE game_analyses.file_hash = EXCLUDED.file_hash
   AND game_analyses.analyzer_version <> EXCLUDED.analyzer_version
@@ -1000,7 +1124,7 @@ func GetGame(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"game":               g,
+		"game":               buildGameResponseDTO(g),
 		"reliability_m_of_n": reliabilityMofN(g.UploadCount, g.PlayerCount),
 		"reliability":        reliabilityText(g.UploadCount, g.PlayerCount),
 	})
@@ -1036,7 +1160,7 @@ func GetGameDetail(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"game":                     g,
+		"game":                     buildGameResponseDTO(g),
 		"detail":                   g.Edges.GameDetail,
 		"analysis_status":          buildAnalysisStatus(g.Edges.GameDetail),
 		"tech_tree":                buildTechTreeDTO(g, g.Edges.GameDetail),
@@ -1106,10 +1230,17 @@ func GetGameAnalyzer(c *fiber.Ctx) error {
 	result := fiber.Map(nil)
 	if status == replayanalysis.StatusSucceeded {
 		result = fiber.Map{
-			"quality_report": row.QualityReportJSON,
-			"summary":        row.SummaryJSON,
-			"analysis_phase": row.AnalysisPhaseJSON,
+			"quality_report":    row.QualityReportJSON,
+			"summary":           row.SummaryJSON,
+			"analysis_phase":    row.AnalysisPhaseJSON,
+			"match_flow":        row.AnalysisEventsJSON,
+			"player_timeseries": row.AnalysisTimeseriesJSON,
 		}
+	}
+
+	artifacts := fiber.Map{
+		"result_dir": stringPtr(row.ArtifactResultDir),
+		"manifest":   row.ArtifactManifestJSON,
 	}
 
 	return c.JSON(fiber.Map{
@@ -1125,6 +1256,7 @@ func GetGameAnalyzer(c *fiber.Ctx) error {
 		"updated_at":        row.UpdatedAt,
 		"next_retry_at":     row.NextRetryAt,
 		"result":            result,
+		"artifacts":         artifacts,
 		"next_refresh_hint": "manual_refresh",
 	})
 }

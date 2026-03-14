@@ -51,6 +51,15 @@ func (GameAnalysis) Fields() []ent.Field {
 			Optional(),
 		field.JSON("analysis_phase_json", map[string]any{}).
 			Optional(),
+		field.JSON("analysis_events_json", map[string]any{}).
+			Optional(),
+		field.JSON("analysis_timeseries_json", map[string]any{}).
+			Optional(),
+		field.String("artifact_result_dir").
+			Optional().
+			Nillable(),
+		field.JSON("artifact_manifest_json", map[string]any{}).
+			Optional(),
 		field.Time("created_at").
 			Default(time.Now).
 			Immutable(),

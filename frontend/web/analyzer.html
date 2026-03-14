@@ -6,7 +6,7 @@
   <title>stareplays Game Analyzer</title>
   <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
   <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./styles.css?v=20260315-ga-style17">
 </head>
 <body class="min-h-screen bg-[#E0E0E2] text-[#2D3139]">
   <div class="min-h-screen flex flex-col">
@@ -28,13 +28,14 @@
     </nav>
 
     <main class="max-w-[1400px] mx-auto w-full px-4 md:px-6 py-6 md:py-8 flex-grow space-y-4">
-      <section class="border border-[#2D3139] bg-white/30 p-3">
-        <div class="text-[10px] font-bold uppercase tracking-widest text-[#4A4F59]">Game_Analyzer</div>
-        <div class="text-[11px] mt-1 text-[#4A4F59]">한 게임의 흐름과 플레이어별 수행 품질을 함께 보는 상세 분석 화면 (1차 구현)</div>
+      <section class="border border-[#2D3139] bg-white/30 p-4">
+        <div class="text-[10px] font-bold uppercase tracking-[0.24em] text-[#4A4F59]">Game_Analyzer</div>
+        <div class="mt-2 text-[15px] font-bold leading-tight">한 게임의 흐름과 플레이어별 분석을 함께 보는 상세 분석 화면</div>
+        <div class="text-[11px] mt-2 text-[#4A4F59]">경기 선택, 요약 확인, 플레이어 전환, 타임라인 워크스페이스와 이벤트 인스펙터를 한 화면에서 이어갑니다.</div>
       </section>
 
-      <section class="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <article class="lg:col-span-4 border border-[#2D3139] bg-white/30 p-3">
+      <section class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+        <aside class="lg:col-span-4 border border-[#2D3139] bg-white/30 p-3 self-start">
           <div class="flex items-center justify-between border-b border-[#2D3139] pb-1 mb-2">
             <h3 class="text-[10px] font-bold uppercase tracking-widest">Game Selector</h3>
             <button id="analyzerRefreshGames" class="border border-[#2D3139] px-2 py-1 text-[10px] font-bold uppercase hover:bg-white/50">Refresh</button>
@@ -61,46 +62,47 @@
             <span id="analyzerPageInfo" class="text-[#4A4F59] min-w-24 text-center">Page 1/1</span>
             <button id="analyzerNextPage" class="border border-[#2D3139] px-2 py-1 hover:bg-white/50 disabled:opacity-40">Next</button>
           </div>
-        </article>
+        </aside>
 
-        <article class="lg:col-span-8 border border-[#2D3139] bg-white/30 p-3">
+        <section class="lg:col-span-8 border border-[#2D3139] bg-white/30 p-3">
           <div class="flex items-center justify-between border-b border-[#2D3139] pb-1 mb-2">
-            <h3 class="text-[10px] font-bold uppercase tracking-widest">Top Summary Strip</h3>
+            <h3 class="text-[10px] font-bold uppercase tracking-widest">Game Summary Strip</h3>
             <button id="analyzerRefreshStatus" class="border border-[#2D3139] px-2 py-1 text-[10px] font-bold uppercase hover:bg-white/50">Refresh Status</button>
           </div>
           <div id="analyzerSummary" class="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px]"></div>
           <div id="analyzerJobStatus" class="mt-2 border border-[#2D3139] bg-white/60 p-2 text-[10px] text-[#4A4F59]">SELECT_GAME_FIRST</div>
           <div id="analyzerPlayerTabs" class="mt-2 flex flex-wrap gap-1 text-[10px] font-bold uppercase"></div>
-        </article>
+        </section>
       </section>
 
-      <section class="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <article class="lg:col-span-8 border border-[#2D3139] bg-white/30 p-3">
-          <h3 class="text-[10px] font-bold uppercase tracking-widest border-b border-[#2D3139] pb-1 mb-2">Timeline Workspace</h3>
+      <section class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+        <section class="lg:col-span-8 border border-[#2D3139] bg-white/30 p-3">
+          <div class="text-[10px] font-bold uppercase tracking-widest border-b border-[#2D3139] pb-1 mb-2">Timeline Workspace</div>
           <div id="analyzerVizTabs" class="mb-2 flex flex-wrap gap-1 text-[10px] font-bold uppercase">
-            <button type="button" data-an-tab="apm" class="an-tab border border-[#2D3139] bg-[#2D3139] text-[#E0E0E2] px-2 py-1">APM</button>
-            <button type="button" data-an-tab="spend" class="an-tab border border-[#2D3139] bg-white/60 px-2 py-1">Resource Spend</button>
-            <button type="button" data-an-tab="unit" class="an-tab border border-[#2D3139] bg-white/60 px-2 py-1">Unit Production</button>
+            <button type="button" data-an-tab="match-flow" class="an-tab border border-[#2D3139] bg-[#2D3139] text-[#E0E0E2] px-2 py-1">Match Flow</button>
+            <button type="button" data-an-tab="apm" class="an-tab border border-[#2D3139] bg-white/60 px-2 py-1">APM</button>
+            <button type="button" data-an-tab="economy" class="an-tab border border-[#2D3139] bg-white/60 px-2 py-1">Resource Spend</button>
+            <button type="button" data-an-tab="production" class="an-tab border border-[#2D3139] bg-white/60 px-2 py-1">Unit Production</button>
             <button type="button" data-an-tab="tech" class="an-tab border border-[#2D3139] bg-white/60 px-2 py-1">Tech / Upgrade</button>
-            <button type="button" data-an-tab="battle" class="an-tab border border-[#2D3139] bg-white/60 px-2 py-1">Battle Intensity</button>
-            <button type="button" data-an-tab="actions" class="an-tab border border-[#2D3139] bg-white/60 px-2 py-1">Action Mix</button>
+            <button type="button" data-an-tab="combat" class="an-tab border border-[#2D3139] bg-white/60 px-2 py-1">Battle Intensity</button>
           </div>
-          <div id="analyzerTabContent" class="border border-[#2D3139] bg-white/50 p-2 text-[10px] min-h-44"></div>
-        </article>
+          <div id="analyzerTabContent" class="border border-[#2D3139] bg-white/50 p-3 text-[10px] min-h-[420px]"></div>
+        </section>
 
-        <article class="lg:col-span-4 border border-[#2D3139] bg-white/30 p-3">
-          <h3 class="text-[10px] font-bold uppercase tracking-widest border-b border-[#2D3139] pb-1 mb-2">Player Deep Dive</h3>
+        <aside class="lg:col-span-4 border border-[#2D3139] bg-white/30 p-3">
+          <div class="text-[10px] font-bold uppercase tracking-widest border-b border-[#2D3139] pb-1 mb-2">Player Deep Dive</div>
           <div id="analyzerPlayerPanel" class="text-[10px]"></div>
-        </article>
+        </aside>
       </section>
 
       <section class="border border-[#2D3139] bg-white/30 p-3">
-        <h3 class="text-[10px] font-bold uppercase tracking-widest border-b border-[#2D3139] pb-1 mb-2">Event Inspector</h3>
+        <div class="text-[10px] font-bold uppercase tracking-widest border-b border-[#2D3139] pb-1 mb-2">Event Inspector</div>
         <div id="analyzerEventInspector" class="text-[10px]"></div>
       </section>
     </main>
   </div>
 
-  <script src="./analyzer.js?v=20260221-ga1"></script>
+  <script src="./analyzer-page-model.js?v=20260315-ga-model20"></script>
+  <script src="./analyzer.js?v=20260315-ga-model25"></script>
 </body>
 </html>

@@ -106,6 +106,10 @@ var (
 		{Name: "quality_report_json", Type: field.TypeJSON, Nullable: true},
 		{Name: "summary_json", Type: field.TypeJSON, Nullable: true},
 		{Name: "analysis_phase_json", Type: field.TypeJSON, Nullable: true},
+		{Name: "analysis_events_json", Type: field.TypeJSON, Nullable: true},
+		{Name: "analysis_timeseries_json", Type: field.TypeJSON, Nullable: true},
+		{Name: "artifact_result_dir", Type: field.TypeString, Nullable: true},
+		{Name: "artifact_manifest_json", Type: field.TypeJSON, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "game_id", Type: field.TypeInt, Unique: true},
@@ -118,7 +122,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "game_analyses_games_analysis",
-				Columns:    []*schema.Column{GameAnalysesColumns[17]},
+				Columns:    []*schema.Column{GameAnalysesColumns[21]},
 				RefColumns: []*schema.Column{GamesColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -127,7 +131,7 @@ var (
 			{
 				Name:    "gameanalysis_game_id",
 				Unique:  true,
-				Columns: []*schema.Column{GameAnalysesColumns[17]},
+				Columns: []*schema.Column{GameAnalysesColumns[21]},
 			},
 			{
 				Name:    "gameanalysis_status_next_retry_at_priority_requested_at",

@@ -1,6 +1,8 @@
 .env
 .DS_Store
 .idea/
+.local/
+backend/bin/
 node_modules/
 **/node_modules/
 **/.next/

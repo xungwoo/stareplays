@@ -176,6 +176,112 @@ lsof -nP -iTCP:3000 -sTCP:LISTEN
 - `REPLAY_ANALYZER_BIN` (기본: `replay_analyzer`)
 - `REPLAY_ANALYZER_SIMULATOR` (기본: `openbw`)
 
+### 로컬 전체 스택 점검
+
+로컬에서 업로드, bucket 저장, analyzer worker까지 한 번에 점검하려면:
+
+```bash
+./scripts/start_local_stack.sh
+./scripts/status_local_stack.sh
+```
+
+기본값은 로컬 파일시스템 bucket 입니다.
+
+```env
+REPLAY_BUCKET_LOCAL_DIR=.local/replay-bucket
+```
+
+즉 MinIO 없이도 신규 업로드와 analyzer worker까지 점검할 수 있습니다. 로컬 서버는 기본적으로 `DISABLE_RATE_LIMITER=true`로 실행되므로 UI 점검 중 `429 Too many requests`에 덜 걸리게 구성되어 있습니다.
+
+개별 제어:
+
+```bash
+./scripts/start_local_minio.sh
+./scripts/start_local_server.sh
+./scripts/start_local_replay_analyzer_worker.sh
+```
+
+로컬 worker는 `stub`와 `real` 두 모드를 명시적으로 지원합니다.
+
+기본값은 `stub`입니다.
+
+```env
+LOCAL_REPLAY_ANALYZER_MODE=stub
+```
+
+실제 `replay_analyzer`까지 포함해 점검하려면:
+
+```env
+LOCAL_REPLAY_ANALYZER_MODE=real
+REPLAY_ANALYZER_REAL_ROOT=/Users/seongwoo/StarProjects/replay_analyzer
+OPENBW_BWAPI_ROOT=/Users/seongwoo/StarProjects/openbw-bwapi
+```
+
+실행 예시:
+
+```bash
+LOCAL_REPLAY_ANALYZER_MODE=real \
+DATABASE_URL='postgres://seongwoo@127.0.0.1:5432/starcraft_stats?sslmode=disable' \
+./scripts/start_local_replay_analyzer_worker.sh
+```
+
+`real` 모드 동작:
+
+- `replay_analyzer` repo의 Go 바이너리들을 `/tmp/stareplays/replay_analyzer_real_bin`에 자동 빌드
+- `BWAPILauncher`: `${OPENBW_BWAPI_ROOT}/build/bin/BWAPILauncher`
+- OpenBW module: `${REPLAY_ANALYZER_REAL_ROOT}/.bin/openbw_bwapi_jsonl_module.dylib`
+- MPQ runtime dir: `${REPLAY_ANALYZER_REAL_ROOT}/mpq`
+
+전제:
+
+- `${REPLAY_ANALYZER_REAL_ROOT}`가 로컬에 checkout 되어 있어야 함
+- `${OPENBW_BWAPI_ROOT}`가 로컬에 checkout/build 되어 있어야 함
+- `${REPLAY_ANALYZER_REAL_ROOT}/mpq` 아래에 `Patch_rt.mpq`, `BrooDat.mpq`, `StarDat.mpq`가 있어야 함
+
+S3 호환 bucket(MinIO)로도 점검하고 싶다면 아래 값을 같이 넣고 `./scripts/start_local_minio.sh`를 실행하면 됩니다.
+
+```env
+REPLAY_BUCKET_NAME=stareplays-local
+REPLAY_BUCKET_ENDPOINT=http://127.0.0.1:9000
+REPLAY_BUCKET_REGION=us-east-1
+REPLAY_BUCKET_ACCESS_KEY_ID=minioadmin
+REPLAY_BUCKET_SECRET_ACCESS_KEY=minioadmin
+REPLAY_BUCKET_PATH_STYLE=true
+```
+
+로컬 worker 상태 확인:
+
+```bash
+tail -n 40 /tmp/stareplays_replay_analyzer_worker.log
+cat /tmp/stareplays_replay_analyzer_worker.pid
+ps -p "$(cat /tmp/stareplays_replay_analyzer_worker.pid)" -o pid=,stat=,command=
+```
+
+분석 큐 상태 확인:
+
+```bash
+psql -h 127.0.0.1 -d starcraft_stats -Atc \
+  "select id, game_id, status, attempt_count, requested_at, started_at, finished_at from game_analyses order by id desc limit 8;"
+```
+
+특정 게임 analyzer 결과 확인:
+
+```bash
+curl -s "http://127.0.0.1:3000/api/v1/games/9/analyzer" | jq '{status, analyzer_version, artifacts: .artifacts.result_dir}'
+```
+
+운영/디버깅 메모:
+
+- 로컬에서 새 업로드가 계속 `queued`에 머무르면 먼저 worker 프로세스가 실제로 떠 있는지 확인합니다.
+- `LOCAL_REPLAY_ANALYZER_MODE=real`일 때는 OpenBW bridge 인자가 공백/placeholder를 포함하므로, worker 시작 스크립트는 문자열 eval이 아니라 `env`로 직접 주입해야 합니다.
+- 실패 원인은 우선 `/tmp/stareplays_replay_analyzer_worker.log`의 최신 `job claimed` 이후 stderr를 확인하는 것이 가장 빠릅니다.
+
+정지:
+
+```bash
+./scripts/stop_local_stack.sh
+```
+
 ## 랭킹 스케줄 잡 실행
 
 1회 실행:
