@@ -199,6 +199,16 @@ unset REPLAY_ANALYZER_STUB_DELAY_SEC
 ./scripts/start_local_replay_analyzer_worker.sh
 ```
 
+버전 확인 메모:
+
+```bash
+LATEST_RESULT_DIR="$(find /tmp/stareplays/analysis_jobs -mindepth 2 -maxdepth 2 -type d | tail -n 1)"
+jq '{analysis_contract_version, analyzer_version, ruleset_version: .parser.ruleset_version}' "$LATEST_RESULT_DIR/metadata.json"
+```
+
+- API의 `analyzer_version`은 DB/job 버전(`REPLAY_ANALYZER_VERSION`)입니다.
+- analyzer 산출물 `metadata.json.analyzer_version`은 worker가 `-analyzer-version`을 전달해야 일치합니다. 현재 코드 기준으로는 기본값 `dev`가 찍힐 수 있습니다.
+
 ## 검증 체크리스트
 
 ### 스모크 완료 조건

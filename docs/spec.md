@@ -75,6 +75,8 @@
 - 아래 경우에는 중복 큐잉하지 않습니다.
   - `same game_id + same file_hash + same analyzer_version`
 - `same game_id + different file_hash`는 현재 자동 재큐잉 조건으로 사용하지 않습니다.
+- 여기서 `analyzer_version`은 `REPLAY_ANALYZER_VERSION`으로 enqueue된 DB/job 버전입니다.
+- 현재 worker는 이 값을 `replay_analyzer -analyzer-version`으로 전달하지 않으므로, analyzer 산출물 `metadata.json.analyzer_version`은 별도 값일 수 있습니다.
 
 ## API 표면
 
@@ -165,6 +167,8 @@
 - analyzer row가 없으면 `200` + `status=not_requested`
 - analyzer row가 있으면 아래 메타를 반환
   - `analyzer_version`
+    - DB/job 버전(`REPLAY_ANALYZER_VERSION`)
+    - analyzer 산출물 `metadata.json.analyzer_version`에서 읽은 값은 아님
   - `status`
   - `progress_message`
   - `attempt_count`
@@ -176,6 +180,8 @@
   - `next_retry_at`
   - `next_refresh_hint=manual_refresh`
 - `succeeded`일 때만 `result.quality_report`, `result.summary`, `result.analysis_phase`를 포함합니다.
+- analyzer 산출물 `metadata.json.analysis_contract_version`, `metadata.json.analyzer_version`은 현재 API 응답에 별도 노출되지 않습니다.
+- 운영 정합성을 위해 worker는 `replay_analyzer` 실행 시 `-analyzer-version "$REPLAY_ANALYZER_VERSION"`를 전달해야 합니다.
 
 ### 9. Delete Game
 

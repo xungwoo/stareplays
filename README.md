@@ -17,6 +17,8 @@ StarCraft: Brood War replay 파싱/저장 API 서버입니다.
 - 동일 게임 복수 업로드 지원 (`m/N` 신뢰도 모델)
 - 동일 replay 재업로드 시 파싱 데이터는 유지하고 `upload_count`(신뢰도)만 갱신
 - replay analyzer는 `same game_id + same file_hash + same analyzer_version`이면 중복 큐잉하지 않고, analyzer 버전이 달라질 때만 재큐잉
+- `REPLAY_ANALYZER_VERSION`는 `game_analyses.analyzer_version`과 재큐잉 판단 기준입니다.
+- 현재 worker는 이 값을 `replay_analyzer -analyzer-version`으로 전달하지 않으므로, analyzer 산출물 `metadata.json.analyzer_version`은 별도 값(기본 `dev`)일 수 있습니다.
 
 ## 신뢰도 모델
 
@@ -69,7 +71,8 @@ multipart/form-data:
 `GET /games/:id/analyzer`
 
 - 상태: `not_requested | queued | running | succeeded | failed`
-- 결과 메타에 `analyzer_version` 포함
+- API 응답의 `analyzer_version`은 DB/job 버전(`REPLAY_ANALYZER_VERSION`)입니다.
+- analyzer 산출물 `metadata.json`의 `analyzer_version`, `analysis_contract_version`은 현재 API에 별도 노출되지 않습니다.
 - `succeeded`일 때 `quality_report`, `summary`, `analysis_phase` 요약 반환
 - `analyzer.html`은 polling 없이 새로고침 버튼으로 상태를 갱신
 
@@ -154,6 +157,7 @@ lsof -nP -iTCP:3000 -sTCP:LISTEN
   - 신규 업로드 replay 원본을 Railway Bucket(`replays/{file_hash}.rep`)에 저장
 - `REPLAY_ANALYZER_VERSION` (기본: `v1`)
   - 동일 replay hash라도 analyzer 버전이 달라지면 재큐잉 판단에 사용
+  - worker는 동일 값을 `replay_analyzer -analyzer-version`으로도 전달해야 산출물 `metadata.json.analyzer_version`과 일치함
 - `DISABLE_LOCAL_PARSE` (기본: `false`)
   - `true`면 `/api/v1/games/parse` 로컬 경로 파싱 API 비활성화
 - `RANKING_MIN_GAMES` (기본: `20`)

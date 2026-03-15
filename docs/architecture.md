@@ -140,6 +140,9 @@ worker started
 - durable queue는 `game_analyses` 테이블입니다.
 - wake-up 신호는 PostgreSQL `LISTEN/NOTIFY`입니다.
 - notify 누락에 대비해 poll fallback을 유지합니다.
+- `game_analyses.analyzer_version`은 `REPLAY_ANALYZER_VERSION`으로 enqueue되는 DB/job 버전입니다.
+- 현재 worker API가 노출하는 `analyzer_version`도 이 DB/job 버전이며, analyzer 산출물 `metadata.json.analyzer_version`과는 다를 수 있습니다.
+- replay_analyzer 산출물 버전 정합성을 맞추려면 worker가 `replay_analyzer -analyzer-version "$REPLAY_ANALYZER_VERSION"`를 전달하고, 필요 시 `metadata.json.analysis_contract_version`도 검증/저장해야 합니다.
 
 ### 3. Snapshot Cron 작업
 
