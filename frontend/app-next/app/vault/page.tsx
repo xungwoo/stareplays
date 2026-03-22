@@ -1,15 +1,25 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 
 import { VaultPage } from "@/components/vault/vault-page";
 import { loadVaultPageModel } from "@/lib/loaders/vault";
+import { CURRENT_USER_SESSION_COOKIE_NAME } from "@/lib/utils/current-user-session";
 
 export const metadata: Metadata = {
   title: "StaReplays Replay Vault",
   description: "Review recent games, open match details, and explore replay metadata."
 };
 
-export default async function ReplayVaultPage() {
-  const model = await loadVaultPageModel();
+type ReplayVaultPageProps = {
+  searchParams?: {
+    currentUser?: string | string[];
+  };
+};
+
+export default async function ReplayVaultPage({ searchParams }: ReplayVaultPageProps = {}) {
+  const currentUser = typeof searchParams?.currentUser === "string" ? searchParams.currentUser.trim() : Array.isArray(searchParams?.currentUser) ? searchParams.currentUser[0]?.trim() : undefined;
+  const currentUserCookie = cookies().get(CURRENT_USER_SESSION_COOKIE_NAME)?.value;
+  const model = await loadVaultPageModel({ currentUser, currentUserCookie });
 
   return <VaultPage model={model} />;
 }

@@ -1,4 +1,5 @@
 import { CURRENT_USER } from "@/lib/fixtures/common";
+import { buildCurrentUserSessionCookie } from "@/lib/utils/current-user-session";
 import { loadAnalyzerPageModel } from "@/lib/loaders/analyzer";
 import { loadDashboardPageModel } from "@/lib/loaders/dashboard";
 import { loadRankingsPageModel } from "@/lib/loaders/rankings";
@@ -111,6 +112,54 @@ describe("api loaders", () => {
     expect(model.metrics[3]?.value).toBe("50%");
   });
 
+  it("prefers the current user cookie before fixture fallback in the dashboard loader", async () => {
+    const currentUserCookie = buildCurrentUserSessionCookie("cookie-user");
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+
+      if (url.includes("/rankings/3v3")) {
+        return createJsonResponse({
+          total: 1,
+          rankings: [{ rank: 1, name: "cookie-user", games: 3, wins: 2, losses: 1, draws: 0, win_rate: 66.7, avg_apm: 150, avg_eapm: 120 }]
+        });
+      }
+
+      if (url.includes(`/players/${encodeURIComponent("cookie-user")}/stats`)) {
+        return createJsonResponse({
+          player_name: "cookie-user",
+          total_games: 3,
+          wins: 2,
+          losses: 1,
+          draws: 0,
+          win_rate: 66.7,
+          average_apm: 150,
+          average_eapm: 120,
+          favorite_race: "T"
+        });
+      }
+
+      if (url.includes("/users/suggest")) {
+        return createJsonResponse({ users: ["cookie-user"] });
+      }
+
+      if (url.includes(`/games?`) && url.includes(`user_name=${encodeURIComponent("cookie-user")}`)) {
+        return createJsonResponse({ total: 0, games: [], analysis_statuses: {} });
+      }
+
+      throw new Error(`Unexpected url: ${url}`);
+    });
+
+    const model = await loadDashboardPageModel({
+      fetchImpl: fetchMock,
+      apiBaseUrl: "http://127.0.0.1:3000",
+      currentUserCookie
+    });
+
+    expect(model.currentUser).toBe("cookie-user");
+    expect(model.playerStats.name).toBe("cookie-user");
+    expect(model.uploadCandidates).toEqual(["cookie-user"]);
+  });
+
   it("maps rankings and race-matchup snapshots into the rankings page model", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
@@ -151,6 +200,40 @@ describe("api loaders", () => {
     expect(model.summary[1]?.value).toBe("2");
   });
 
+  it("prefers the current user cookie before fixture fallback in the rankings loader", async () => {
+    const currentUserCookie = buildCurrentUserSessionCookie("cookie-user");
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+
+      if (url.includes("/rankings/3v3")) {
+        return createJsonResponse({
+          total: 1,
+          rankings: [
+            { rank: 1, name: "cookie-user", games: 7, wins: 5, losses: 2, draws: 0, win_rate: 71.4, avg_apm: 200, avg_eapm: 180 }
+          ]
+        });
+      }
+
+      if (url.includes("/analyzer/race-matchups")) {
+        return createJsonResponse({
+          qualified_games: 7,
+          rows: [{ team_a: "PPT", team_b: "PPZ", games: 7, team_a_wins: 5, team_b_wins: 2, team_a_win_rate: 71.4, team_b_win_rate: 28.6 }]
+        });
+      }
+
+      throw new Error(`Unexpected url: ${url}`);
+    });
+
+    const model = await loadRankingsPageModel({
+      fetchImpl: fetchMock,
+      apiBaseUrl: "http://127.0.0.1:3000",
+      currentUserCookie
+    });
+
+    expect(model.rankings[0]?.isCurrentUser).toBe(true);
+    expect(model.summary[0]?.value).toBe("7");
+  });
+
   it("maps recent games from the Fiber API into the vault model", async () => {
     const fetchMock = vi.fn(async () =>
       createJsonResponse({
@@ -189,6 +272,47 @@ describe("api loaders", () => {
     expect(model.games[0]?.analyzerStatus).toBe("DONE");
     expect(model.games[0]?.winnerTeam[0]?.name).toBe(CURRENT_USER);
     expect(model.games[0]?.loserTeam[1]?.race).toBe("Z");
+  });
+
+  it("prefers the current user cookie before fixture fallback in the vault loader", async () => {
+    const currentUserCookie = buildCurrentUserSessionCookie("cookie-user");
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+
+      if (!url.includes(`user_name=${encodeURIComponent("cookie-user")}`)) {
+        throw new Error(`Unexpected url: ${url}`);
+      }
+
+      return createJsonResponse({
+        total: 1,
+        games: [
+          {
+            id: 48,
+            map_name: "OP3060 CLAN 6슈빨무",
+            winner_team: 1,
+            game_length: 835,
+            start_time: "2026-03-22T00:05:48Z",
+            edges: {
+              players: [
+                { name: "cookie-user", race: "P", team: 1, apm: 148, eapm: 126, cmd_count: 2050, effective_cmd_count: 1746, redundancy: 15 },
+                { name: "3x3_mh", race: "P", team: 1, apm: 148, eapm: 136, cmd_count: 2054, effective_cmd_count: 1884, redundancy: 8 },
+                { name: "3x3_Kiyong", race: "P", team: 2, apm: 171, eapm: 161, cmd_count: 2354, effective_cmd_count: 2216, redundancy: 6 }
+              ]
+            }
+          }
+        ],
+        analysis_statuses: { 48: "succeeded" }
+      });
+    });
+
+    const model = await loadVaultPageModel({
+      fetchImpl: fetchMock,
+      apiBaseUrl: "http://127.0.0.1:3000",
+      currentUserCookie
+    });
+
+    expect(model.currentUser).toBe("cookie-user");
+    expect(model.games[0]?.winnerTeam[0]?.isCurrentUser).toBe(true);
   });
 
   it("builds analyzer insight from detail and analyzer payloads", async () => {
@@ -335,6 +459,59 @@ describe("api loaders", () => {
     expect(model.unitProductionSeries[0]).toEqual({ time: 1, winner: 7, loser: 4 });
   });
 
+  it("prefers the current user cookie before fixture fallback in the analyzer loader", async () => {
+    const currentUserCookie = buildCurrentUserSessionCookie("cookie-user");
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+
+      if (url.includes("/games?")) {
+        if (!url.includes(`user_name=${encodeURIComponent("cookie-user")}`)) {
+          throw new Error(`Unexpected url: ${url}`);
+        }
+
+        return createJsonResponse({
+          total: 1,
+          games: [
+            {
+              id: 48,
+              map_name: "OP3060 CLAN 6슈빨무",
+              winner_team: 1,
+              game_length: 835,
+              start_time: "2026-03-22T00:05:48Z",
+              edges: {
+                players: [
+                  { name: "cookie-user", race: "P", team: 1, apm: 148, eapm: 126, cmd_count: 2050, effective_cmd_count: 1746, redundancy: 15 },
+                  { name: "3x3_mh", race: "P", team: 1, apm: 148, eapm: 136, cmd_count: 2054, effective_cmd_count: 1884, redundancy: 8 },
+                  { name: "3x3_Kiyong", race: "P", team: 2, apm: 171, eapm: 161, cmd_count: 2354, effective_cmd_count: 2216, redundancy: 6 }
+                ]
+              }
+            }
+          ],
+          analysis_statuses: { 48: "succeeded" }
+        });
+      }
+
+      if (url.includes("/games/48/detail")) {
+        return createJsonResponse({ detail: {}, tech_tree: {}, resource_spend: {}, unit_production: {} });
+      }
+
+      if (url.includes("/games/48/analyzer")) {
+        return createJsonResponse({ status: "succeeded", result: { summary: { teams: [], players: [] }, analysis_phase: {}, match_flow: {}, player_timeseries: { players: [] } } });
+      }
+
+      throw new Error(`Unexpected url: ${url}`);
+    });
+
+    const model = await loadAnalyzerPageModel({
+      fetchImpl: fetchMock,
+      apiBaseUrl: "http://127.0.0.1:3000",
+      currentUserCookie
+    });
+
+    expect(model.currentUser).toBe("cookie-user");
+    expect(model.selectedGame.winnerTeam[0]?.isCurrentUser).toBe(true);
+  });
+
   it("falls back to fixture-backed analyzer data when API calls fail", async () => {
     const fetchMock = vi.fn(async () => {
       throw new Error("backend unavailable");
@@ -349,5 +526,51 @@ describe("api loaders", () => {
     expect(model.selectedGame.id).toBe(48);
     expect(model.timeline.length).toBeGreaterThan(0);
     expect(model.games.length).toBeGreaterThan(0);
+  });
+});
+
+describe("route entrypoints", () => {
+  afterEach(() => {
+    vi.resetModules();
+    vi.unmock("next/headers");
+    vi.unmock("@/lib/loaders/dashboard");
+    vi.unmock("@/lib/loaders/vault");
+    vi.unmock("@/lib/loaders/analyzer");
+    vi.unmock("@/lib/loaders/rankings");
+  });
+
+  it.each([
+    { label: "dashboard", loaderPath: "@/lib/loaders/dashboard", pagePath: "@/app/page" },
+    { label: "vault", loaderPath: "@/lib/loaders/vault", pagePath: "@/app/vault/page" },
+    { label: "analyzer", loaderPath: "@/lib/loaders/analyzer", pagePath: "@/app/analyzer/page" },
+    { label: "rankings", loaderPath: "@/lib/loaders/rankings", pagePath: "@/app/rankings/page" }
+  ])("passes request current-user state into the $label loader", async ({ loaderPath, pagePath }) => {
+    const loaderMock = vi.fn(async () => ({ ok: true }));
+
+    vi.doMock("next/headers", () => ({
+      cookies: () => ({
+        get: (name: string) => (name === "current_user" ? { value: "cookie-user" } : undefined)
+      })
+    }));
+    vi.doMock(loaderPath, () => {
+      const exportName =
+        loaderPath === "@/lib/loaders/dashboard"
+          ? "loadDashboardPageModel"
+          : loaderPath === "@/lib/loaders/vault"
+            ? "loadVaultPageModel"
+            : loaderPath === "@/lib/loaders/analyzer"
+              ? "loadAnalyzerPageModel"
+              : "loadRankingsPageModel";
+
+      return { [exportName]: loaderMock };
+    });
+
+    const pageModule = await import(pagePath);
+    await pageModule.default({ searchParams: { currentUser: "query-user" } });
+
+    expect(loaderMock).toHaveBeenCalledWith({
+      currentUser: "query-user",
+      currentUserCookie: "cookie-user"
+    });
   });
 });

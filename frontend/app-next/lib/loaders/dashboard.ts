@@ -3,7 +3,7 @@ import { resolveCurrentUser, tryFetchApiJson, type LoaderOptions } from "@/lib/a
 import type { ApiGamesListResponse, ApiPlayerStatsResponse, ApiRankingsResponse, ApiUsersSuggestResponse } from "@/types/api";
 
 export async function loadDashboardPageModel(options: LoaderOptions = {}) {
-  const currentUser = resolveCurrentUser(options.currentUser);
+  const currentUser = resolveCurrentUser(options.currentUser, options.currentUserCookie);
   const suggestionPrefix = currentUser.slice(0, 4);
 
   const [rankingsResponse, playerStatsResponse, suggestionsResponse, gamesResponse] = await Promise.all([

@@ -3,7 +3,7 @@ import { resolveCurrentUser, tryFetchApiJson, type LoaderOptions } from "@/lib/a
 import type { ApiGameAnalyzerResponse, ApiGameDetailResponse, ApiGamesListResponse } from "@/types/api";
 
 export async function loadAnalyzerPageModel(options: LoaderOptions = {}) {
-  const currentUser = resolveCurrentUser(options.currentUser);
+  const currentUser = resolveCurrentUser(options.currentUser, options.currentUserCookie);
   const gamesResponse = await tryFetchApiJson<ApiGamesListResponse>(
     `/api/v1/games?limit=10&offset=0&user_name=${encodeURIComponent(currentUser)}`,
     options

@@ -1,6 +1,6 @@
 import { CURRENT_USER } from "@/lib/fixtures/common";
 import { buildApiUrl } from "@/lib/api/url";
-import { parseCurrentUserSessionCookie } from "@/lib/utils/current-user-session";
+import { deserializeCurrentUserSession, parseCurrentUserSessionCookie } from "@/lib/utils/current-user-session";
 
 export interface LoaderOptions {
   apiBaseUrl?: string;
@@ -10,7 +10,7 @@ export interface LoaderOptions {
 }
 
 export function resolveCurrentUser(currentUser?: string, currentUserCookie?: string): string {
-  return currentUser?.trim() || parseCurrentUserSessionCookie(currentUserCookie) || CURRENT_USER;
+  return currentUser?.trim() || parseCurrentUserSessionCookie(currentUserCookie) || (!currentUserCookie?.includes("=") ? deserializeCurrentUserSession(currentUserCookie) : null) || CURRENT_USER;
 }
 
 export async function fetchApiJson<T>(path: string, options: LoaderOptions = {}): Promise<T> {
