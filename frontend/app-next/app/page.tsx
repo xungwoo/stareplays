@@ -16,7 +16,8 @@ type HomePageProps = {
   };
 };
 
-export default async function HomePage({ searchParams }: HomePageProps = {}) {
+export default async function HomePage(props: HomePageProps) {
+  const searchParams = props?.searchParams;
   const currentUser = typeof searchParams?.currentUser === "string" ? searchParams.currentUser.trim() : Array.isArray(searchParams?.currentUser) ? searchParams.currentUser[0]?.trim() : undefined;
   const currentUserCookie = cookies().get(CURRENT_USER_SESSION_COOKIE_NAME)?.value;
   const model = await loadDashboardPageModel({ currentUser, currentUserCookie });

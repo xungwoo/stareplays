@@ -13,11 +13,11 @@ export const metadata: Metadata = {
 type AnalyzerRoutePageProps = {
   searchParams?: {
     currentUser?: string | string[];
-    gameId?: string | string[];
   };
 };
 
-export default async function AnalyzerRoutePage({ searchParams }: AnalyzerRoutePageProps = {}) {
+export default async function AnalyzerRoutePage(props: AnalyzerRoutePageProps) {
+  const searchParams = props?.searchParams;
   const currentUser = typeof searchParams?.currentUser === "string" ? searchParams.currentUser.trim() : Array.isArray(searchParams?.currentUser) ? searchParams.currentUser[0]?.trim() : undefined;
   const currentUserCookie = cookies().get(CURRENT_USER_SESSION_COOKIE_NAME)?.value;
   const model = await loadAnalyzerPageModel({ currentUser, currentUserCookie });

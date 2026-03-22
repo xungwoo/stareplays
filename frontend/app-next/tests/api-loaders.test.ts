@@ -566,9 +566,14 @@ describe("route entrypoints", () => {
     });
 
     const pageModule = await import(pagePath);
+    await pageModule.default();
     await pageModule.default({ searchParams: { currentUser: "query-user" } });
 
-    expect(loaderMock).toHaveBeenCalledWith({
+    expect(loaderMock).toHaveBeenNthCalledWith(1, {
+      currentUser: undefined,
+      currentUserCookie: "cookie-user"
+    });
+    expect(loaderMock).toHaveBeenNthCalledWith(2, {
       currentUser: "query-user",
       currentUserCookie: "cookie-user"
     });

@@ -16,7 +16,8 @@ type ReplayVaultPageProps = {
   };
 };
 
-export default async function ReplayVaultPage({ searchParams }: ReplayVaultPageProps = {}) {
+export default async function ReplayVaultPage(props: ReplayVaultPageProps) {
+  const searchParams = props?.searchParams;
   const currentUser = typeof searchParams?.currentUser === "string" ? searchParams.currentUser.trim() : Array.isArray(searchParams?.currentUser) ? searchParams.currentUser[0]?.trim() : undefined;
   const currentUserCookie = cookies().get(CURRENT_USER_SESSION_COOKIE_NAME)?.value;
   const model = await loadVaultPageModel({ currentUser, currentUserCookie });
