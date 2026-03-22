@@ -1,239 +1,227 @@
-export type Player = {
-  id: number;
-  name: string;
-  race: string;
-  team: number;
-  apm: number;
-  eapm: number;
-  cmd_count: number;
-  effective_cmd_count: number;
-  redundancy: number;
-  result?: string;
-  is_winner?: boolean;
-  start_location_x?: number;
-  start_location_y?: number;
-};
+export interface ApiPlayerRecord {
+  wins?: number;
+  losses?: number;
+  total?: number;
+  win_rate?: number;
+}
 
-export type ReplayFile = {
-  id: number;
-  file_hash: string;
-};
-
-export type Game = {
-  id: number;
-  host: string;
-  start_time: string;
-  map_name: string;
-  game_length: number;
-  game_type?: string;
-  game_speed?: string;
-  title?: string;
-  player_count: number;
-  upload_count: number;
-  winner_team: number;
-  edges?: {
-    players?: Player[];
-    replay_files?: ReplayFile[];
-  };
-};
-
-export type GamesResponse = {
-  games: Game[];
-  total: number;
-  limit: number;
-  offset: number;
-  reliability_summaries?: Record<string, { m_of_n: string; reliability: string }>;
-};
-
-export type APMPoint = {
-  frame: number;
-  apm: number;
-};
-
-export type APMTimeline = {
-  player_name: string;
-  data_points: APMPoint[];
-};
-
-export type GameDetail = {
-  id: number;
-  apm_timeline?: APMTimeline[];
-};
-
-export type AnalysisStatus = {
-  status: string;
-  user_message: string;
-  typed_event_coverage?: number;
-  estimated_size_tier?: string;
-  estimated_size_bytes?: number;
-};
-
-export type ResourceSpendSummary = {
-  player_name: string;
-  total_mineral: number;
-  total_gas: number;
-  total_spend: number;
-};
-
-export type ResourceSpendTimeline = {
-  player_name: string;
-  data_points: Array<{
-    frame: number;
-    second: number;
-    mineral: number;
-    gas: number;
-    total: number;
-  }>;
-};
-
-export type ResourceSpend = {
-  source: string;
-  summaries: ResourceSpendSummary[];
-  timelines: ResourceSpendTimeline[];
-};
-
-export type UnitProductionSummary = {
-  player_name: string;
-  total: number;
-  worker: number;
-  army: number;
-  tech_unit: number;
-};
-
-export type UnitProductionTimeline = {
-  player_name: string;
-  data_points: Array<{
-    frame: number;
-    second: number;
-    count: number;
-  }>;
-};
-
-export type UnitProduction = {
-  source: string;
-  version?: string;
-  summaries: UnitProductionSummary[];
-  timelines: UnitProductionTimeline[];
-};
-
-export type TechTreeSummary = {
-  player_name: string;
-  tech_count: number;
-  upgrade_count: number;
-  prereq_build_count: number;
-  cancel_count: number;
-  ineff_count: number;
-};
-
-export type TechTreeEvent = {
-  player_name: string;
-  kind: string;
-  name: string;
-  frame: number;
-  second: number;
-  quality: string;
-};
-
-export type TechTree = {
-  source: string;
-  summary: TechTreeSummary[];
-  events: TechTreeEvent[];
-};
-
-export type GameDetailResponse = {
-  game: Game;
-  detail: GameDetail;
-  analysis_status: AnalysisStatus;
-  tech_tree: TechTree;
-  unit_production: UnitProduction;
-  resource_spend: ResourceSpend;
-};
-
-export type RankingItem = {
-  id: number;
-  name: string;
-  rank: number;
-  games: number;
-  wins: number;
+export interface ApiPlayerStatsResponse {
+  player_name?: string;
+  total_games?: number;
+  wins?: number;
   losses?: number;
   draws?: number;
-  win_rate: number;
-  avg_apm: number;
-  avg_eapm: number;
-};
+  win_rate?: number;
+  average_apm?: number;
+  average_eapm?: number;
+  favorite_race?: string;
+  race_stats?: Record<string, ApiPlayerRecord>;
+  matchup_stats?: Record<string, ApiPlayerRecord>;
+  map_stats?: Record<string, ApiPlayerRecord>;
+}
 
-export type RankingsResponse = {
-  rankings: RankingItem[];
-  total: number;
-};
+export interface ApiUsersSuggestResponse {
+  users?: string[];
+}
 
-export type RaceMatchupRow = {
-  id: number;
-  team_size: number;
-  team_a: string;
-  team_b: string;
-  matchup_key: string;
-  games: number;
-  team_a_wins: number;
-  team_a_win_rate: number;
+export interface ApiRankingSnapshotRow {
+  rank?: number;
+  name?: string;
+  games?: number;
+  wins?: number;
+  losses?: number;
+  draws?: number;
+  win_rate?: number;
+  avg_apm?: number;
+  avg_eapm?: number;
+}
+
+export interface ApiRankingsResponse {
+  total?: number;
+  rankings?: ApiRankingSnapshotRow[];
+  items?: ApiRankingSnapshotRow[];
+}
+
+export interface ApiRaceMatchupRow {
+  team_a?: string;
+  team_b?: string;
+  games?: number;
+  team_a_wins?: number;
   team_b_wins?: number;
+  team_a_win_rate?: number;
   team_b_win_rate?: number;
-};
+}
 
-export type RaceMatchupResponse = {
-  rows: RaceMatchupRow[];
-  qualified_games: number;
-  total: number;
-};
+export interface ApiRaceMatchupsResponse {
+  qualified_games?: number;
+  rows?: ApiRaceMatchupRow[];
+  items?: ApiRaceMatchupRow[];
+}
 
-export type PlayerStatsResponse = {
-  player_name: string;
-  total_games: number;
-  wins: number;
-  losses: number;
-  draws: number;
-  win_rate: number;
-  average_apm: number;
-  average_eapm: number;
-  favorite_race: string;
-  race_stats: Record<string, { wins: number; losses: number; total: number; win_rate: number }>;
-  matchup_stats: Record<string, { wins: number; losses: number; total: number; win_rate: number }>;
-  map_stats: Record<string, { wins: number; losses: number; total: number; win_rate: number }>;
-};
+export interface ApiGamePlayer {
+  name?: string;
+  race?: string;
+  team?: number;
+  start_location_x?: number;
+  start_location_y?: number;
+  apm?: number;
+  eapm?: number;
+  cmd_count?: number;
+  effective_cmd_count?: number;
+  redundancy?: number;
+  is_winner?: boolean;
+  result?: string;
+}
 
-export type UserSuggestResponse = {
-  users: string[];
-};
-
-export type UploadPreviewResult = {
-  filename: string;
-  ok: boolean;
-  preview?: {
-    map_name: string;
-    start_time: string;
-    player_count: number;
-    parsed_players: string[];
+export interface ApiGameSummary {
+  id?: number;
+  map_name?: string;
+  game_length?: number;
+  winner_team?: number;
+  start_time?: string;
+  edges?: {
+    players?: ApiGamePlayer[];
   };
-  error?: string;
-};
+}
 
-export type UploadPreviewResponse = {
-  total_files: number;
-  success_count: number;
-  failed_count: number;
-  candidate_players: string[];
-  results: UploadPreviewResult[];
-};
+export interface ApiGamesListResponse {
+  total?: number;
+  games?: ApiGameSummary[];
+  analysis_statuses?: Record<string, string>;
+}
 
-export type UploadResponse = {
-  message: string;
-  game?: Game;
-  results?: Array<{
-    filename: string;
-    ok: boolean;
-    result?: {
-      game?: Game;
+export interface ApiApmTimelinePoint {
+  frame?: number;
+  apm?: number;
+}
+
+export interface ApiApmTimelineRow {
+  player_name?: string;
+  data_points?: ApiApmTimelinePoint[];
+}
+
+export interface ApiTechTreeEvent {
+  player_name?: string;
+  second?: number;
+  kind?: string;
+  name?: string;
+}
+
+export interface ApiTechTreeSummary {
+  player_name?: string;
+  tech_count?: number;
+  upgrade_count?: number;
+  prereq_build_count?: number;
+}
+
+export interface ApiTechTreeResponse {
+  events?: ApiTechTreeEvent[];
+  summary?: ApiTechTreeSummary[];
+}
+
+export interface ApiResourceSpendSummary {
+  player_name?: string;
+  total_spend?: number;
+}
+
+export interface ApiSeriesPoint {
+  second?: number;
+  total?: number;
+  count?: number;
+  kills?: number;
+  deaths?: number;
+  apm?: number;
+}
+
+export interface ApiPlayerSeriesRow {
+  player_name?: string;
+  team?: number;
+  data_points?: ApiSeriesPoint[];
+  kd?: ApiSeriesPoint[];
+  worker?: ApiSeriesPoint[];
+}
+
+export interface ApiResourceSpendResponse {
+  summaries?: ApiResourceSpendSummary[];
+  timelines?: ApiPlayerSeriesRow[];
+}
+
+export interface ApiUnitProductionSummary {
+  player_name?: string;
+  total?: number;
+  worker?: number;
+  army?: number;
+  tech_unit?: number;
+}
+
+export interface ApiUnitProductionResponse {
+  summaries?: ApiUnitProductionSummary[];
+  timelines?: ApiPlayerSeriesRow[];
+}
+
+export interface ApiGameDetailResponse {
+  detail?: {
+    apm_timeline?: ApiApmTimelineRow[];
+  };
+  tech_tree?: ApiTechTreeResponse;
+  resource_spend?: ApiResourceSpendResponse;
+  unit_production?: ApiUnitProductionResponse;
+}
+
+export interface ApiAnalyzerPlayerFinal {
+  kills?: number;
+  deaths?: number;
+  worker_peak?: number;
+  supply_peak_used?: number;
+  vision_score_final?: number;
+  enemy_zone_coverage?: number;
+}
+
+export interface ApiAnalyzerSummaryPlayer {
+  player_name?: string;
+  player_id?: number;
+  team?: number;
+  final?: ApiAnalyzerPlayerFinal;
+}
+
+export interface ApiAnalyzerSummaryTeam {
+  team?: number;
+  kills?: number;
+  deaths?: number;
+}
+
+export interface ApiAnalyzerMatchFlowEvent {
+  second?: number;
+  player_name?: string;
+  team?: number;
+  type?: string;
+  title?: string;
+  importance?: number;
+}
+
+export interface ApiAnalyzerPlayerSeries {
+  player_name?: string;
+  team?: number;
+  kd?: ApiSeriesPoint[];
+  worker?: ApiSeriesPoint[];
+  vision?: ApiSeriesPoint[];
+}
+
+export interface ApiGameAnalyzerResponse {
+  status?: string;
+  result?: {
+    summary?: {
+      teams?: ApiAnalyzerSummaryTeam[];
+      players?: ApiAnalyzerSummaryPlayer[];
     };
-    error?: string;
-  }>;
-};
+    analysis_phase?: {
+      winner_team_candidate?: number;
+    };
+    match_flow?: {
+      events?: ApiAnalyzerMatchFlowEvent[];
+    };
+    player_timeseries?: {
+      players?: ApiAnalyzerPlayerSeries[];
+    };
+  };
+}

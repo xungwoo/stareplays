@@ -6,6 +6,8 @@ backend/bin/
 node_modules/
 **/node_modules/
 **/.next/
+**/.next-dev/
+**/.next-prod/
 **/dist/
 playwright-report/
 .tools/

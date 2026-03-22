@@ -1,0 +1,39 @@
+import type { RaceCode } from "@/types/common";
+
+const raceStyles: Record<RaceCode, { backgroundColor: string; color: string; border: string }> = {
+  P: {
+    backgroundColor: "rgba(245, 158, 11, 0.2)",
+    color: "#fcd34d",
+    border: "1px solid rgba(245, 158, 11, 0.4)"
+  },
+  T: {
+    backgroundColor: "rgba(59, 130, 246, 0.2)",
+    color: "#93c5fd",
+    border: "1px solid rgba(59, 130, 246, 0.4)"
+  },
+  Z: {
+    backgroundColor: "rgba(168, 85, 247, 0.2)",
+    color: "#d8b4fe",
+    border: "1px solid rgba(168, 85, 247, 0.4)"
+  }
+};
+
+export function RaceBadge({ race, size = "sm" }: { race: RaceCode; size?: "sm" | "md" }) {
+  const sizeClass = size === "md" ? "w-6 h-6 text-xs" : "w-5 h-5 text-[10px]";
+
+  return (
+    <span className={`inline-flex items-center justify-center rounded font-bold font-mono ${sizeClass}`} style={raceStyles[race]}>
+      {race}
+    </span>
+  );
+}
+
+export function RaceGroup({ races }: { races: RaceCode[] }) {
+  return (
+    <span className="inline-flex items-center gap-0.5">
+      {races.map((race, index) => (
+        <RaceBadge key={`${race}-${index}`} race={race} />
+      ))}
+    </span>
+  );
+}

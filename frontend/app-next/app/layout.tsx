@@ -1,38 +1,31 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
 import type { ReactNode } from "react";
 
-import { TopNav } from "@/components/layout/top-nav";
+import { AppHeader } from "@/components/shell/app-header";
 
-import { AppProviders } from "./providers";
 import "./globals.css";
 
-const sans = Space_Grotesk({
-  subsets: ["latin"],
-  variable: "--font-sans"
-});
-
-const mono = IBM_Plex_Mono({
-  subsets: ["latin"],
-  variable: "--font-mono",
-  weight: ["400", "600", "700"]
-});
-
 export const metadata: Metadata = {
-  title: "StaReplays Frontend V2",
-  description: "Next.js + Fastify frontend for StaReplays"
+  title: "StaReplays",
+  description: "Starcraft: Brood War 3v3 Replay Analytics",
+  openGraph: {
+    title: "StaReplays",
+    description: "Starcraft: Brood War 3v3 Replay Analytics"
+  }
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ko">
-      <body className={`${sans.variable} ${mono.variable}`}>
-        <AppProviders>
-          <div className="min-h-screen">
-            <TopNav />
-            <main className="mx-auto w-full max-w-[1400px] px-4 py-6 md:px-6 md:py-8">{children}</main>
-          </div>
-        </AppProviders>
+      <body
+        className="flex min-h-screen flex-col"
+        style={{ backgroundColor: "#080e1f", color: "#e2e8f0", fontFamily: "'Inter', sans-serif" }}
+      >
+        <AppHeader />
+        <main className="flex-1">{children}</main>
+        <footer className="py-3 text-center text-xs font-mono text-slate-700" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+          StaReplays v2.0 — Starcraft: Brood War 3v3 Replay Analytics
+        </footer>
       </body>
     </html>
   );
