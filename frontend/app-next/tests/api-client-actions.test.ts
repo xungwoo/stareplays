@@ -24,11 +24,11 @@ describe("current-user session helpers", () => {
   });
 
   it("builds a current user cookie pair for persistence", () => {
-    expect(buildCurrentUserSessionCookie(" 3x3 GG/Player+One ")).toBe("current_user=3x3%20GG%2FPlayer%2BOne; Path=/; SameSite=Lax");
+    expect(buildCurrentUserSessionCookie(" 3x3 GG/Player+One ")).toBe("current_user=3x3%20GG%2FPlayer%2BOne");
   });
 
   it("builds a current user cookie clear directive", () => {
-    expect(clearCurrentUserSessionCookie()).toBe("current_user=; Path=/; Max-Age=0; SameSite=Lax");
+    expect(clearCurrentUserSessionCookie()).toBe("current_user=");
   });
 
   it("reads the current user from a cookie header string", () => {

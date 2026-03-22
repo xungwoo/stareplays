@@ -5,11 +5,11 @@ export function serializeCurrentUserSession(currentUser: string): string {
 }
 
 export function buildCurrentUserSessionCookie(currentUser: string): string {
-  return `${CURRENT_USER_SESSION_COOKIE_NAME}=${serializeCurrentUserSession(currentUser)}; Path=/; SameSite=Lax`;
+  return `${CURRENT_USER_SESSION_COOKIE_NAME}=${serializeCurrentUserSession(currentUser)}`;
 }
 
 export function clearCurrentUserSessionCookie(): string {
-  return `${CURRENT_USER_SESSION_COOKIE_NAME}=; Path=/; Max-Age=0; SameSite=Lax`;
+  return `${CURRENT_USER_SESSION_COOKIE_NAME}=`;
 }
 
 export function deserializeCurrentUserSession(value?: string | null): string | null {
