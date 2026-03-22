@@ -7,7 +7,7 @@ import type { AnalyzerPageModel } from "@/types/analyzer";
 
 describe("analyzer page", () => {
   it("renders the figma analyzer workspace and switches timeline tabs", async () => {
-    const { container } = render(await AnalyzerPage());
+    const { container } = render(await AnalyzerPage({}));
     const user = userEvent.setup();
 
     expect(screen.getByText(/한 게임의 흐름과 플레이어별 분석을 함께 보는 상세 분석 화면/i)).toBeInTheDocument();
@@ -61,7 +61,7 @@ describe("analyzer page", () => {
   });
 
   it("keeps the focused player selection when switching games, matching the source behavior", async () => {
-    render(await AnalyzerPage());
+    render(await AnalyzerPage({}));
     const user = userEvent.setup();
     const deepDive = screen.getByText(/^PLAYER DEEP DIVE$/i).parentElement as HTMLElement;
 

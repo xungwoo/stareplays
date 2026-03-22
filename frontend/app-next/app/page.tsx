@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
 
 import { DashboardPage } from "@/components/dashboard/dashboard-page";
 import { loadDashboardPageModel } from "@/lib/loaders/dashboard";
-import { CURRENT_USER_SESSION_COOKIE_NAME } from "@/lib/utils/current-user-session";
+import { readCurrentUserCookieFromRequest } from "@/lib/utils/request-context";
 
 export const metadata: Metadata = {
   title: "StaReplays Dashboard",
@@ -19,7 +18,7 @@ type HomePageProps = {
 export default async function HomePage(props: HomePageProps) {
   const searchParams = props?.searchParams;
   const currentUser = typeof searchParams?.currentUser === "string" ? searchParams.currentUser.trim() : Array.isArray(searchParams?.currentUser) ? searchParams.currentUser[0]?.trim() : undefined;
-  const currentUserCookie = cookies().get(CURRENT_USER_SESSION_COOKIE_NAME)?.value;
+  const currentUserCookie = readCurrentUserCookieFromRequest();
   const model = await loadDashboardPageModel({ currentUser, currentUserCookie });
 
   return <DashboardPage model={model} />;

@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
 
 import { RankingsPage } from "@/components/rankings/rankings-page";
 import { loadRankingsPageModel } from "@/lib/loaders/rankings";
-import { CURRENT_USER_SESSION_COOKIE_NAME } from "@/lib/utils/current-user-session";
+import { readCurrentUserCookieFromRequest } from "@/lib/utils/request-context";
 
 export const metadata: Metadata = {
   title: "StaReplays Rankings",
@@ -19,7 +18,7 @@ type RankingsRoutePageProps = {
 export default async function RankingsRoutePage(props: RankingsRoutePageProps) {
   const searchParams = props?.searchParams;
   const currentUser = typeof searchParams?.currentUser === "string" ? searchParams.currentUser.trim() : Array.isArray(searchParams?.currentUser) ? searchParams.currentUser[0]?.trim() : undefined;
-  const currentUserCookie = cookies().get(CURRENT_USER_SESSION_COOKIE_NAME)?.value;
+  const currentUserCookie = readCurrentUserCookieFromRequest();
   const model = await loadRankingsPageModel({ currentUser, currentUserCookie });
 
   return <RankingsPage model={model} />;

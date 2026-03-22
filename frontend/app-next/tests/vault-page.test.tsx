@@ -7,7 +7,7 @@ import type { VaultPageModel } from "@/types/vault";
 
 describe("vault page", () => {
   it("renders the figma replay vault table and expanded analyzer bridge", async () => {
-    render(await VaultPage());
+    render(await VaultPage({}));
 
     expect(screen.getByText(/^Recent Games$/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /refresh/i })).toBeInTheDocument();
@@ -17,7 +17,7 @@ describe("vault page", () => {
   });
 
   it("matches the figma replay vault badge and card styling more closely", async () => {
-    const { container } = render(await VaultPage());
+    const { container } = render(await VaultPage({}));
 
     const resultBadges = screen.getAllByText(/^(WINNER|LOSER)$/i);
     expect(resultBadges.some((badge) => badge.className.includes("text-[10px]"))).toBe(true);
@@ -55,7 +55,7 @@ describe("vault page", () => {
   });
 
   it("uses figma source inline accent and refresh styles", async () => {
-    render(await VaultPage());
+    render(await VaultPage({}));
 
     const accent = screen.getByText(/^Recent Games$/i).previousElementSibling;
     expect(accent).toHaveStyle({ backgroundColor: "#22d3ee" });

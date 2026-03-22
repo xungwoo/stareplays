@@ -7,7 +7,7 @@ import { DASHBOARD_FIXTURE } from "@/lib/fixtures/dashboard";
 
 describe("dashboard page", () => {
   it("renders the figma dashboard upload and stats workspace", async () => {
-    const { container } = render(await HomePage());
+    const { container } = render(await HomePage({}));
 
     expect(screen.getByText(/^Replay Upload$/i)).toBeInTheDocument();
     expect(screen.getByText(/플레이어 선택 \(Simple Login\)/i)).toBeInTheDocument();

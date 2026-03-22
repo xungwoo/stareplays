@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
 
 import { AnalyzerPage } from "@/components/analyzer/analyzer-page";
 import { loadAnalyzerPageModel } from "@/lib/loaders/analyzer";
-import { CURRENT_USER_SESSION_COOKIE_NAME } from "@/lib/utils/current-user-session";
+import { readCurrentUserCookieFromRequest } from "@/lib/utils/request-context";
 
 export const metadata: Metadata = {
   title: "StaReplays Game Analyzer",
@@ -19,7 +18,7 @@ type AnalyzerRoutePageProps = {
 export default async function AnalyzerRoutePage(props: AnalyzerRoutePageProps) {
   const searchParams = props?.searchParams;
   const currentUser = typeof searchParams?.currentUser === "string" ? searchParams.currentUser.trim() : Array.isArray(searchParams?.currentUser) ? searchParams.currentUser[0]?.trim() : undefined;
-  const currentUserCookie = cookies().get(CURRENT_USER_SESSION_COOKIE_NAME)?.value;
+  const currentUserCookie = readCurrentUserCookieFromRequest();
   const model = await loadAnalyzerPageModel({ currentUser, currentUserCookie });
 
   return <AnalyzerPage model={model} />;
