@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, Legend, LineChart, Line } from "recharts";
 import { ChevronLeft, ChevronRight, RefreshCw, User } from "lucide-react";
@@ -405,11 +406,17 @@ export function AnalyzerPage({ model }: { model: AnalyzerPageModel }) {
   const selectorPages = Math.max(1, Math.ceil(model.games.length / pageSize));
   const selectorGames = useMemo(() => model.games.slice(selectorPage * pageSize, selectorPage * pageSize + pageSize), [model.games, selectorPage]);
   const startGridBoard = useMemo(() => getStartGridBoard(selectedGame), [selectedGame]);
+  const refreshHref = `/analyzer?currentUser=${encodeURIComponent(model.currentUser)}&gameId=${selectedGame.id}`;
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-5 p-6">
       <div className="rounded-xl px-5 py-4" style={CARD_STYLE}>
-        <h1 className="text-base font-mono font-bold text-slate-200">한 게임의 흐름과 플레이어별 분석을 함께 보는 상세 분석 화면</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-base font-mono font-bold text-slate-200">한 게임의 흐름과 플레이어별 분석을 함께 보는 상세 분석 화면</h1>
+          <span className="rounded px-2 py-1 text-[10px] font-mono font-bold" style={{ backgroundColor: "rgba(34,211,238,0.08)", color: "#22d3ee", border: "1px solid rgba(34,211,238,0.18)" }}>
+            CURRENT_USER: {model.currentUser}
+          </span>
+        </div>
         <p className="mt-1 text-xs text-slate-500">경기 선택, 요약 확인, 플레이어 전환, 타임라인 워크스페이스와 이벤트 인스펙터를 한 화면에서 이어갑니다.</p>
       </div>
 
@@ -417,9 +424,9 @@ export function AnalyzerPage({ model }: { model: AnalyzerPageModel }) {
         <div className="overflow-hidden rounded-xl lg:col-span-2" style={CARD_STYLE}>
           <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
             <p className="text-[10px] font-mono tracking-widest text-slate-500">GAME SELECTOR</p>
-            <button type="button" className="flex items-center gap-1 text-slate-500 hover:text-slate-300">
+            <Link href={refreshHref} className="flex items-center gap-1 text-slate-500 hover:text-slate-300">
               <RefreshCw className="h-3 w-3" />
-            </button>
+            </Link>
           </div>
 
           <div className="max-h-[340px] overflow-y-auto">

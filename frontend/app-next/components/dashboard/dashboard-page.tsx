@@ -7,6 +7,7 @@ import { CheckCircle, ChevronDown, LoaderCircle, Upload } from "lucide-react";
 import { ErrorState } from "@/components/shared/error-state";
 import { LoadingState } from "@/components/shared/loading-state";
 import { RaceBadge } from "@/components/shared/race-badge";
+import { CURRENT_USER_CHANGE_EVENT } from "@/components/shell/current-user-chip";
 import { previewReplayUpload, submitReplayUpload } from "@/lib/api/actions";
 import { buildApiUrl } from "@/lib/api/url";
 import { buildCurrentUserSessionDocumentCookie } from "@/lib/utils/current-user-session";
@@ -274,6 +275,9 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
     setCurrentUser(normalized);
     if (typeof document !== "undefined" && normalized) {
       document.cookie = buildCurrentUserSessionDocumentCookie(normalized);
+    }
+    if (typeof window !== "undefined" && normalized) {
+      window.dispatchEvent(new CustomEvent(CURRENT_USER_CHANGE_EVENT, { detail: normalized }));
     }
   }
 

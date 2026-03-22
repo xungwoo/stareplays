@@ -10,7 +10,7 @@ export async function loadRankingsPageModel(options: LoaderOptions = {}) {
   ]);
 
   if (!rankingsResponse && !raceMatchupsResponse) {
-    return getRankingsPageModel();
+    return getRankingsPageModel(currentUser);
   }
 
   return createRankingsPageModel({

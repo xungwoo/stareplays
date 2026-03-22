@@ -9,6 +9,7 @@ describe("rankings page", () => {
     const user = userEvent.setup();
 
     expect(screen.getByRole("button", { name: /rankings_3v3/i })).toBeInTheDocument();
+    expect(screen.getByText(/CURRENT_USER: 3x3_GG/i)).toBeInTheDocument();
     expect(screen.getByText(/^Total Games$/i)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /race_composition_winrate/i }));
     expect(screen.getByText(/race_composition_winrate \(3v3\)/i)).toBeInTheDocument();
@@ -38,7 +39,7 @@ describe("rankings page", () => {
     const rankingsAccent = screen.getByRole("heading", { name: /^Rankings_3v3$/i }).previousElementSibling;
     expect(rankingsAccent).toHaveStyle({ backgroundColor: "#22d3ee" });
 
-    expect(screen.getByRole("button", { name: /^REFRESH$/i })).toHaveStyle({
+    expect(screen.getByRole("link", { name: /^REFRESH$/i })).toHaveStyle({
       border: "1px solid rgba(255,255,255,0.1)"
     });
   });

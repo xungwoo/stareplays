@@ -25,6 +25,7 @@ export interface RaceCompositionRow {
 }
 
 export interface RankingsPageModel {
+  currentUser: string;
   tabs: Array<{
     id: "rankings" | "race_comp";
     label: string;

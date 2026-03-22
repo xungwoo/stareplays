@@ -1,17 +1,18 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { Shield } from "lucide-react";
 
 import { CURRENT_USER } from "@/lib/fixtures/common";
 
-import { AppNav } from "./app-nav";
-import { CurrentUserChip } from "./current-user-chip";
+import { AppNav, AppNavFallback } from "./app-nav";
+import { CurrentUserChip, CurrentUserChipFallback } from "./current-user-chip";
 
-export function AppHeader() {
+export function AppHeader({ currentUser = CURRENT_USER }: { currentUser?: string }) {
   return (
     <header
       className="sticky top-0 z-50 flex items-center justify-between px-6 py-0"
       style={{ backgroundColor: "#080e1f", borderBottom: "1px solid rgba(34,211,238,0.15)" }}
-    >
+      >
       <div className="flex items-center gap-8">
         <Link href="/" className="flex items-center gap-2 py-4">
           <Shield className="h-5 w-5 text-cyan-400" />
@@ -30,9 +31,13 @@ export function AppHeader() {
           </span>
           <span className="ml-1 text-xs font-mono text-slate-600">v2.0</span>
         </Link>
-        <AppNav />
+        <Suspense fallback={<AppNavFallback currentUser={currentUser} />}>
+          <AppNav currentUser={currentUser} />
+        </Suspense>
       </div>
-      <CurrentUserChip currentUser={CURRENT_USER} />
+      <Suspense fallback={<CurrentUserChipFallback currentUser={currentUser} />}>
+        <CurrentUserChip currentUser={currentUser} />
+      </Suspense>
     </header>
   );
 }

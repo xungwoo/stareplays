@@ -234,6 +234,18 @@ describe("api loaders", () => {
     expect(model.summary[0]?.value).toBe("7");
   });
 
+  it("preserves the resolved current user when the rankings loader falls back to fixtures", async () => {
+    const model = await loadRankingsPageModel({
+      fetchImpl: vi.fn(async () => {
+        throw new Error("offline");
+      }),
+      apiBaseUrl: "http://127.0.0.1:3000",
+      currentUserCookie: buildCurrentUserSessionCookie("cookie-user")
+    });
+
+    expect(model.currentUser).toBe("cookie-user");
+  });
+
   it("maps recent games from the Fiber API into the vault model", async () => {
     const fetchMock = vi.fn(async () =>
       createJsonResponse({

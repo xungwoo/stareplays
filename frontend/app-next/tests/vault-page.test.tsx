@@ -10,10 +10,11 @@ describe("vault page", () => {
     render(await VaultPage({}));
 
     expect(screen.getByText(/^Recent Games$/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /refresh/i })).toBeInTheDocument();
+    expect(screen.getByText(/CURRENT_USER: 3x3_GG/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /refresh/i })).toBeInTheDocument();
     expect(screen.getByText(/^SELECTED_GAME$/i)).toBeInTheDocument();
     expect(screen.getByText(/^APM TIMELINE$/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /game analyzer/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /game analyzer/i })).toHaveAttribute("href", "/analyzer?currentUser=3x3_GG&gameId=48");
   });
 
   it("matches the figma replay vault badge and card styling more closely", async () => {
@@ -60,7 +61,7 @@ describe("vault page", () => {
     const accent = screen.getByText(/^Recent Games$/i).previousElementSibling;
     expect(accent).toHaveStyle({ backgroundColor: "#22d3ee" });
 
-    expect(screen.getByRole("button", { name: /^REFRESH$/i })).toHaveStyle({
+    expect(screen.getByRole("link", { name: /^REFRESH$/i })).toHaveStyle({
       border: "1px solid rgba(255,255,255,0.1)"
     });
   });

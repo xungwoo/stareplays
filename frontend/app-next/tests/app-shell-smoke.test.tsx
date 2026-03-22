@@ -6,8 +6,16 @@ import RankingsPage from "@/app/rankings/page";
 import AnalyzerPage from "@/app/analyzer/page";
 import type { ReactElement } from "react";
 import { isValidElement } from "react";
+import { vi } from "vitest";
+
+import * as requestContext from "@/lib/utils/request-context";
+import { buildCurrentUserSessionCookie } from "@/lib/utils/current-user-session";
 
 describe("app shell smoke", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("exports root metadata", () => {
     expect(metadata.title).toBe("StaReplays");
     expect(metadata.description).toMatch(/Starcraft: Brood War 3v3 Replay Analytics/i);
@@ -48,5 +56,23 @@ describe("app shell smoke", () => {
     });
     expect(main.props.children.type).toBe("div");
     expect(footer.props.style).toEqual({ borderTop: "1px solid rgba(255,255,255,0.04)" });
+  });
+
+  it("initializes the header current user from the request cookie", () => {
+    vi.spyOn(requestContext, "readCurrentUserCookieFromRequest").mockReturnValue(buildCurrentUserSessionCookie("cookie-user"));
+
+    const layout = RootLayout({ children: <div>child</div> });
+
+    if (!isValidElement(layout)) {
+      throw new Error("RootLayout did not return a valid element");
+    }
+
+    const typedLayout = layout as ReactElement<{ children: ReactElement }>;
+    const body = typedLayout.props.children as ReactElement<{
+      children: ReactElement[];
+    }>;
+    const header = body.props.children[0] as ReactElement<{ currentUser?: string }>;
+
+    expect(header.props.currentUser).toBe("cookie-user");
   });
 });

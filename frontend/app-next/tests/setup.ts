@@ -1,8 +1,15 @@
 import "@testing-library/jest-dom/vitest";
 import { vi } from "vitest";
 
+declare global {
+  var __TEST_SEARCH_PARAMS__: string | undefined;
+}
+
+globalThis.__TEST_SEARCH_PARAMS__ = "";
+
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/"
+  usePathname: () => "/",
+  useSearchParams: () => new URLSearchParams(globalThis.__TEST_SEARCH_PARAMS__ ?? "")
 }));
 
 vi.mock("next/font/google", () => {

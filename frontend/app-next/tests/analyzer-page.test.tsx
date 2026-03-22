@@ -11,6 +11,7 @@ describe("analyzer page", () => {
     const user = userEvent.setup();
 
     expect(screen.getByText(/한 게임의 흐름과 플레이어별 분석을 함께 보는 상세 분석 화면/i)).toBeInTheDocument();
+    expect(screen.getByText(/CURRENT_USER: 3x3_GG/i)).toBeInTheDocument();
     expect(screen.getByText(/^GAME SELECTOR$/i)).toBeInTheDocument();
     expect(screen.getByText(/^TIMELINE WORKSPACE$/i)).toBeInTheDocument();
 
@@ -32,6 +33,7 @@ describe("analyzer page", () => {
     expect(screen.getByRole("button", { name: /^Prev$/i })).toHaveStyle({
       border: "1px solid rgba(255,255,255,0.1)"
     });
+    expect(screen.getByRole("link", { name: "" })).toHaveAttribute("href", "/analyzer?currentUser=3x3_GG&gameId=48");
     expect(screen.getByText(/^GAME SELECTOR$/i).parentElement).toHaveStyle({
       borderBottom: "1px solid rgba(255,255,255,0.06)"
     });

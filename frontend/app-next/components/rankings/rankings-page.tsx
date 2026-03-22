@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { RefreshCw, TrendingUp, Users } from "lucide-react";
 
@@ -21,7 +22,7 @@ function WinRateBar({ pct, color }: { pct: number; color: string }) {
   );
 }
 
-function RankingsTable({ model }: { model: RankingsPageModel }) {
+function RankingsTable({ model, currentUser }: { model: RankingsPageModel; currentUser: string }) {
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
@@ -29,15 +30,18 @@ function RankingsTable({ model }: { model: RankingsPageModel }) {
           <span className="w-1.5 h-5 rounded-sm" style={{ backgroundColor: "#22d3ee" }} />
           <h2 className="text-sm font-mono font-bold uppercase tracking-widest text-slate-200">Rankings_3v3</h2>
           <span className="text-[10px] font-mono text-slate-600">TEAM_SIZE: 3V3 | QUALIFIED_GAMES: 43 | ROWS: 6</span>
+          <span className="rounded px-2 py-1 text-[10px] font-mono font-bold" style={{ backgroundColor: "rgba(34,211,238,0.08)", color: "#22d3ee", border: "1px solid rgba(34,211,238,0.18)" }}>
+            CURRENT_USER: {currentUser}
+          </span>
         </div>
-        <button
-          type="button"
+        <Link
+          href={`/rankings?currentUser=${encodeURIComponent(currentUser)}`}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono text-slate-400 transition-all hover:text-slate-200"
           style={{ border: "1px solid rgba(255,255,255,0.1)" }}
         >
           <RefreshCw className="h-3 w-3" />
           REFRESH
-        </button>
+        </Link>
       </div>
 
       <div className="rounded-xl overflow-hidden" style={CARD_STYLE}>
@@ -139,7 +143,7 @@ function RankingsTable({ model }: { model: RankingsPageModel }) {
   );
 }
 
-function RaceCompositionTable({ model }: { model: RankingsPageModel }) {
+function RaceCompositionTable({ model, currentUser }: { model: RankingsPageModel; currentUser: string }) {
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
@@ -150,14 +154,14 @@ function RaceCompositionTable({ model }: { model: RankingsPageModel }) {
             TEAM_SIZE: 3V3 | QUALIFIED_GAMES: 48 | ROWS: {model.raceCompositions.length}
           </span>
         </div>
-        <button
-          type="button"
+        <Link
+          href={`/rankings?currentUser=${encodeURIComponent(currentUser)}`}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono text-slate-400 transition-all hover:text-slate-200"
           style={{ border: "1px solid rgba(255,255,255,0.1)" }}
         >
           <RefreshCw className="h-3 w-3" />
           REFRESH
-        </button>
+        </Link>
       </div>
 
       <div className="rounded-xl overflow-hidden" style={CARD_STYLE}>
@@ -242,6 +246,7 @@ function RaceCompositionTable({ model }: { model: RankingsPageModel }) {
 
 export function RankingsPage({ model }: { model: RankingsPageModel }) {
   const [activeTab, setActiveTab] = useState<"rankings" | "race_comp">("rankings");
+  const currentUser = model.currentUser;
 
   return (
     <div className="mx-auto max-w-[1400px] p-6">
@@ -263,7 +268,7 @@ export function RankingsPage({ model }: { model: RankingsPageModel }) {
         ))}
       </div>
 
-      {activeTab === "rankings" ? <RankingsTable model={model} /> : <RaceCompositionTable model={model} />}
+      {activeTab === "rankings" ? <RankingsTable model={model} currentUser={currentUser} /> : <RaceCompositionTable model={model} currentUser={currentUser} />}
     </div>
   );
 }

@@ -81,7 +81,7 @@ function PlayerBoardCard({ player, result }: { player: VaultPlayer; result: "WIN
   );
 }
 
-function GameDetailExpand({ game }: { game: VaultGame }) {
+function GameDetailExpand({ game, currentUser }: { game: VaultGame; currentUser: string }) {
   const apmData = useMemo(() => generateApmSeries(Number.parseInt(game.playTime.split(":")[0] ?? "0", 10) + 1), [game.playTime]);
   const allPlayers = [...game.winnerTeam, ...game.loserTeam].map((player) => player.name);
   const board = useMemo(() => getStartGridBoard(game), [game]);
@@ -96,7 +96,7 @@ function GameDetailExpand({ game }: { game: VaultGame }) {
         </div>
 
         <Link
-          href="/analyzer"
+          href={`/analyzer?currentUser=${encodeURIComponent(currentUser)}&gameId=${game.id}`}
           className="flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-xs font-mono font-bold tracking-wider transition-all"
           style={{
             background: "linear-gradient(90deg, #0891b2, #1d4ed8)",
@@ -192,7 +192,17 @@ function GameDetailExpand({ game }: { game: VaultGame }) {
   );
 }
 
-function GameRow({ game, isExpanded, onToggle }: { game: VaultGame; isExpanded: boolean; onToggle: () => void }) {
+function GameRow({
+  game,
+  currentUser,
+  isExpanded,
+  onToggle
+}: {
+  game: VaultGame;
+  currentUser: string;
+  isExpanded: boolean;
+  onToggle: () => void;
+}) {
   const isCurrentUserWinner = game.winnerTeam.some((player) => player.isCurrentUser);
   const primaryTeam = isCurrentUserWinner ? game.winnerTeam : game.loserTeam;
   const secondaryTeam = isCurrentUserWinner ? game.loserTeam : game.winnerTeam;
@@ -247,7 +257,7 @@ function GameRow({ game, isExpanded, onToggle }: { game: VaultGame; isExpanded: 
 
       {isExpanded ? (
         <div className="px-4 pb-4">
-          <GameDetailExpand game={game} />
+          <GameDetailExpand game={game} currentUser={currentUser} />
         </div>
       ) : null}
     </div>
@@ -260,6 +270,7 @@ export function VaultPage({ model }: { model: VaultPageModel }) {
   const pageSize = 5;
   const totalPages = Math.max(1, Math.ceil(model.games.length / pageSize));
   const pageGames = model.games.slice((page - 1) * pageSize, page * pageSize);
+  const currentUserHref = `/vault?currentUser=${encodeURIComponent(model.currentUser)}`;
 
   return (
     <div className="mx-auto max-w-[1400px] p-6">
@@ -267,16 +278,19 @@ export function VaultPage({ model }: { model: VaultPageModel }) {
         <div className="flex items-center gap-3">
           <span className="w-1.5 h-5 rounded-sm" style={{ backgroundColor: "#22d3ee" }} />
           <h2 className="text-sm font-mono font-bold uppercase tracking-widest text-slate-200">Recent Games</h2>
+          <span className="rounded px-2 py-1 text-[10px] font-mono font-bold" style={{ backgroundColor: "rgba(34,211,238,0.08)", color: "#22d3ee", border: "1px solid rgba(34,211,238,0.18)" }}>
+            CURRENT_USER: {model.currentUser}
+          </span>
         </div>
 
-        <button
-          type="button"
+        <Link
+          href={currentUserHref}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono text-slate-400 transition-all hover:text-slate-200"
           style={{ border: "1px solid rgba(255,255,255,0.1)" }}
         >
           <RefreshCw className="h-3 w-3" />
           REFRESH
-        </button>
+        </Link>
       </div>
 
       <div className="rounded-xl overflow-hidden" style={CARD_STYLE}>
@@ -299,6 +313,7 @@ export function VaultPage({ model }: { model: VaultPageModel }) {
           <GameRow
             key={game.id}
             game={game}
+            currentUser={model.currentUser}
             isExpanded={expandedId === game.id}
             onToggle={() => setExpandedId(expandedId === game.id ? null : game.id)}
           />

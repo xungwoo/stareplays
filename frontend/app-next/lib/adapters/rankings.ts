@@ -4,8 +4,9 @@ import { getRaceLetter } from "@/lib/utils/format";
 import type { ApiRaceMatchupRow, ApiRaceMatchupsResponse, ApiRankingsResponse } from "@/types/api";
 import type { RankingsPageModel } from "@/types/rankings";
 
-export function getRankingsPageModel(): RankingsPageModel {
+export function getRankingsPageModel(currentUser = CURRENT_USER): RankingsPageModel {
   return {
+    currentUser,
     tabs: [
       { id: "rankings", label: "Rankings_3v3" },
       { id: "race_comp", label: "Race_Composition_WinRate" }
@@ -62,7 +63,7 @@ export function createRankingsPageModel({
   rankingsResponse?: ApiRankingsResponse | null;
   raceMatchupsResponse?: ApiRaceMatchupsResponse | null;
 } = {}): RankingsPageModel {
-  const fallback = getRankingsPageModel();
+  const fallback = getRankingsPageModel(currentUser);
   const rankingRows = rankingsResponse?.rankings ?? rankingsResponse?.items;
   const rankings = rankingRows
     ? rankingRows.map((row) => ({
@@ -90,6 +91,7 @@ export function createRankingsPageModel({
     .join(" / ");
 
   return {
+    currentUser,
     tabs: fallback.tabs,
     rankings,
     raceCompositions,
