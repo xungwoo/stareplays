@@ -1,4 +1,5 @@
 import { CURRENT_USER } from "@/lib/fixtures/common";
+import { buildApiUrl } from "@/lib/api/url";
 import { parseCurrentUserSessionCookie } from "@/lib/utils/current-user-session";
 
 export interface LoaderOptions {
@@ -6,19 +7,6 @@ export interface LoaderOptions {
   currentUser?: string;
   currentUserCookie?: string;
   fetchImpl?: typeof fetch;
-}
-
-function normalizeBaseUrl(value?: string): string {
-  const fallback = "http://127.0.0.1:3000";
-  const base = value?.trim() || process.env.NEXT_PUBLIC_API_BASE_URL?.trim() || fallback;
-
-  return base.endsWith("/") ? base : `${base}/`;
-}
-
-function buildApiUrl(path: string, apiBaseUrl?: string): string {
-  const normalizedPath = path.startsWith("/") ? path.slice(1) : path;
-
-  return new URL(normalizedPath, normalizeBaseUrl(apiBaseUrl)).toString();
 }
 
 export function resolveCurrentUser(currentUser?: string, currentUserCookie?: string): string {

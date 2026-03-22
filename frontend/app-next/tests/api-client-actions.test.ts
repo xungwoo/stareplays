@@ -1,4 +1,6 @@
 import {
+  buildCurrentUserSessionCookie,
+  clearCurrentUserSessionCookie,
   deserializeCurrentUserSession,
   parseCurrentUserSessionCookie,
   serializeCurrentUserSession
@@ -21,8 +23,20 @@ describe("current-user session helpers", () => {
     expect(deserializeCurrentUserSession(serialized)).toBe("3x3 GG/Player+One");
   });
 
+  it("builds a current user cookie pair for persistence", () => {
+    expect(buildCurrentUserSessionCookie(" 3x3 GG/Player+One ")).toBe("current_user=3x3%20GG%2FPlayer%2BOne; Path=/; SameSite=Lax");
+  });
+
+  it("builds a current user cookie clear directive", () => {
+    expect(clearCurrentUserSessionCookie()).toBe("current_user=; Path=/; Max-Age=0; SameSite=Lax");
+  });
+
   it("reads the current user from a cookie header string", () => {
     expect(parseCurrentUserSessionCookie("foo=1; current_user=3x3%20GG; bar=2")).toBe("3x3 GG");
+  });
+
+  it("ignores malformed current user cookie values", () => {
+    expect(parseCurrentUserSessionCookie("current_user=%E0%A4%A")).toBeNull();
   });
 
   it("resolves the current user from the session cookie when no override is provided", () => {
@@ -53,6 +67,22 @@ describe("api actions", () => {
         fetchImpl: fetchMock
       })
     ).resolves.toEqual({ ok: true });
+  });
+
+  it("throws the API error message for non-ok json responses", async () => {
+    const fetchMock = vi.fn(async () =>
+      ({
+        ok: false,
+        json: async () => ({ error: "reanalyze failed" })
+      }) as Response
+    );
+
+    await expect(
+      postApiJson("/api/v1/analyzer/reanalyze", { game_id: 48 }, {
+        apiBaseUrl: "http://example.test",
+        fetchImpl: fetchMock
+      })
+    ).rejects.toThrow("reanalyze failed");
   });
 
   it("builds upload preview multipart bodies with replay files", async () => {

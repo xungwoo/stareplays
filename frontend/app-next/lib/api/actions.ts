@@ -1,19 +1,8 @@
+import { buildApiUrl } from "@/lib/api/url";
+
 interface ActionOptions {
   apiBaseUrl?: string;
   fetchImpl?: typeof fetch;
-}
-
-function normalizeBaseUrl(value?: string): string {
-  const fallback = "http://127.0.0.1:3000";
-  const base = value?.trim() || process.env.NEXT_PUBLIC_API_BASE_URL?.trim() || fallback;
-
-  return base.endsWith("/") ? base : `${base}/`;
-}
-
-function buildApiUrl(path: string, apiBaseUrl?: string): string {
-  const normalizedPath = path.startsWith("/") ? path.slice(1) : path;
-
-  return new URL(normalizedPath, normalizeBaseUrl(apiBaseUrl)).toString();
 }
 
 async function fetchApiActionJson<T>(
@@ -32,7 +21,20 @@ async function fetchApiActionJson<T>(
   });
 
   if (!response.ok) {
-    throw new Error(`API request failed: ${path}`);
+    let message: string | null = null;
+
+    try {
+      const errorPayload = (await response.json()) as { error?: unknown; message?: unknown };
+      const errorMessage = errorPayload.error ?? errorPayload.message;
+
+      if (typeof errorMessage === "string" && errorMessage.trim()) {
+        message = errorMessage.trim();
+      }
+    } catch {
+      // Fall through to a generic error below.
+    }
+
+    throw new Error(message || `API request failed: ${path}`);
   }
 
   return (await response.json()) as T;
