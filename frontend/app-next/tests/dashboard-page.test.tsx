@@ -1,11 +1,27 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { vi } from "vitest";
 
 import HomePage from "@/app/page";
 import { DashboardPage } from "@/components/dashboard/dashboard-page";
 import { DASHBOARD_FIXTURE } from "@/lib/fixtures/dashboard";
+import { previewReplayUpload, submitReplayUpload } from "@/lib/api/actions";
+
+vi.mock("@/lib/api/actions", () => ({
+  previewReplayUpload: vi.fn(),
+  submitReplayUpload: vi.fn()
+}));
+
+const previewReplayUploadMock = vi.mocked(previewReplayUpload);
+const submitReplayUploadMock = vi.mocked(submitReplayUpload);
 
 describe("dashboard page", () => {
+  beforeEach(() => {
+    previewReplayUploadMock.mockReset();
+    submitReplayUploadMock.mockReset();
+    vi.restoreAllMocks();
+    document.cookie = "current_user=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
+  });
+
   it("renders the figma dashboard upload and stats workspace", async () => {
     const { container } = render(await HomePage({}));
 
@@ -85,7 +101,6 @@ describe("dashboard page", () => {
   });
 
   it("updates the upload module when a replay file is selected and analyzed", async () => {
-    vi.useFakeTimers();
     render(<DashboardPage model={DASHBOARD_FIXTURE} />);
 
     const fileInput = document.querySelector("#replay-file") as HTMLInputElement;
@@ -94,6 +109,24 @@ describe("dashboard page", () => {
     expect(analyzeButton).toBeDisabled();
     expect(analyzeButton).toHaveClass("transition-all", "duration-200");
     expect(screen.getByText(/^READY$/i)).toBeInTheDocument();
+
+    previewReplayUploadMock.mockResolvedValue({
+      success_count: 1,
+      total_files: 1,
+      preview_candidates: ["3x3_GG", "3x3_mh"],
+      results: [
+        {
+          ok: true,
+          filename: "test-game.rep",
+          preview: {
+            map_name: "Circuit Breaker",
+            start_time: "2026-03-23T01:23:45Z",
+            player_count: 6,
+            parsed_players: ["3x3_GG", "3x3_mh", "3x3_smwoo", "3x3_Kiyong", "3x3_pil", "3x3_syntax"]
+          }
+        }
+      ]
+    });
 
     fireEvent.change(fileInput, {
       target: {
@@ -107,17 +140,259 @@ describe("dashboard page", () => {
     expect(selectedFileName).toHaveClass("text-cyan-300");
     expect(analyzeButton).toBeEnabled();
 
-    fireEvent.click(analyzeButton);
-    expect(screen.getByText(/분석 중/i)).toBeInTheDocument();
-    expect(screen.getByText(/analyzing replay/i)).toBeInTheDocument();
-
     await act(async () => {
-      vi.advanceTimersByTime(2000);
+      fireEvent.click(analyzeButton);
     });
 
-    expect(screen.getByText(/업로드 완료/i)).toBeInTheDocument();
-    expect(screen.getByText(/upload complete — 게임 목록에서 확인하세요/i)).toBeInTheDocument();
-    expect(document.querySelector("svg.text-emerald-400")).toBeInTheDocument();
+    expect(previewReplayUploadMock).toHaveBeenCalledWith(
+      [expect.objectContaining({ name: "test-game.rep" })],
+      expect.any(Object)
+    );
+    expect(await screen.findByText(/analysis completed/i)).toBeInTheDocument();
+    expect(screen.getByText(/common players/i)).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "3x3_GG" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /upload_with_selected_user/i })).toBeEnabled();
+  });
+
+  it("uploads the previewed replay with the selected current user and exposes follow-up links", async () => {
+    render(<DashboardPage model={DASHBOARD_FIXTURE} />);
+
+    previewReplayUploadMock.mockResolvedValue({
+      success_count: 1,
+      total_files: 1,
+      preview_candidates: ["3x3_GG"],
+      results: [
+        {
+          ok: true,
+          filename: "ladder.rep",
+          preview: {
+            map_name: "Polypoid",
+            start_time: "2026-03-23T01:23:45Z",
+            player_count: 6,
+            parsed_players: ["3x3_GG"]
+          }
+        }
+      ]
+    });
+    submitReplayUploadMock.mockResolvedValue({
+      game: {
+        id: 88,
+        map_name: "Polypoid"
+      }
+    });
+
+    fireEvent.change(document.querySelector("#replay-file") as HTMLInputElement, {
+      target: {
+        files: [new File(["mock replay"], "ladder.rep", { type: "application/octet-stream" })]
+      }
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /analyze_replay/i }));
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /upload_with_selected_user/i }));
+    });
+
+    expect(submitReplayUploadMock).toHaveBeenCalledWith(
+      [expect.objectContaining({ name: "ladder.rep" })],
+      "3x3_GG",
+      expect.any(Object)
+    );
+    expect(await screen.findByText(/upload complete/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /open replay vault/i })).toHaveAttribute("href", "/vault?currentUser=3x3_GG");
+    expect(screen.getByRole("link", { name: /open analyzer/i })).toHaveAttribute("href", "/analyzer?currentUser=3x3_GG&gameId=88");
+    expect(document.cookie).toContain("current_user=3x3_GG");
+  });
+
+  it("queries live player stats and suggestions from the api", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+
+      if (url.includes("/api/v1/users/suggest")) {
+        return new Response(JSON.stringify({ users: ["3x3_GG", "3x3_smwoo"] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+
+      if (url.includes("/api/v1/players/3x3_smwoo/stats")) {
+        return new Response(
+          JSON.stringify({
+            player_name: "3x3_smwoo",
+            total_games: 27,
+            wins: 19,
+            losses: 8,
+            draws: 0,
+            win_rate: 70.4,
+            average_apm: 211.7,
+            average_eapm: 166.2,
+            favorite_race: "T",
+            race_stats: {
+              Terran: { wins: 19, losses: 8, total: 27, win_rate: 70.4 }
+            },
+            matchup_stats: {},
+            map_stats: {}
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" }
+          }
+        );
+      }
+
+      return new Response(JSON.stringify({ error: "not found" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" }
+      });
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<DashboardPage model={DASHBOARD_FIXTURE} />);
+
+    const queryInput = screen.getByLabelText(/플레이어 이름 입력/i);
+    fireEvent.change(queryInput, { target: { value: "3x3_smwoo" } });
+
+    await act(async () => {
+      await new Promise((resolve) => {
+        window.setTimeout(resolve, 220);
+      });
+    });
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/api/v1/users/suggest?q=3x3_smwoo"), expect.any(Object));
+    });
+    expect(await screen.findByRole("option", { name: "3x3_smwoo" })).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^QUERY$/i }));
+    });
+
+    expect(await screen.findAllByText("3x3_smwoo")).not.toHaveLength(0);
+    expect(screen.getByText("TERRAN")).toBeInTheDocument();
+    expect(await screen.findAllByText("70.4%")).not.toHaveLength(0);
+    expect(screen.getByLabelText(/플레이어 선택/i)).toHaveValue("3x3_smwoo");
+    expect(document.cookie).toContain("current_user=3x3_smwoo");
+  });
+
+  it("ignores stale suggestion responses when newer input finishes later", async () => {
+    vi.useFakeTimers();
+    let resolveFirst: ((value: Response) => void) | null = null;
+    let resolveSecond: ((value: Response) => void) | null = null;
+
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+
+      if (url.includes("/api/v1/users/suggest?q=3x")) {
+        return new Promise<Response>((resolve) => {
+          resolveFirst = resolve;
+        });
+      }
+
+      if (url.includes("/api/v1/users/suggest?q=3x3_sm")) {
+        return new Promise<Response>((resolve) => {
+          resolveSecond = resolve;
+        });
+      }
+
+      return Promise.resolve(
+        new Response(JSON.stringify({ users: [] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        })
+      );
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<DashboardPage model={DASHBOARD_FIXTURE} />);
+
+    const queryInput = screen.getByLabelText(/플레이어 이름 입력/i);
+
+    fireEvent.change(queryInput, { target: { value: "3x" } });
+    await act(async () => {
+      vi.advanceTimersByTime(200);
+    });
+
+    fireEvent.change(queryInput, { target: { value: "3x3_sm" } });
+    await act(async () => {
+      vi.advanceTimersByTime(200);
+    });
+
+    await act(async () => {
+      resolveSecond?.(
+        new Response(JSON.stringify({ users: ["3x3_smwoo"] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        })
+      );
+      await Promise.resolve();
+    });
+
+    expect(screen.getByRole("option", { name: "3x3_smwoo" })).toBeInTheDocument();
+
+    await act(async () => {
+      resolveFirst?.(
+        new Response(JSON.stringify({ users: ["3x_old"] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        })
+      );
+      await Promise.resolve();
+    });
+
+    expect(screen.queryByRole("option", { name: "3x_old" })).not.toBeInTheDocument();
+    vi.useRealTimers();
+  });
+
+  it("does not restore stale suggestions after the query input is cleared", async () => {
+    vi.useFakeTimers();
+    let resolvePending: ((value: Response) => void) | null = null;
+
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+
+      if (url.includes("/api/v1/users/suggest?q=3x3")) {
+        return new Promise<Response>((resolve) => {
+          resolvePending = resolve;
+        });
+      }
+
+      return Promise.resolve(
+        new Response(JSON.stringify({ users: [] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        })
+      );
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<DashboardPage model={DASHBOARD_FIXTURE} />);
+
+    const queryInput = screen.getByLabelText(/플레이어 이름 입력/i);
+
+    fireEvent.change(queryInput, { target: { value: "3x3" } });
+    await act(async () => {
+      vi.advanceTimersByTime(200);
+    });
+
+    fireEvent.change(queryInput, { target: { value: "" } });
+
+    await act(async () => {
+      resolvePending?.(
+        new Response(JSON.stringify({ users: ["3x3_legacy"] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        })
+      );
+      await Promise.resolve();
+    });
+
+    expect(screen.queryByRole("option", { name: "3x3_legacy" })).not.toBeInTheDocument();
+    expect(screen.getByRole("option", { name: DASHBOARD_FIXTURE.playerStats.name })).toBeInTheDocument();
     vi.useRealTimers();
   });
 });

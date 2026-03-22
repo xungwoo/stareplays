@@ -225,3 +225,54 @@ export interface ApiGameAnalyzerResponse {
     };
   };
 }
+
+export interface ApiReplayPreviewItem {
+  filename?: string;
+  ok?: boolean;
+  status?: number;
+  error?: string;
+  preview?: {
+    map_name?: string;
+    start_time?: string;
+    player_count?: number;
+    parsed_players?: string[];
+  };
+}
+
+export interface ApiReplayPreviewResponse {
+  message?: string;
+  total_files?: number;
+  success_count?: number;
+  failed_count?: number;
+  candidate_players?: string[];
+  preview_candidates?: string[];
+  results?: ApiReplayPreviewItem[];
+}
+
+export interface ApiReplayUploadResultItem {
+  filename?: string;
+  ok?: boolean;
+  status?: number;
+  error?: string;
+  result?: {
+    game?: {
+      id?: number;
+      map_name?: string;
+      start_time?: string;
+    };
+    error?: string;
+  };
+}
+
+export interface ApiReplayUploadResponse {
+  message?: string;
+  total_files?: number;
+  success_count?: number;
+  failed_count?: number;
+  game?: {
+    id?: number;
+    map_name?: string;
+    start_time?: string;
+  };
+  results?: ApiReplayUploadResultItem[];
+}

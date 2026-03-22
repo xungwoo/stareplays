@@ -6,6 +6,31 @@ export interface DashboardStatRow {
   winRate: number;
 }
 
+export type DashboardActionStatus = "idle" | "submitting" | "success" | "error";
+
+export interface DashboardPreviewSummary {
+  totalFiles: number;
+  successCount: number;
+  failedCount: number;
+  commonPlayers: string[];
+  items: Array<{
+    filename: string;
+    ok: boolean;
+    mapName: string;
+    startTime: string;
+    playerCount: number;
+    parsedPlayers: string[];
+    error: string | null;
+  }>;
+}
+
+export interface DashboardUploadSummary {
+  uploadedGameId: number | null;
+  uploadedMapName: string | null;
+  vaultHref: string;
+  analyzerHref: string;
+}
+
 export interface DashboardPlayerStats {
   name: string;
   favoriteRace: RaceCode;
