@@ -12,6 +12,14 @@ export function clearCurrentUserSessionCookie(): string {
   return `${CURRENT_USER_SESSION_COOKIE_NAME}=`;
 }
 
+export function buildCurrentUserSessionDocumentCookie(currentUser: string): string {
+  return `${buildCurrentUserSessionCookie(currentUser)}; Path=/`;
+}
+
+export function clearCurrentUserSessionDocumentCookie(): string {
+  return `${clearCurrentUserSessionCookie()}; Path=/`;
+}
+
 export function deserializeCurrentUserSession(value?: string | null): string | null {
   if (!value?.trim()) {
     return null;

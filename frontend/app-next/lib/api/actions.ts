@@ -5,6 +5,51 @@ interface ActionOptions {
   fetchImpl?: typeof fetch;
 }
 
+function getErrorStatusPrefix(response: Response): string {
+  return `${response.status}${response.statusText ? ` ${response.statusText}` : ""}`;
+}
+
+async function buildErrorMessage(response: Response, path: string): Promise<string> {
+  const statusPrefix = getErrorStatusPrefix(response);
+
+  if (response.status === 204) {
+    return `API request failed: ${path}`;
+  }
+
+  const bodyText = typeof response.text === "function" ? await response.text().catch(() => "") : "";
+  const trimmedBodyText = bodyText.trim();
+
+  if (trimmedBodyText) {
+    try {
+      const parsed = JSON.parse(trimmedBodyText) as { error?: unknown; message?: unknown };
+      const message = parsed.error ?? parsed.message;
+
+      if (typeof message === "string" && message.trim()) {
+        return message.trim();
+      }
+    } catch {
+      return `${statusPrefix}: ${trimmedBodyText}`;
+    }
+
+    return `${statusPrefix}: ${trimmedBodyText}`;
+  }
+
+  if (typeof response.json === "function") {
+    try {
+      const parsed = (await response.json()) as { error?: unknown; message?: unknown };
+      const message = parsed.error ?? parsed.message;
+
+      if (typeof message === "string" && message.trim()) {
+        return message.trim();
+      }
+    } catch {
+      // Fall through to a generic error below.
+    }
+  }
+
+  return `API request failed: ${path}`;
+}
+
 async function fetchApiActionJson<T>(
   path: string,
   options: ActionOptions,
@@ -21,20 +66,11 @@ async function fetchApiActionJson<T>(
   });
 
   if (!response.ok) {
-    let message: string | null = null;
+    throw new Error(await buildErrorMessage(response, path));
+  }
 
-    try {
-      const errorPayload = (await response.json()) as { error?: unknown; message?: unknown };
-      const errorMessage = errorPayload.error ?? errorPayload.message;
-
-      if (typeof errorMessage === "string" && errorMessage.trim()) {
-        message = errorMessage.trim();
-      }
-    } catch {
-      // Fall through to a generic error below.
-    }
-
-    throw new Error(message || `API request failed: ${path}`);
+  if (response.status === 204) {
+    return undefined as T;
   }
 
   return (await response.json()) as T;

@@ -1,6 +1,8 @@
 import {
   buildCurrentUserSessionCookie,
+  buildCurrentUserSessionDocumentCookie,
   clearCurrentUserSessionCookie,
+  clearCurrentUserSessionDocumentCookie,
   deserializeCurrentUserSession,
   parseCurrentUserSessionCookie,
   serializeCurrentUserSession
@@ -27,8 +29,16 @@ describe("current-user session helpers", () => {
     expect(buildCurrentUserSessionCookie(" 3x3 GG/Player+One ")).toBe("current_user=3x3%20GG%2FPlayer%2BOne");
   });
 
-  it("builds a current user cookie clear directive", () => {
+  it("builds a browser current user cookie with a path attribute", () => {
+    expect(buildCurrentUserSessionDocumentCookie(" 3x3 GG/Player+One ")).toBe("current_user=3x3%20GG%2FPlayer%2BOne; Path=/");
+  });
+
+  it("builds a current user cookie clear pair", () => {
     expect(clearCurrentUserSessionCookie()).toBe("current_user=");
+  });
+
+  it("builds a browser current user cookie clear directive with a path attribute", () => {
+    expect(clearCurrentUserSessionDocumentCookie()).toBe("current_user=; Path=/");
   });
 
   it("reads the current user from a cookie header string", () => {
@@ -83,6 +93,43 @@ describe("api actions", () => {
         fetchImpl: fetchMock
       })
     ).rejects.toThrow("reanalyze failed");
+  });
+
+  it("returns undefined for successful no-content responses", async () => {
+    const fetchMock = vi.fn(async () =>
+      ({
+        ok: true,
+        status: 204,
+        json: async () => {
+          throw new Error("json should not be called");
+        }
+      }) as unknown as Response
+    );
+
+    await expect(
+      postApiJson("/api/v1/analyzer/reanalyze", { game_id: 48 }, {
+        apiBaseUrl: "http://example.test",
+        fetchImpl: fetchMock
+      })
+    ).resolves.toBeUndefined();
+  });
+
+  it("preserves non-json error status and body context when available", async () => {
+    const fetchMock = vi.fn(async () =>
+      ({
+        ok: false,
+        status: 503,
+        statusText: "Service Unavailable",
+        text: async () => "backend down"
+      }) as Response
+    );
+
+    await expect(
+      postApiJson("/api/v1/analyzer/reanalyze", { game_id: 48 }, {
+        apiBaseUrl: "http://example.test",
+        fetchImpl: fetchMock
+      })
+    ).rejects.toThrow("503 Service Unavailable: backend down");
   });
 
   it("builds upload preview multipart bodies with replay files", async () => {
