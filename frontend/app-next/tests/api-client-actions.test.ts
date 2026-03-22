@@ -3,6 +3,7 @@ import {
   parseCurrentUserSessionCookie,
   serializeCurrentUserSession
 } from "@/lib/utils/current-user-session";
+import { resolveCurrentUser } from "@/lib/api/client";
 import { postApiJson, previewReplayUpload, submitReplayUpload } from "@/lib/api/actions";
 
 function createJsonResponse(payload: unknown) {
@@ -22,6 +23,14 @@ describe("current-user session helpers", () => {
 
   it("reads the current user from a cookie header string", () => {
     expect(parseCurrentUserSessionCookie("foo=1; current_user=3x3%20GG; bar=2")).toBe("3x3 GG");
+  });
+
+  it("resolves the current user from the session cookie when no override is provided", () => {
+    expect(resolveCurrentUser(undefined, "current_user=3x3%20GG%2FPlayer%2BOne")).toBe("3x3 GG/Player+One");
+  });
+
+  it("prefers the explicit current user override over the session cookie", () => {
+    expect(resolveCurrentUser("  override-user  ", "current_user=3x3%20GG")).toBe("override-user");
   });
 });
 
