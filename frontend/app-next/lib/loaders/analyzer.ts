@@ -9,7 +9,7 @@ type AnalyzerLoaderOptions = LoaderOptions & {
 export async function loadAnalyzerPageModel(options: AnalyzerLoaderOptions = {}) {
   const currentUser = resolveCurrentUser(options.currentUser, options.currentUserCookie);
   const gamesResponse = await tryFetchApiJson<ApiGamesListResponse>(
-    `/api/v1/games?limit=10&offset=0&user_name=${encodeURIComponent(currentUser)}`,
+    `/api/v1/games?limit=12&offset=0&user_name=${encodeURIComponent(currentUser)}`,
     options
   );
 

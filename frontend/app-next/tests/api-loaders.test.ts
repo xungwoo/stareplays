@@ -522,6 +522,30 @@ describe("api loaders", () => {
     expect(model.selectedGame.map).toBe("Beta Mesa");
   });
 
+  it("requests enough games for analyzer deep-links exposed by the vault", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      return createJsonResponse(
+        url.includes("/games?")
+          ? {
+              total: 0,
+              games: [],
+              analysis_statuses: {}
+            }
+          : {}
+      );
+    });
+
+    await loadAnalyzerPageModel({
+      fetchImpl: fetchMock,
+      apiBaseUrl: "http://127.0.0.1:3000",
+      currentUser: CURRENT_USER
+    });
+
+    expect(fetchMock).toHaveBeenCalled();
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("limit=12");
+  });
+
   it("prefers the current user cookie before fixture fallback in the analyzer loader", async () => {
     const currentUserCookie = buildCurrentUserSessionCookie("cookie-user");
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
