@@ -8,7 +8,7 @@ import {
   serializeCurrentUserSession
 } from "@/lib/utils/current-user-session";
 import { resolveCurrentUser } from "@/lib/api/client";
-import { postApiJson, previewReplayUpload, submitReplayUpload } from "@/lib/api/actions";
+import { postApiJson, previewReplayUpload, reanalyzeAnalyzerGame, submitReplayUpload } from "@/lib/api/actions";
 
 function createJsonResponse(payload: unknown) {
   return {
@@ -130,6 +130,26 @@ describe("api actions", () => {
         fetchImpl: fetchMock
       })
     ).rejects.toThrow("503 Service Unavailable: backend down");
+  });
+
+  it("posts analyzer reanalyze requests with the selected game id", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(input)).toBe("http://example.test/api/v1/analyzer/reanalyze");
+      expect(init?.method).toBe("POST");
+      expect(init?.cache).toBe("no-store");
+      expect(new Headers(init?.headers).get("accept")).toBe("application/json");
+      expect(new Headers(init?.headers).get("content-type")).toBe("application/json");
+      expect(init?.body).toBe(JSON.stringify({ game_id: 48 }));
+
+      return createJsonResponse({ ok: true, message: "queued" });
+    });
+
+    await expect(
+      reanalyzeAnalyzerGame(48, {
+        apiBaseUrl: "http://example.test",
+        fetchImpl: fetchMock
+      })
+    ).resolves.toEqual({ ok: true, message: "queued" });
   });
 
   it("builds upload preview multipart bodies with replay files", async () => {

@@ -1,11 +1,24 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { vi } from "vitest";
 
 import AnalyzerPage from "@/app/analyzer/page";
 import { AnalyzerPage as AnalyzerPageComponent } from "@/components/analyzer/analyzer-page";
+import { reanalyzeAnalyzerGame } from "@/lib/api/actions";
+import { getAnalyzerPageModel } from "@/lib/adapters/analyzer";
 import type { AnalyzerPageModel } from "@/types/analyzer";
 
+vi.mock("@/lib/api/actions", () => ({
+  reanalyzeAnalyzerGame: vi.fn()
+}));
+
+const reanalyzeAnalyzerGameMock = vi.mocked(reanalyzeAnalyzerGame);
+
 describe("analyzer page", () => {
+  beforeEach(() => {
+    reanalyzeAnalyzerGameMock.mockReset();
+  });
+
   it("renders the figma analyzer workspace and switches timeline tabs", async () => {
     const { container } = render(await AnalyzerPage({}));
     const user = userEvent.setup();
@@ -33,7 +46,7 @@ describe("analyzer page", () => {
     expect(screen.getByRole("button", { name: /^Prev$/i })).toHaveStyle({
       border: "1px solid rgba(255,255,255,0.1)"
     });
-    expect(screen.getByRole("link", { name: "" })).toHaveAttribute("href", "/analyzer?currentUser=3x3_GG&gameId=48");
+    expect(screen.getByRole("link", { name: /refresh selected game/i })).toHaveAttribute("href", "/analyzer?currentUser=3x3_GG&gameId=48");
     expect(screen.getByText(/^GAME SELECTOR$/i).parentElement).toHaveStyle({
       borderBottom: "1px solid rgba(255,255,255,0.06)"
     });
@@ -60,6 +73,33 @@ describe("analyzer page", () => {
     expect(screen.getByText(/^MAP:$/i).parentElement?.parentElement).toHaveStyle({
       backgroundColor: "rgba(255,255,255,0.06)"
     });
+  });
+
+  it("lets the user manually reanalyze the selected game and shows status feedback", async () => {
+    reanalyzeAnalyzerGameMock.mockResolvedValue({ ok: true, message: "reanalyze queued" });
+
+    render(<AnalyzerPageComponent model={getAnalyzerPageModel(48)} />);
+    const user = userEvent.setup();
+
+    const reanalyzeButton = screen.getByRole("button", { name: /reanalyze selected game/i });
+    expect(reanalyzeButton).toBeEnabled();
+
+    await user.click(reanalyzeButton);
+
+    expect(reanalyzeAnalyzerGameMock).toHaveBeenCalledWith(48, expect.any(Object));
+    expect(await screen.findByText(/reanalyze queued/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /refresh/i })).toHaveAttribute("href", "/analyzer?currentUser=3x3_GG&gameId=48");
+  });
+
+  it("shows an error when the reanalyze request fails", async () => {
+    reanalyzeAnalyzerGameMock.mockRejectedValue(new Error("reanalyze failed"));
+
+    render(<AnalyzerPageComponent model={getAnalyzerPageModel(48)} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: /reanalyze selected game/i }));
+
+    expect(await screen.findByText(/reanalyze failed/i)).toBeInTheDocument();
   });
 
   it("keeps the focused player selection when switching games, matching the source behavior", async () => {

@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, RefreshCw, User } from "lucide-react";
 
 import { RaceBadge } from "@/components/shared/race-badge";
 import { ResultBadge, StatusBadge } from "@/components/shared/status-badge";
+import { reanalyzeAnalyzerGame } from "@/lib/api/actions";
 import { getOrderedGamePlayers } from "@/lib/utils/analyzer-player-order";
 import { getStartGridBoard } from "@/lib/utils/start-grid-board";
 import type { AnalyzerGameInsight, AnalyzerPageModel, TimelineEvent } from "@/types/analyzer";
@@ -390,6 +391,8 @@ export function AnalyzerPage({ model }: { model: AnalyzerPageModel }) {
   const [activeTab, setActiveTab] = useState<"match_flow" | "apm" | "resource" | "unit_prod" | "tech">("match_flow");
   const [focusedPlayer, setFocusedPlayer] = useState<string | null>(null);
   const [selectorPage, setSelectorPage] = useState(0);
+  const [reanalyzeState, setReanalyzeState] = useState<"idle" | "submitting" | "success" | "error">("idle");
+  const [reanalyzeMessage, setReanalyzeMessage] = useState<string | null>(null);
   const pageSize = 8;
 
   useEffect(() => {
@@ -419,6 +422,30 @@ export function AnalyzerPage({ model }: { model: AnalyzerPageModel }) {
   const startGridBoard = useMemo(() => getStartGridBoard(selectedGame), [selectedGame]);
   const refreshHref = `/analyzer?currentUser=${encodeURIComponent(model.currentUser)}&gameId=${selectedGame.id}`;
 
+  useEffect(() => {
+    setReanalyzeState("idle");
+    setReanalyzeMessage(null);
+  }, [selectedGameId]);
+
+  async function handleReanalyzeSelectedGame() {
+    if (reanalyzeState === "submitting") {
+      return;
+    }
+
+    setReanalyzeState("submitting");
+    setReanalyzeMessage(null);
+
+    try {
+      const response = await reanalyzeAnalyzerGame(selectedGame.id, { fetchImpl: fetch });
+      const message = response.message?.trim() || `reanalyze queued for game #${selectedGame.id}`;
+      setReanalyzeMessage(message);
+      setReanalyzeState("success");
+    } catch (error) {
+      setReanalyzeMessage(error instanceof Error ? error.message : "reanalyze failed");
+      setReanalyzeState("error");
+    }
+  }
+
   return (
     <div className="mx-auto max-w-[1600px] space-y-5 p-6">
       <div className="rounded-xl px-5 py-4" style={CARD_STYLE}>
@@ -435,10 +462,47 @@ export function AnalyzerPage({ model }: { model: AnalyzerPageModel }) {
         <div className="overflow-hidden rounded-xl lg:col-span-2" style={CARD_STYLE}>
           <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
             <p className="text-[10px] font-mono tracking-widest text-slate-500">GAME SELECTOR</p>
-            <Link href={refreshHref} className="flex items-center gap-1 text-slate-500 hover:text-slate-300">
-              <RefreshCw className="h-3 w-3" />
-            </Link>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  void handleReanalyzeSelectedGame();
+                }}
+                disabled={reanalyzeState === "submitting"}
+                className="rounded px-3 py-1.5 text-[10px] font-mono font-bold tracking-widest text-cyan-200 transition-all disabled:cursor-not-allowed disabled:opacity-50"
+                style={{ backgroundColor: "rgba(34,211,238,0.08)", border: "1px solid rgba(34,211,238,0.18)" }}
+              >
+                {reanalyzeState === "submitting" ? "REANALYZING..." : "REANALYZE SELECTED GAME"}
+              </button>
+              <Link
+                href={refreshHref}
+                aria-label="Refresh selected game"
+                className="flex items-center gap-1 text-slate-500 hover:text-slate-300"
+              >
+                <RefreshCw className="h-3 w-3" />
+              </Link>
+            </div>
           </div>
+
+          {reanalyzeMessage ? (
+            <div
+              className="flex items-center gap-2 px-4 py-2"
+              style={{
+                backgroundColor: reanalyzeState === "error" ? "rgba(239,68,68,0.05)" : "rgba(16,185,129,0.05)",
+                borderBottom: "1px solid rgba(255,255,255,0.05)"
+              }}
+              aria-live="polite"
+            >
+              <span
+                className="h-2 w-2 rounded-full"
+                style={{ backgroundColor: reanalyzeState === "error" ? "#f87171" : "#34d399" }}
+                aria-hidden="true"
+              />
+              <p className={`text-[11px] font-mono ${reanalyzeState === "error" ? "text-red-300" : "text-emerald-300"}`}>
+                {reanalyzeState === "error" ? "REANALYZE FAILED:" : "REANALYZE QUEUED:"} {reanalyzeMessage}
+              </p>
+            </div>
+          ) : null}
 
           <div className="max-h-[340px] overflow-y-auto">
             <table className="w-full text-xs font-mono">

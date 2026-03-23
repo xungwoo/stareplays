@@ -226,6 +226,17 @@ export interface ApiGameAnalyzerResponse {
   };
 }
 
+export interface ApiAnalyzerReanalyzeRequest {
+  game_id: number;
+}
+
+export interface ApiAnalyzerReanalyzeResponse {
+  ok?: boolean;
+  message?: string;
+  status?: string;
+  game_id?: number;
+}
+
 export interface ApiReplayPreviewItem {
   filename?: string;
   ok?: boolean;

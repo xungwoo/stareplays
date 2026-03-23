@@ -1,4 +1,5 @@
 import { buildApiUrl } from "@/lib/api/url";
+import type { ApiAnalyzerReanalyzeRequest, ApiAnalyzerReanalyzeResponse } from "@/types/api";
 
 interface ActionOptions {
   apiBaseUrl?: string;
@@ -116,4 +117,13 @@ export async function submitReplayUpload(
     method: "POST",
     body: formData
   });
+}
+
+export async function reanalyzeAnalyzerGame(
+  gameId: number,
+  options: ActionOptions = {}
+): Promise<ApiAnalyzerReanalyzeResponse> {
+  const body: ApiAnalyzerReanalyzeRequest = { game_id: gameId };
+
+  return postApiJson<ApiAnalyzerReanalyzeResponse>("/api/v1/analyzer/reanalyze", body, options);
 }
