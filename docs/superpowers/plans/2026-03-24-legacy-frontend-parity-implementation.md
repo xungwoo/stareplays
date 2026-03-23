@@ -76,6 +76,7 @@ Add tests for:
 - initial `NO_PREVIEW`
 - preview success terminal summary
 - invalid current-user preserved after preview mismatch
+- preview failure must not clear prior pending/common-player state
 - upload blocked with legacy-style failure when current user is not a common participant
 
 - [ ] **Step 2: Run dashboard tests to see failures**
@@ -89,6 +90,7 @@ Implement:
 - exact preview initial state
 - preview summary terminal behavior
 - invalid current user persistence after preview mismatch
+- preview-failure stale-state parity
 - legacy-style upload failure messages
 
 - [ ] **Step 4: Re-run dashboard tests**
@@ -115,7 +117,9 @@ git commit -m "feat: align dashboard legacy upload parity"
 Add tests for:
 - clicking selected row clears selection
 - detail section hides instead of showing a visible no-selection panel
-- current inline viz tabs match legacy set where applicable
+- current inline viz tab set matches legacy exactly
+- fullscreen toggle and `Escape` collapse behavior
+- tech-tree filter / highlighted-player reset behavior
 
 - [ ] **Step 2: Run vault tests**
 
@@ -127,7 +131,9 @@ Expected: FAIL on collapse/hidden-detail parity assertions.
 Implement:
 - row re-click collapse semantics
 - hidden detail behavior when nothing selected
-- inline viz tab parity progress without large state rewrites
+- exact inline viz tab parity
+- fullscreen toggle parity
+- tech-tree filter and highlight reset parity
 
 - [ ] **Step 4: Re-run vault tests**
 
@@ -155,6 +161,11 @@ Add tests for:
 - analyzer loads games even without current user filter
 - status panel keeps prior state until new fetch resolves when that matches legacy
 - tab set parity (`match-flow`, `economy`, `apm`, `production`, `tech`, `combat`)
+- selected-player clear/reset semantics
+- APM hide/show toggle semantics
+- match-flow marker/table click semantics
+- player panel parity
+- text-first async copy parity
 
 - [ ] **Step 2: Run analyzer tests**
 
@@ -168,6 +179,11 @@ Implement:
 - legacy tab naming/set parity
 - status refresh semantics
 - timeline synthesis parity where currently simplified
+- selected-player clear/reset semantics
+- APM hide/show toggle semantics
+- match-flow click semantics
+- player panel parity
+- legacy async copy parity
 
 - [ ] **Step 4: Re-run analyzer tests**
 
@@ -195,6 +211,8 @@ Add tests for:
 - race composition `games` / `team_a_win_rate` toggle
 - arrow indicator semantics
 - current user row highlight semantics
+- rankings empty/error copy parity
+- race composition empty/error copy parity
 
 - [ ] **Step 2: Run rankings tests**
 
@@ -208,6 +226,7 @@ Implement:
 - arrow indicators
 - tie-break rules
 - tab behavior parity
+- rankings and race composition empty/error copy parity
 
 - [ ] **Step 4: Re-run rankings tests**
 
@@ -221,10 +240,55 @@ git add frontend/app-next/components/rankings/rankings-page.tsx frontend/app-nex
 git commit -m "feat: align rankings client-side parity"
 ```
 
-## Task 6: Apply Safe-Now Refactors During Parity Work
+## Task 6: Cross-Page Parity Closure
 
 **Files:**
+- Modify: `/Users/seongwoo/StarProjects/stareplays/frontend/app-next/app/*.tsx`
 - Modify: `/Users/seongwoo/StarProjects/stareplays/frontend/app-next/components/**/*`
+- Modify: `/Users/seongwoo/StarProjects/stareplays/frontend/app-next/lib/utils/current-user-session.ts`
+- Modify: `/Users/seongwoo/StarProjects/stareplays/frontend/app-next/tests/*.test.tsx`
+- Test: affected page and integration-adjacent tests
+
+- [ ] **Step 1: Write failing tests for cross-page parity rules**
+
+Add tests for:
+- current user propagation semantics
+- `gameId` deep-link restoration
+- manual-refresh-only behavior
+- reset semantics that span page boundaries
+
+- [ ] **Step 2: Run targeted parity tests**
+
+Run: `npm test -- tests/dashboard-page.test.tsx tests/vault-page.test.tsx tests/analyzer-page.test.tsx tests/rankings-page.test.tsx`
+Expected: FAIL on at least one cross-page parity assertion.
+
+- [ ] **Step 3: Implement minimal cross-page parity fixes**
+
+Implement:
+- current user propagation alignment
+- selected game deep-link restoration alignment
+- reset semantics alignment
+- no-polling manual refresh alignment
+
+- [ ] **Step 4: Re-run targeted tests**
+
+Run: `npm test -- tests/dashboard-page.test.tsx tests/vault-page.test.tsx tests/analyzer-page.test.tsx tests/rankings-page.test.tsx`
+Expected: PASS
+
+- [ ] **Step 5: Commit cross-page parity chunk**
+
+```bash
+git add frontend/app-next/app frontend/app-next/components frontend/app-next/lib/utils/current-user-session.ts frontend/app-next/tests
+git commit -m "feat: align cross-page legacy parity"
+```
+
+## Task 7: Apply Safe-Now Refactors During Parity Work
+
+**Files:**
+- Modify: `/Users/seongwoo/StarProjects/stareplays/frontend/app-next/components/dashboard/**/*`
+- Modify: `/Users/seongwoo/StarProjects/stareplays/frontend/app-next/components/vault/**/*`
+- Modify: `/Users/seongwoo/StarProjects/stareplays/frontend/app-next/components/analyzer/**/*`
+- Modify: `/Users/seongwoo/StarProjects/stareplays/frontend/app-next/components/rankings/**/*`
 - Create: `/Users/seongwoo/StarProjects/stareplays/frontend/app-next/lib/constants/*`
 - Test: affected page tests
 
@@ -247,6 +311,8 @@ Do only:
 Avoid:
 - changing state ownership
 - changing reset semantics
+- introducing new cross-page behavior changes
+- expanding beyond page-local presentation extraction
 
 - [ ] **Step 3: Run page-level tests after each extraction**
 
@@ -260,7 +326,7 @@ git add frontend/app-next/components frontend/app-next/lib/constants
 git commit -m "refactor: extract safe shared frontend primitives"
 ```
 
-## Task 7: Full Verification and Gap Review
+## Task 8: Full Verification and Gap Review
 
 **Files:**
 - Modify: `/Users/seongwoo/StarProjects/stareplays/docs/frontend-next-architecture.md`
@@ -296,7 +362,7 @@ git add docs/frontend-next-architecture.md README.md
 git commit -m "docs: record legacy parity implementation status"
 ```
 
-## Task 8: Browser Validation Pass
+## Task 9: Browser Validation Pass
 
 **Files:**
 - Modify: as needed from findings
@@ -331,4 +397,3 @@ Run targeted tests for only the touched page before re-running full verification
 git add frontend/app-next docs
 git commit -m "feat: complete legacy frontend behavior parity"
 ```
-
