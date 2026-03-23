@@ -14,11 +14,12 @@ import type { AnalyzerApmPoint, AnalyzerGameInsight, AnalyzerPageModel, SeriesPo
 import type { VaultGame, VaultPlayer } from "@/types/vault";
 
 const ANALYZER_TABS: AnalyzerPageModel["tabs"] = [
-  { id: "match_flow", label: "Match Flow" },
+  { id: "match-flow", label: "Match Flow" },
+  { id: "economy", label: "Economy" },
   { id: "apm", label: "APM" },
-  { id: "resource", label: "Resource Spend" },
-  { id: "unit_prod", label: "Unit Production" },
-  { id: "tech", label: "Tech / Upgrade" }
+  { id: "production", label: "Production" },
+  { id: "tech", label: "Tech" },
+  { id: "combat", label: "Combat" }
 ];
 
 function toNumber(value: unknown, fallback = 0): number {

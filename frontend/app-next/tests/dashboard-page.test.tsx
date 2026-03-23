@@ -22,6 +22,7 @@ describe("dashboard page", () => {
     globalThis.__TEST_ROUTER__.replace.mockReset();
     globalThis.__TEST_ROUTER__.refresh.mockReset();
     document.cookie = "current_user=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
+    window.localStorage.clear();
   });
 
   it("starts with the legacy no-preview terminal state", () => {
@@ -29,6 +30,31 @@ describe("dashboard page", () => {
 
     expect(screen.getByText("NO_PREVIEW")).toBeInTheDocument();
     expect(screen.getByText("READY")).toBeInTheDocument();
+  });
+
+  it("restores the legacy current user from localStorage on mount", async () => {
+    window.localStorage.setItem("stareplays_current_user", "legacy_saved_user");
+
+    render(
+      <DashboardPage
+        model={{
+          ...DASHBOARD_FIXTURE,
+          currentUser: "",
+          playerStats: {
+            ...DASHBOARD_FIXTURE.playerStats,
+            name: ""
+          }
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/^CURRENT_USER:$/i).nextElementSibling).toHaveTextContent("legacy_saved_user");
+    });
+
+    expect(screen.getByLabelText(/플레이어 이름 입력/i)).toHaveValue("legacy_saved_user");
+    expect(globalThis.__TEST_ROUTER__.replace).toHaveBeenCalledWith("/?currentUser=legacy_saved_user");
+    expect(globalThis.__TEST_ROUTER__.refresh).toHaveBeenCalled();
   });
 
   it("renders the figma dashboard upload and stats workspace", async () => {
@@ -51,17 +77,16 @@ describe("dashboard page", () => {
     expect(screen.getByText(/^HOW TO USE$/i).parentElement).toHaveStyle({
       border: "1px solid rgba(34,211,238,0.1)"
     });
-    const winRateStatLabel = screen
-      .getAllByText(/^Win Rate$/i)
-      .find((element) => element.tagName === "SPAN");
+    const winRateStatValue = screen.getByText(`${DASHBOARD_FIXTURE.playerStats.winRate.toFixed(1)}%`, {
+      selector: "span"
+    });
+    const winRateStatLabel = winRateStatValue.previousElementSibling;
 
     expect(winRateStatLabel?.parentElement).toHaveStyle({
       backgroundColor: "#0a1428",
       border: "1px solid rgba(255,255,255,0.06)"
     });
-    expect(winRateStatLabel?.nextElementSibling).toHaveStyle({
-      color: "#22d3ee"
-    });
+    expect(winRateStatValue).toHaveStyle({ color: "#22d3ee" });
     expect(container.querySelector('label[for="replay-file"]')).toHaveStyle({
       border: "2px dashed rgba(255,255,255,0.1)",
       backgroundColor: "rgba(255,255,255,0.02)"
@@ -141,9 +166,9 @@ describe("dashboard page", () => {
 
     expect(await screen.findByText(/ANALYZE_OK: 1\/1 files/i)).toBeInTheDocument();
     expect(screen.getByText(/Analysis Completed/i)).toBeInTheDocument();
-    expect(screen.getByText(/common players: 3x3_GG/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/common players: 3x3_GG/i)).not.toHaveLength(0);
     expect(screen.getAllByText("ladder.rep")).not.toHaveLength(0);
-    expect(screen.getByText("Polypoid")).toBeInTheDocument();
+    expect(screen.getByText(/OK ladder\.rep - map: Polypoid/i)).toBeInTheDocument();
     expect(screen.getAllByText(/3x3_GG, 3x3_mh, 3x3_smwoo/i)).not.toHaveLength(0);
   });
 
@@ -233,7 +258,7 @@ describe("dashboard page", () => {
       fireEvent.click(screen.getByRole("button", { name: /analyze_replay/i }));
     });
 
-    expect(screen.getByText(/common players: 3x3_GG/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/common players: 3x3_GG/i)).not.toHaveLength(0);
     expect(screen.getByRole("button", { name: /upload_with_selected_user/i })).toBeEnabled();
 
     fireEvent.change(document.querySelector("#replay-file") as HTMLInputElement, {
@@ -247,8 +272,8 @@ describe("dashboard page", () => {
     });
 
     expect(await screen.findByText(/ANALYZE_FAIL: broken preview/i)).toBeInTheDocument();
-    expect(screen.getByText(/common players: 3x3_GG/i)).toBeInTheDocument();
-    expect(screen.getByText("first.rep")).toBeInTheDocument();
+    expect(screen.getAllByText(/common players: 3x3_GG/i)).not.toHaveLength(0);
+    expect(screen.getByText(/OK first\.rep - map: Circuit Breaker/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /upload_with_selected_user/i })).toBeEnabled();
   });
 
@@ -301,7 +326,7 @@ describe("dashboard page", () => {
       expect.any(Object)
     );
     expect(await screen.findByText(/analysis completed/i)).toBeInTheDocument();
-    expect(screen.getByText(/common players/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/common players/i)).not.toHaveLength(0);
     expect(screen.getByRole("option", { name: "3x3_GG" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /upload_with_selected_user/i })).toBeEnabled();
   });

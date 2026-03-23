@@ -7,9 +7,15 @@ type AnalyzerLoaderOptions = LoaderOptions & {
 };
 
 export async function loadAnalyzerPageModel(options: AnalyzerLoaderOptions = {}) {
-  const currentUser = resolveCurrentUser(options.currentUser, options.currentUserCookie);
+  const currentUser =
+    options.currentUser !== undefined
+      ? options.currentUser.trim()
+      : options.currentUserCookie !== undefined
+        ? resolveCurrentUser(undefined, options.currentUserCookie)
+        : "";
+  const userQuery = currentUser ? `&user_name=${encodeURIComponent(currentUser)}` : "";
   const gamesResponse = await tryFetchApiJson<ApiGamesListResponse>(
-    `/api/v1/games?limit=12&offset=0&user_name=${encodeURIComponent(currentUser)}`,
+    `/api/v1/games?limit=12&offset=0${userQuery}`,
     options
   );
 

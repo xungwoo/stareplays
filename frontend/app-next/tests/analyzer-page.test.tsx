@@ -2,10 +2,10 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { vi } from "vitest";
 
-import AnalyzerPage from "@/app/analyzer/page";
 import { AnalyzerPage as AnalyzerPageComponent } from "@/components/analyzer/analyzer-page";
 import { reanalyzeAnalyzerGame } from "@/lib/api/actions";
 import { getAnalyzerPageModel } from "@/lib/adapters/analyzer";
+import { loadAnalyzerPageModel } from "@/lib/loaders/analyzer";
 import type { AnalyzerPageModel } from "@/types/analyzer";
 
 vi.mock("@/lib/api/actions", () => ({
@@ -14,13 +14,35 @@ vi.mock("@/lib/api/actions", () => ({
 
 const reanalyzeAnalyzerGameMock = vi.mocked(reanalyzeAnalyzerGame);
 
+function createJsonResponse(data: unknown, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      "content-type": "application/json"
+    }
+  });
+}
+
 describe("analyzer page", () => {
   beforeEach(() => {
     reanalyzeAnalyzerGameMock.mockReset();
+    vi.stubGlobal(
+      "ResizeObserver",
+      class ResizeObserver {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      }
+    );
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   it("renders the figma analyzer workspace and switches timeline tabs", async () => {
-    const { container } = render(await AnalyzerPage({}));
+    const { container } = render(<AnalyzerPageComponent model={getAnalyzerPageModel(48)} />);
     const user = userEvent.setup();
 
     expect(screen.getByText(/한 게임의 흐름과 플레이어별 분석을 함께 보는 상세 분석 화면/i)).toBeInTheDocument();
@@ -28,9 +50,9 @@ describe("analyzer page", () => {
     expect(screen.getByText(/^GAME SELECTOR$/i)).toBeInTheDocument();
     expect(screen.getByText(/^TIMELINE WORKSPACE$/i)).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /^resource spend$/i }));
+    await user.click(screen.getByRole("button", { name: /^economy$/i }));
     expect(screen.getByText(/replay_analyzer_status/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^tech \/ upgrade$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^tech$/i })).toBeInTheDocument();
 
     const apmTab = screen.getByRole("button", { name: /^apm$/i });
     await user.click(apmTab);
@@ -73,6 +95,263 @@ describe("analyzer page", () => {
     expect(screen.getByText(/^MAP:$/i).parentElement?.parentElement).toHaveStyle({
       backgroundColor: "rgba(255,255,255,0.06)"
     });
+  });
+
+  it("omits the current-user filter when the analyzer loader receives an explicit empty user", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+
+      if (url.includes("/games?")) {
+        expect(url).not.toContain("user_name=");
+        return createJsonResponse({
+          total: 1,
+          games: [
+            {
+              id: 48,
+              map_name: "Legacy Ridge",
+              winner_team: 1,
+              game_length: 835,
+              start_time: "2026-03-22T00:05:48Z",
+              edges: {
+                players: [
+                  { name: "alpha", race: "P", team: 1, apm: 148, eapm: 126, cmd_count: 2050, effective_cmd_count: 1746, redundancy: 15 },
+                  { name: "beta", race: "Z", team: 2, apm: 171, eapm: 161, cmd_count: 2354, effective_cmd_count: 2216, redundancy: 6 }
+                ]
+              }
+            }
+          ],
+          analysis_statuses: { 48: "succeeded" }
+        });
+      }
+
+      if (url.includes("/games/48/detail")) {
+        return createJsonResponse({ detail: {}, tech_tree: {}, resource_spend: {}, unit_production: {} });
+      }
+
+      if (url.includes("/games/48/analyzer")) {
+        return createJsonResponse({ status: "succeeded", result: { summary: { teams: [], players: [] }, analysis_phase: {}, match_flow: {}, player_timeseries: { players: [] } } });
+      }
+
+      throw new Error(`Unexpected url: ${url}`);
+    });
+
+    const model = await loadAnalyzerPageModel({
+      fetchImpl: fetchMock,
+      apiBaseUrl: "http://127.0.0.1:3000",
+      currentUser: ""
+    });
+
+    expect(model.currentUser).toBe("");
+    expect(fetchMock).toHaveBeenCalled();
+    expect(String(fetchMock.mock.calls[0]?.[0])).not.toContain("user_name=");
+  });
+
+  it("loads analyzer games without a user filter when both query and cookie are absent", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+
+      if (url.includes("/games?")) {
+        expect(url).not.toContain("user_name=");
+        return createJsonResponse({
+          total: 1,
+          games: [
+            {
+              id: 48,
+              map_name: "Legacy Ridge",
+              winner_team: 1,
+              game_length: 835,
+              start_time: "2026-03-22T00:05:48Z",
+              edges: {
+                players: [
+                  { name: "alpha", race: "P", team: 1, apm: 148, eapm: 126, cmd_count: 2050, effective_cmd_count: 1746, redundancy: 15 },
+                  { name: "beta", race: "Z", team: 2, apm: 171, eapm: 161, cmd_count: 2354, effective_cmd_count: 2216, redundancy: 6 }
+                ]
+              }
+            }
+          ],
+          analysis_statuses: { 48: "succeeded" }
+        });
+      }
+
+      if (url.includes("/games/48/detail")) {
+        return createJsonResponse({ detail: {}, tech_tree: {}, resource_spend: {}, unit_production: {} });
+      }
+
+      if (url.includes("/games/48/analyzer")) {
+        return createJsonResponse({ status: "succeeded", result: { summary: { teams: [], players: [] }, analysis_phase: {}, match_flow: {}, player_timeseries: { players: [] } } });
+      }
+
+      throw new Error(`Unexpected url: ${url}`);
+    });
+
+    const model = await loadAnalyzerPageModel({
+      fetchImpl: fetchMock,
+      apiBaseUrl: "http://127.0.0.1:3000"
+    });
+
+    expect(String(fetchMock.mock.calls[0]?.[0])).not.toContain("user_name=");
+    expect(model.games).toHaveLength(1);
+  });
+
+  it("renders the legacy analyzer tab set instead of the figma-only tab labels", () => {
+    render(<AnalyzerPageComponent model={getAnalyzerPageModel(48)} />);
+
+    expect(screen.getByRole("button", { name: /^match flow$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^economy$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^apm$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^production$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^tech$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^combat$/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^resource spend$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^unit production$/i })).not.toBeInTheDocument();
+  });
+
+  it("uses text-first status refresh copy while preserving the last rendered analyzer status", async () => {
+    let resolveFetch: ((value: Response) => void) | undefined;
+    const fetchMock = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolveFetch = resolve;
+        })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<AnalyzerPageComponent model={getAnalyzerPageModel(48)} />);
+    const user = userEvent.setup();
+
+    expect(screen.getAllByText((_, element) => element?.textContent?.includes("REPLAY_ANALYZER_STATUS: DONE") ?? false).at(-1)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /refresh analyzer status/i }));
+
+    expect(screen.getAllByText((_, element) => element?.textContent?.includes("REPLAY_ANALYZER_STATUS: DONE") ?? false).at(-1)).toBeInTheDocument();
+    expect(screen.getByText(/REFRESHING_ANALYZER_STATUS\.\.\./i)).toBeInTheDocument();
+
+    resolveFetch?.(createJsonResponse({ status: "running" }));
+
+    await waitFor(() => expect(screen.queryByText(/REFRESHING_ANALYZER_STATUS\.\.\./i)).not.toBeInTheDocument());
+    expect(screen.getAllByText((_, element) => element?.textContent?.includes("REPLAY_ANALYZER_STATUS: RUNNING") ?? false).at(-1)).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/games/48/analyzer", expect.any(Object));
+  });
+
+  it("only refreshes analyzer status when the user explicitly clicks refresh", async () => {
+    const setIntervalSpy = vi.spyOn(window, "setInterval");
+    const fetchMock = vi.fn(async () => createJsonResponse({ status: "running" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<AnalyzerPageComponent model={getAnalyzerPageModel(48)} />);
+    expect(setIntervalSpy).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: /refresh analyzer status/i }));
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/games/48/analyzer", expect.any(Object));
+  });
+
+  it("uses the legacy selector page size of 10 games", async () => {
+    const base = getAnalyzerPageModel(48);
+    const games = Array.from({ length: 11 }, (_, index) => ({
+      ...base.games[0],
+      id: 100 + index,
+      map: `Map ${index + 1}`,
+      startTime: `2026-03-${String((index % 9) + 10).padStart(2, "0")} 10:00`
+    }));
+    const model: AnalyzerPageModel = {
+      ...base,
+      games,
+      selectedGame: games[0],
+      insightsByGameId: Object.fromEntries(games.map((game) => [game.id, base.insightsByGameId[48]]))
+    };
+
+    render(<AnalyzerPageComponent model={model} />);
+    const user = userEvent.setup();
+
+    expect(screen.getByText(/^#100$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^#109$/i)).toBeInTheDocument();
+    expect(screen.queryByText(/^#110$/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^Next$/i }));
+    expect(screen.getByText(/^#110$/i)).toBeInTheDocument();
+  });
+
+  it("lets match-flow marker clicks focus and clear the shared selected-player state", async () => {
+    render(<AnalyzerPageComponent model={getAnalyzerPageModel(48)} />);
+    const user = userEvent.setup();
+
+    const timelineEvent = screen.getByRole("button", { name: /Cybernetics Core/i });
+    await user.click(timelineEvent);
+
+    const deepDive = screen.getByText(/^PLAYER DEEP DIVE$/i).parentElement as HTMLElement;
+    expect(within(deepDive).getByRole("button", { name: /3x3_gg/i })).toBeInTheDocument();
+    expect(within(deepDive).getByText(/^PLAYER READ$/i)).toBeInTheDocument();
+
+    await user.click(timelineEvent);
+
+    expect(within(deepDive).getByText(/^All Players$/i, { selector: "p" })).toBeInTheDocument();
+    expect(within(deepDive).getByText(/Click any player id in the 3x3 board, timeline, or tables to focus that player/i)).toBeInTheDocument();
+  });
+
+  it("matches the legacy apm hide-show toggle semantics", async () => {
+    render(<AnalyzerPageComponent model={getAnalyzerPageModel(48)} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: /^apm$/i }));
+
+    const hidePlayerButton = screen.getByRole("button", { name: /^hide 3x3_gg$/i });
+    await user.click(hidePlayerButton);
+    expect(screen.getByRole("button", { name: /^show 3x3_gg$/i })).toBeInTheDocument();
+
+    const deepDive = screen.getByText(/^PLAYER DEEP DIVE$/i).parentElement as HTMLElement;
+    await user.click(within(deepDive).getByRole("button", { name: /3x3_gg/i }));
+    expect(within(deepDive).getByText(/^PLAYER READ$/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^show 3x3_gg$/i }));
+    expect(within(deepDive).getByText(/^All Players$/i, { selector: "p" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^hide 3x3_gg$/i })).toBeInTheDocument();
+  });
+
+  it("resets the match-flow timeline pager when a different game is selected", async () => {
+    const base = getAnalyzerPageModel(48);
+    const longTimeline = Array.from({ length: 25 }, (_, index) => ({
+      time: `${String(index).padStart(2, "0")}:00`,
+      event: `Marker ${index + 1}`,
+      player: "3x3_GG",
+      type: "BUILDING" as const,
+      team: "WINNER" as const
+    }));
+    const model: AnalyzerPageModel = {
+      ...base,
+      games: base.games.slice(0, 2),
+      selectedGame: base.games[0],
+      timeline: longTimeline,
+      insightsByGameId: {
+        [base.games[0].id]: { ...base.insightsByGameId[base.games[0].id], timeline: longTimeline },
+        [base.games[1].id]: { ...base.insightsByGameId[base.games[1].id], timeline: longTimeline }
+      }
+    };
+
+    render(<AnalyzerPageComponent model={model} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getAllByRole("button", { name: "" })[1]);
+    expect(screen.getByText(/13-24 \/ 25/i)).toBeInTheDocument();
+
+    await user.click(screen.getByText(/^#47$/i));
+    expect(screen.getByText(/1-12 \/ 25/i)).toBeInTheDocument();
+  });
+
+  it("renders spend, production, tech, and apm summaries in the focused player panel", async () => {
+    render(<AnalyzerPageComponent model={getAnalyzerPageModel(48)} />);
+    const user = userEvent.setup();
+    const deepDive = screen.getByText(/^PLAYER DEEP DIVE$/i).parentElement as HTMLElement;
+
+    await user.click(within(deepDive).getByRole("button", { name: /3x3_gg/i }));
+
+    expect(within(deepDive).getByText(/^APM$/i)).toBeInTheDocument();
+    expect(within(deepDive).getByText(/^PRODUCTION$/i)).toBeInTheDocument();
+    expect(within(deepDive).getByText(/^SPEND$/i)).toBeInTheDocument();
+    expect(within(deepDive).getByText(/^TECH$/i)).toBeInTheDocument();
   });
 
   it("lets the user manually reanalyze the selected game and shows status feedback", async () => {
@@ -133,7 +412,7 @@ describe("analyzer page", () => {
   });
 
   it("keeps the focused player selection when switching games, matching the source behavior", async () => {
-    render(await AnalyzerPage({}));
+    render(<AnalyzerPageComponent model={getAnalyzerPageModel(48)} />);
     const user = userEvent.setup();
     const deepDive = screen.getByText(/^PLAYER DEEP DIVE$/i).parentElement as HTMLElement;
 

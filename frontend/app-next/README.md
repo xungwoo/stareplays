@@ -8,6 +8,7 @@ Next.js App Router frontend for StaReplays. The existing Fiber backend stays in 
 - Server route files load API-backed page models first, then pass stable props into interactive client components
 - The app is now API-first. Fixtures are used only when the backend is unavailable or a required read path fails
 - Current user state is shared across routes through a cookie, with query params preserved where deep-linking matters
+- Legacy `frontend/web` behavior parity is restored for the critical Dashboard, Vault, Analyzer, and Rankings workflows
 
 ## Implemented API Flows
 
@@ -26,9 +27,13 @@ Next.js App Router frontend for StaReplays. The existing Fiber backend stays in 
 
 ## UX Rules
 
+- legacy `frontend/web` behavior parity is the current priority baseline
+- Dashboard restores `currentUser` from `localStorage` and syncs it back to cookie + query on successful actions
 - `Vault -> Analyzer` keeps the selected game through `gameId`
 - manual refresh is supported
 - polling is intentionally not used
+- `Refresh analyzer status` only runs when the user explicitly clicks it
+- `Vault` and `Analyzer` use the legacy 3x3 start-position board as the primary team visualization
 - fixture fallback is an outage fallback, not the normal render mode
 
 ## Scripts
@@ -59,3 +64,17 @@ Next.js App Router frontend for StaReplays. The existing Fiber backend stays in 
 - `lib/api/*` - shared fetch and write-action helpers
 - `lib/adapters/*` - raw Fiber response to UI page-model conversion
 - `types/*` - raw API and page-model types
+- `lib/constants/*` - safe-now shared visual constants extracted without changing behavior
+
+## Verification
+
+- `npm test`
+- `npm run typecheck`
+- `npm run build`
+
+Parity-sensitive checks cover:
+
+- Dashboard preview, upload, current-user query flow
+- Vault row select, re-click collapse, detail, analyzer deep-link
+- Analyzer tab switching, manual refresh, reanalyze, no-polling behavior
+- Rankings sort, tie-break, empty/error behavior

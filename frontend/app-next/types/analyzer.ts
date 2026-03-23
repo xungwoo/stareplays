@@ -45,7 +45,7 @@ export interface AnalyzerPageModel {
   selectedGame: VaultGame;
   players: VaultPlayer[];
   tabs: Array<{
-    id: "match_flow" | "apm" | "resource" | "unit_prod" | "tech";
+    id: string;
     label: string;
   }>;
   timeline: TimelineEvent[];

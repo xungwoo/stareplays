@@ -90,6 +90,20 @@ export interface ApiGamesListResponse {
   analysis_statuses?: Record<string, string>;
 }
 
+export interface ApiGetGameResponse {
+  reliability?: string;
+  reliability_m_of_n?: string;
+  game?: {
+    id?: number;
+    edges?: {
+      replay_files?: Array<{
+        id?: number;
+        filename?: string;
+      }>;
+    };
+  };
+}
+
 export interface ApiApmTimelinePoint {
   frame?: number;
   apm?: number;
@@ -160,6 +174,10 @@ export interface ApiUnitProductionResponse {
 }
 
 export interface ApiGameDetailResponse {
+  analysis_status?: {
+    status?: string;
+    user_message?: string;
+  };
   detail?: {
     apm_timeline?: ApiApmTimelineRow[];
   };

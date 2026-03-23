@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { type ChangeEvent, useRef, useState } from "react";
+import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { CheckCircle, ChevronDown, LoaderCircle, Upload } from "lucide-react";
 
@@ -10,6 +10,7 @@ import { LoadingState } from "@/components/shared/loading-state";
 import { RaceBadge } from "@/components/shared/race-badge";
 import { CURRENT_USER_CHANGE_EVENT } from "@/components/shell/current-user-chip";
 import { previewReplayUpload, submitReplayUpload } from "@/lib/api/actions";
+import { CYAN_PANEL_STYLE, INNER_PANEL_STRONG_STYLE, INNER_PANEL_STYLE } from "@/lib/constants/ui-styles";
 import { buildApiUrl } from "@/lib/api/url";
 import { buildCurrentUserSessionDocumentCookie } from "@/lib/utils/current-user-session";
 import { formatStartTime } from "@/lib/utils/format";
@@ -29,7 +30,7 @@ import type {
 } from "@/types/dashboard";
 
 const CARD = "rounded-xl p-5";
-const CARD_STYLE = { backgroundColor: "#0d1833", border: "1px solid rgba(34,211,238,0.1)" };
+const CARD_STYLE = CYAN_PANEL_STYLE;
 const SECTION_LABEL = "text-[10px] font-mono font-semibold tracking-widest text-slate-500 uppercase mb-3";
 
 function toNumber(value: unknown, fallback = 0): number {
@@ -134,6 +135,31 @@ function createPreviewSummary(result: ApiReplayPreviewResponse): DashboardPrevie
   };
 }
 
+function formatPreviewItemLine(item: DashboardPreviewSummary["items"][number]): string {
+  const base = item.ok ? `OK ${item.filename}` : `FAIL ${item.filename}`;
+
+  if (!item.ok) {
+    return `${base} - ${item.error ?? "parse failed"}`;
+  }
+
+  return `${base} - map: ${item.mapName} - start: ${formatStartTime(item.startTime)} - players(${item.playerCount}): ${
+    item.parsedPlayers.length ? item.parsedPlayers.join(", ") : "none"
+  }`;
+}
+
+function formatPreviewTerminal(summary: DashboardPreviewSummary | null, statusMessage: string): string {
+  if (!summary) {
+    return statusMessage;
+  }
+
+  return [
+    statusMessage,
+    `files: ${summary.totalFiles}, success: ${summary.successCount}, fail: ${summary.failedCount}`,
+    `common players: ${summary.commonPlayers.length ? summary.commonPlayers.join(", ") : "none"}`,
+    ...summary.items.map((item) => formatPreviewItemLine(item))
+  ].join("\n");
+}
+
 function extractUploadedGame(result: ApiReplayUploadResponse): { id: number | null; mapName: string | null } {
   if (result.game?.id) {
     return {
@@ -197,7 +223,7 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub?: s
   return (
     <div
       className="rounded-lg p-3 flex flex-col gap-1"
-      style={{ backgroundColor: "#0a1428", border: "1px solid rgba(255,255,255,0.06)" }}
+      style={INNER_PANEL_STRONG_STYLE}
     >
       <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">{label}</span>
       <span className="text-lg font-bold font-mono" style={{ color: "#22d3ee" }}>
@@ -278,6 +304,13 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
   function persistCurrentUser(nextUser: string, options?: { refresh?: boolean }) {
     const normalized = nextUser.trim();
     setCurrentUser(normalized);
+    if (typeof window !== "undefined") {
+      if (normalized) {
+        window.localStorage.setItem("stareplays_current_user", normalized);
+      } else {
+        window.localStorage.removeItem("stareplays_current_user");
+      }
+    }
     if (typeof document !== "undefined" && normalized) {
       document.cookie = buildCurrentUserSessionDocumentCookie(normalized);
     }
@@ -291,6 +324,21 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
       }
     }
   }
+
+  useEffect(() => {
+    if (currentUser.trim() || typeof window === "undefined") {
+      return;
+    }
+
+    const restoredUser = String(window.localStorage.getItem("stareplays_current_user") || "").trim();
+    if (!restoredUser) {
+      return;
+    }
+
+    setQueryName(restoredUser);
+    setSelectedPlayer(restoredUser);
+    persistCurrentUser(restoredUser, { refresh: true });
+  }, [currentUser]);
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const nextFiles = Array.from(event.target.files ?? []);
@@ -444,6 +492,8 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
 
     setQueryState("submitting");
     setQueryError(null);
+    persistCurrentUser(normalized, { refresh: true });
+    setSelectedPlayer(normalized);
 
     try {
       const result = await fetchBrowserApiJson<ApiPlayerStatsResponse>(
@@ -451,8 +501,6 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
       );
       setPlayerStats(createPlayerStatsModel(result, model.playerStats, normalized));
       setQueryState("success");
-      persistCurrentUser(normalized, { refresh: true });
-      setSelectedPlayer(normalized);
     } catch (error) {
       setQueryState("error");
       setQueryError(error instanceof Error ? error.message : "query failed");
@@ -541,7 +589,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
 
             <div
               className="mt-3 rounded-lg px-4 py-3"
-              style={{ backgroundColor: "#0a1428", border: "1px solid rgba(255,255,255,0.05)" }}
+              style={INNER_PANEL_STYLE}
             >
               {previewSummary ? (
                 <div className="space-y-2 text-[11px] font-mono text-slate-300">
@@ -594,9 +642,9 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
 
             <pre
               className="mt-3 overflow-auto rounded-lg px-4 py-3 text-[11px] font-mono whitespace-pre-wrap"
-              style={{ backgroundColor: "#0a1428", border: "1px solid rgba(255,255,255,0.05)" }}
+              style={INNER_PANEL_STYLE}
             >
-              <span>{uploadStatusMessage}</span>
+              <span>{formatPreviewTerminal(previewSummary, uploadStatusMessage)}</span>
             </pre>
 
             {previewSummary ? (
@@ -762,7 +810,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
                       <span className="text-emerald-400">WIN {playerStats.wins}</span>
                       <span className="text-red-400">LOSS {playerStats.losses}</span>
                     </div>
-                    <div className="h-3 overflow-hidden rounded-full" style={{ backgroundColor: "#0a1428" }}>
+                    <div className="h-3 overflow-hidden rounded-full" style={{ backgroundColor: INNER_PANEL_STYLE.backgroundColor }}>
                       <div
                         className="h-full rounded-full transition-all duration-700"
                         style={{ width: `${playerStats.winRate}%`, background: "linear-gradient(90deg, #10b981, #22d3ee)" }}

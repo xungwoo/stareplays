@@ -6,6 +6,7 @@ StarCraft: Brood War replay 파싱/저장 API 서버입니다.
 
 - 현재 시스템 구조: `docs/architecture.md`
 - 현재 기능 명세: `docs/spec.md`
+- Next 프런트 현재 구조/legacy parity 상태: `docs/frontend-next-architecture.md`
 - 완료된 작업 기록/검증 runbook: `docs/histories/`
 - 상세 API 예시(보조 문서): `API_USAGE.md`
 
@@ -19,6 +20,14 @@ StarCraft: Brood War replay 파싱/저장 API 서버입니다.
 - replay analyzer는 `same game_id + same file_hash + same analyzer_version`이면 중복 큐잉하지 않고, analyzer 버전이 달라질 때만 재큐잉
 - `REPLAY_ANALYZER_VERSION`는 `game_analyses.analyzer_version`과 재큐잉 판단 기준입니다.
 - 현재 worker는 이 값을 `replay_analyzer -analyzer-version`으로 전달하지 않으므로, analyzer 산출물 `metadata.json.analyzer_version`은 별도 값(기본 `dev`)일 수 있습니다.
+
+## 프런트 상태
+
+- legacy `frontend/web` 동작을 기준으로 한 Next App Router 프런트는 `frontend/app-next`에 있습니다.
+- 현재 `Dashboard / Vault / Analyzer / Rankings`의 주요 legacy behavior parity가 복원된 상태입니다.
+- `currentUser`는 query 우선, cookie 보조, Dashboard의 `localStorage` 복원을 함께 사용합니다.
+- analyzer status는 polling 없이 수동 refresh 기준입니다.
+- `Vault -> Analyzer`는 `gameId` deep-link를 유지합니다.
 
 ## 신뢰도 모델
 
