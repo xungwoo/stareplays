@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { type ChangeEvent, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { CheckCircle, ChevronDown, LoaderCircle, Upload } from "lucide-react";
 
 import { ErrorState } from "@/components/shared/error-state";
@@ -11,6 +12,7 @@ import { CURRENT_USER_CHANGE_EVENT } from "@/components/shell/current-user-chip"
 import { previewReplayUpload, submitReplayUpload } from "@/lib/api/actions";
 import { buildApiUrl } from "@/lib/api/url";
 import { buildCurrentUserSessionDocumentCookie } from "@/lib/utils/current-user-session";
+import { formatStartTime } from "@/lib/utils/format";
 import type {
   ApiPlayerRecord,
   ApiPlayerStatsResponse,
@@ -243,14 +245,18 @@ function DashboardStatsTable({
 }
 
 export function DashboardPage({ model }: { model: DashboardPageModel }) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [selectedPlayer, setSelectedPlayer] = useState(model.currentUser);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [pendingCommonPlayers, setPendingCommonPlayers] = useState<string[]>([]);
+  const [selectedPlayer, setSelectedPlayer] = useState("");
   const [currentUser, setCurrentUser] = useState(model.currentUser);
   const [previewState, setPreviewState] = useState<DashboardActionStatus>("idle");
   const [previewSummary, setPreviewSummary] = useState<DashboardPreviewSummary | null>(null);
-  const [previewError, setPreviewError] = useState<string | null>(null);
   const [uploadState, setUploadState] = useState<DashboardActionStatus>("idle");
-  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadStatusMessage, setUploadStatusMessage] = useState("READY");
+  const [uploadErrorMessage, setUploadErrorMessage] = useState<string | null>(null);
   const [uploadSummary, setUploadSummary] = useState<DashboardUploadSummary | null>(null);
   const [queryName, setQueryName] = useState(model.playerStats.name);
   const [queryState, setQueryState] = useState<DashboardActionStatus>("idle");
@@ -264,13 +270,12 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
 
   const selectedFile = selectedFiles[0] ?? null;
   const record = `${playerStats.wins}-${playerStats.losses}-${playerStats.draws}`;
-  const selectedPlayerIsCommon = previewSummary ? previewSummary.commonPlayers.some((player) => player.toLowerCase() === selectedPlayer.trim().toLowerCase()) : false;
-  const uploadReady = selectedFiles.length > 0 && previewState === "success" && selectedPlayerIsCommon;
-  const selectablePlayers = previewSummary?.commonPlayers.length
-    ? [...new Set([currentUser, ...previewSummary.commonPlayers].filter(Boolean))]
-    : model.uploadCandidates;
+  const selectablePlayers = previewSummary
+    ? previewSummary.commonPlayers
+    : [...new Set([selectedPlayer, ...model.uploadCandidates].filter(Boolean))];
+  const uploadReady = pendingFiles.length > 0;
 
-  function persistCurrentUser(nextUser: string) {
+  function persistCurrentUser(nextUser: string, options?: { refresh?: boolean }) {
     const normalized = nextUser.trim();
     setCurrentUser(normalized);
     if (typeof document !== "undefined" && normalized) {
@@ -279,17 +284,17 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
     if (typeof window !== "undefined" && normalized) {
       window.dispatchEvent(new CustomEvent(CURRENT_USER_CHANGE_EVENT, { detail: normalized }));
     }
+    if (normalized) {
+      router.replace(`${pathname || "/"}?currentUser=${encodeURIComponent(normalized)}`);
+      if (options?.refresh) {
+        router.refresh();
+      }
+    }
   }
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const nextFiles = Array.from(event.target.files ?? []);
     setSelectedFiles(nextFiles);
-    setPreviewState("idle");
-    setPreviewSummary(null);
-    setPreviewError(null);
-    setUploadState("idle");
-    setUploadError(null);
-    setUploadSummary(null);
   }
 
   function handlePlayerSelection(nextPlayer: string) {
@@ -305,48 +310,93 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
     }
 
     setPreviewState("submitting");
-    setPreviewError(null);
     setUploadState("idle");
-    setUploadError(null);
+    setUploadErrorMessage(null);
     setUploadSummary(null);
+    setUploadStatusMessage(`ANALYZING ${selectedFiles.length} FILE(S)...`);
 
     try {
       const result = (await previewReplayUpload(selectedFiles, { fetchImpl: fetch })) as ApiReplayPreviewResponse;
       const summary = createPreviewSummary(result);
       setPreviewSummary(summary);
       setPreviewState("success");
+      setPendingFiles(selectedFiles);
+      setPendingCommonPlayers(summary.commonPlayers);
+      setUploadStatusMessage(`ANALYZE_OK: ${summary.successCount}/${summary.totalFiles} files`);
 
-      const preferredPlayer =
-        summary.commonPlayers.find((player) => player.toLowerCase() === currentUser.trim().toLowerCase()) ??
-        summary.commonPlayers.find((player) => player.toLowerCase() === selectedPlayer.trim().toLowerCase()) ??
-        (summary.commonPlayers.length === 1 ? summary.commonPlayers[0] : "");
+      const normalizedCurrentUser = currentUser.trim().toLowerCase();
+      const matchedCurrentUser = normalizedCurrentUser
+        ? summary.commonPlayers.find((player) => player.trim().toLowerCase() === normalizedCurrentUser)
+        : null;
 
-      setSelectedPlayer(preferredPlayer);
-      if (preferredPlayer) {
+      if (matchedCurrentUser) {
+        setSelectedPlayer(matchedCurrentUser);
+      } else if (!currentUser.trim() && summary.commonPlayers.length === 1) {
+        const preferredPlayer = summary.commonPlayers[0];
+        setSelectedPlayer(preferredPlayer);
         persistCurrentUser(preferredPlayer);
+      } else {
+        setSelectedPlayer("");
       }
     } catch (error) {
+      const message = error instanceof Error ? error.message : "preview failed";
       setPreviewState("error");
-      setPreviewError(error instanceof Error ? error.message : "preview failed");
+      setUploadStatusMessage(`ANALYZE_FAIL: ${message}`);
     }
   }
 
   async function handleUpload() {
-    if (!uploadReady) {
+    const normalizedCurrentUser = currentUser.trim();
+
+    if (!normalizedCurrentUser) {
+      setUploadState("error");
+      setUploadErrorMessage("select user first (simple login)");
+      setUploadStatusMessage("UPLOAD_FAIL: select user first (simple login)");
+      return;
+    }
+
+    if (pendingFiles.length === 0) {
+      setUploadState("error");
+      setUploadErrorMessage("analyze replay first");
+      setUploadStatusMessage("UPLOAD_FAIL: analyze replay first");
+      return;
+    }
+
+    if (pendingCommonPlayers.length === 0) {
+      setUploadState("error");
+      setUploadErrorMessage("no common participant across analyzed files");
+      setUploadStatusMessage("UPLOAD_FAIL: no common participant across analyzed files");
+      return;
+    }
+
+    const isCurrentUserCommon = pendingCommonPlayers.some(
+      (player) => player.trim().toLowerCase() === normalizedCurrentUser.toLowerCase()
+    );
+
+    if (!isCurrentUserCommon) {
+      setUploadState("error");
+      setUploadErrorMessage(`'${normalizedCurrentUser}' is not a common participant in current analyzed files`);
+      setUploadStatusMessage(`UPLOAD_FAIL: '${normalizedCurrentUser}' is not a common participant in current analyzed files`);
       return;
     }
 
     setUploadState("submitting");
-    setUploadError(null);
+    setUploadErrorMessage(null);
+    setUploadSummary(null);
+    setUploadStatusMessage(`UPLOADING ${pendingFiles.length} FILE(S) AS ${normalizedCurrentUser}...`);
 
     try {
-      const result = (await submitReplayUpload(selectedFiles, selectedPlayer, { fetchImpl: fetch })) as ApiReplayUploadResponse;
-      setUploadSummary(createUploadSummary(result, selectedPlayer));
+      const result = (await submitReplayUpload(pendingFiles, normalizedCurrentUser, { fetchImpl: fetch })) as ApiReplayUploadResponse;
+      setUploadSummary(createUploadSummary(result, normalizedCurrentUser));
       setUploadState("success");
-      persistCurrentUser(selectedPlayer);
+      setUploadErrorMessage(null);
+      setUploadStatusMessage("UPLOAD_DONE: check terminal log");
+      persistCurrentUser(normalizedCurrentUser, { refresh: true });
     } catch (error) {
+      const message = error instanceof Error ? error.message : "upload failed";
       setUploadState("error");
-      setUploadError(error instanceof Error ? error.message : "upload failed");
+      setUploadErrorMessage(message);
+      setUploadStatusMessage(`UPLOAD_FAIL: ${message}`);
     }
   }
 
@@ -401,7 +451,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
       );
       setPlayerStats(createPlayerStatsModel(result, model.playerStats, normalized));
       setQueryState("success");
-      persistCurrentUser(normalized);
+      persistCurrentUser(normalized, { refresh: true });
       setSelectedPlayer(normalized);
     } catch (error) {
       setQueryState("error");
@@ -489,34 +539,65 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
               {previewState === "submitting" ? "ANALYZING..." : "ANALYZE_REPLAY"}
             </button>
 
-            {previewSummary ? (
-              <div
-                className="mt-3 rounded-lg px-4 py-3"
-                style={{ backgroundColor: "#0a1428", border: "1px solid rgba(255,255,255,0.05)" }}
-              >
-                <div className="flex items-center gap-2 text-xs font-mono text-emerald-300">
-                  <CheckCircle className="h-4 w-4 text-emerald-400" aria-hidden="true" />
-                  <span>ANALYSIS COMPLETED</span>
+            <div
+              className="mt-3 rounded-lg px-4 py-3"
+              style={{ backgroundColor: "#0a1428", border: "1px solid rgba(255,255,255,0.05)" }}
+            >
+              {previewSummary ? (
+                <div className="space-y-2 text-[11px] font-mono text-slate-300">
+                  <div className="flex items-center gap-2 text-xs font-mono text-emerald-300">
+                    <CheckCircle className="h-4 w-4 text-emerald-400" aria-hidden="true" />
+                    <span>Analysis Completed</span>
+                  </div>
+                  <p className="text-slate-500">
+                    files: {previewSummary.totalFiles}, success: {previewSummary.successCount}, fail: {previewSummary.failedCount}
+                  </p>
+                  <p className="text-slate-400">
+                    common players: {previewSummary.commonPlayers.length ? previewSummary.commonPlayers.join(", ") : "none"}
+                  </p>
+                  <div className="space-y-2">
+                    {previewSummary.items.map((item) => (
+                      <div key={`${item.filename}-${item.startTime}`} className={item.ok ? "space-y-1 text-slate-300" : "space-y-1 text-red-300"}>
+                        <div className="flex items-center gap-2">
+                          <span>{item.ok ? "OK" : "FAIL"}</span>
+                          <span>{item.filename}</span>
+                        </div>
+                        {item.ok ? (
+                          <>
+                            <p>
+                              map: <span>{item.mapName}</span>
+                            </p>
+                            <p>
+                              start: <span>{formatStartTime(item.startTime)}</span>
+                            </p>
+                            <p>
+                              players({item.playerCount}):{" "}
+                              <span>{item.parsedPlayers.length ? item.parsedPlayers.join(", ") : "none"}</span>
+                            </p>
+                          </>
+                        ) : (
+                          <p>
+                            reason: <span>{item.error ?? "parse failed"}</span>
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <p className="mt-2 text-[11px] font-mono text-slate-400">
-                  common players: {previewSummary.commonPlayers.length ? previewSummary.commonPlayers.join(", ") : "none"}
-                </p>
-              </div>
-            ) : (
-              <div
-                className="mt-3 rounded-lg px-4 py-3 flex items-center gap-2"
-                style={{ backgroundColor: "#0a1428", border: "1px solid rgba(255,255,255,0.05)" }}
-              >
-                {previewState === "idle" ? <span className="h-2 w-2 rounded-full bg-slate-600" aria-hidden="true" /> : null}
-                {previewState === "submitting" ? <LoaderCircle className="h-4 w-4 animate-spin text-yellow-400" aria-hidden="true" /> : null}
-                {previewState === "error" ? <span className="h-2 w-2 rounded-full bg-red-400" aria-hidden="true" /> : null}
-                <span className="text-xs font-mono text-slate-500">
-                  {previewState === "idle" ? "READY" : null}
-                  {previewState === "submitting" ? "ANALYZING REPLAY..." : null}
-                  {previewState === "error" ? `PREVIEW_FAIL: ${previewError}` : null}
-                </span>
-              </div>
-            )}
+              ) : (
+                <div className="flex items-center gap-2 text-xs font-mono text-slate-500">
+                  {previewState === "submitting" ? <LoaderCircle className="h-4 w-4 animate-spin text-yellow-400" aria-hidden="true" /> : null}
+                  <span>{previewState === "submitting" ? "ANALYZING REPLAY..." : "NO_PREVIEW"}</span>
+                </div>
+              )}
+            </div>
+
+            <pre
+              className="mt-3 overflow-auto rounded-lg px-4 py-3 text-[11px] font-mono whitespace-pre-wrap"
+              style={{ backgroundColor: "#0a1428", border: "1px solid rgba(255,255,255,0.05)" }}
+            >
+              <span>{uploadStatusMessage}</span>
+            </pre>
 
             {previewSummary ? (
               <button
@@ -534,13 +615,8 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
               </button>
             ) : null}
 
-            {uploadState === "error" ? (
-              <ErrorState
-                title="Upload Failed"
-                description={uploadError ?? "upload failed"}
-                className="mt-3 rounded-lg"
-                style={{ backgroundColor: "#0a1428", border: "1px solid rgba(239,68,68,0.18)" }}
-              />
+            {uploadState === "error" && uploadErrorMessage ? (
+              <p className="mt-2 text-[11px] font-mono text-red-300">{uploadErrorMessage}</p>
             ) : null}
 
             {uploadSummary ? (

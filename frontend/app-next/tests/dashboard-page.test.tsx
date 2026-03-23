@@ -1,7 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { vi } from "vitest";
 
-import HomePage from "@/app/page";
 import { DashboardPage } from "@/components/dashboard/dashboard-page";
 import { DASHBOARD_FIXTURE } from "@/lib/fixtures/dashboard";
 import { previewReplayUpload, submitReplayUpload } from "@/lib/api/actions";
@@ -19,11 +18,21 @@ describe("dashboard page", () => {
     previewReplayUploadMock.mockReset();
     submitReplayUploadMock.mockReset();
     vi.restoreAllMocks();
+    globalThis.__TEST_ROUTER__.push.mockReset();
+    globalThis.__TEST_ROUTER__.replace.mockReset();
+    globalThis.__TEST_ROUTER__.refresh.mockReset();
     document.cookie = "current_user=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
   });
 
+  it("starts with the legacy no-preview terminal state", () => {
+    render(<DashboardPage model={DASHBOARD_FIXTURE} />);
+
+    expect(screen.getByText("NO_PREVIEW")).toBeInTheDocument();
+    expect(screen.getByText("READY")).toBeInTheDocument();
+  });
+
   it("renders the figma dashboard upload and stats workspace", async () => {
-    const { container } = render(await HomePage({}));
+    const { container } = render(<DashboardPage model={DASHBOARD_FIXTURE} />);
 
     expect(screen.getByText(/^Replay Upload$/i)).toBeInTheDocument();
     expect(screen.getByText(/플레이어 선택 \(Simple Login\)/i)).toBeInTheDocument();
@@ -98,6 +107,149 @@ describe("dashboard page", () => {
     expect(screen.getByText("56.4%")).toHaveStyle({
       color: "#34d399"
     });
+  });
+
+  it("shows the legacy preview success terminal summary", async () => {
+    render(<DashboardPage model={DASHBOARD_FIXTURE} />);
+
+    previewReplayUploadMock.mockResolvedValue({
+      success_count: 1,
+      total_files: 1,
+      results: [
+        {
+          ok: true,
+          filename: "ladder.rep",
+          preview: {
+            map_name: "Polypoid",
+            start_time: "2026-03-23T01:23:45Z",
+            player_count: 6,
+            parsed_players: ["3x3_GG", "3x3_mh", "3x3_smwoo"]
+          }
+        }
+      ]
+    });
+
+    fireEvent.change(document.querySelector("#replay-file") as HTMLInputElement, {
+      target: {
+        files: [new File(["mock replay"], "ladder.rep", { type: "application/octet-stream" })]
+      }
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /analyze_replay/i }));
+    });
+
+    expect(await screen.findByText(/ANALYZE_OK: 1\/1 files/i)).toBeInTheDocument();
+    expect(screen.getByText(/Analysis Completed/i)).toBeInTheDocument();
+    expect(screen.getByText(/common players: 3x3_GG/i)).toBeInTheDocument();
+    expect(screen.getAllByText("ladder.rep")).not.toHaveLength(0);
+    expect(screen.getByText("Polypoid")).toBeInTheDocument();
+    expect(screen.getAllByText(/3x3_GG, 3x3_mh, 3x3_smwoo/i)).not.toHaveLength(0);
+  });
+
+  it("preserves the current user and shows a legacy upload failure when preview participants do not match", async () => {
+    const mismatchModel = {
+      ...DASHBOARD_FIXTURE,
+      currentUser: "legacy_bad_user",
+      playerStats: {
+        ...DASHBOARD_FIXTURE.playerStats,
+        name: "legacy_bad_user"
+      }
+    };
+
+    render(<DashboardPage model={mismatchModel} />);
+
+    previewReplayUploadMock.mockResolvedValue({
+      success_count: 1,
+      total_files: 1,
+      results: [
+        {
+          ok: true,
+          filename: "mismatch.rep",
+          preview: {
+            map_name: "Destination",
+            start_time: "2026-03-23T01:23:45Z",
+            player_count: 6,
+            parsed_players: ["3x3_GG", "3x3_mh"]
+          }
+        }
+      ]
+    });
+    submitReplayUploadMock.mockRejectedValue(new Error("should not be used"));
+
+    fireEvent.change(document.querySelector("#replay-file") as HTMLInputElement, {
+      target: {
+        files: [new File(["mock replay"], "mismatch.rep", { type: "application/octet-stream" })]
+      }
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /analyze_replay/i }));
+    });
+
+    expect(screen.getByText(/^CURRENT_USER:$/i).nextElementSibling).toHaveTextContent("legacy_bad_user");
+    expect(screen.getByLabelText(/플레이어 선택/i)).toHaveValue("");
+    expect(screen.getByRole("button", { name: /upload_with_selected_user/i })).toBeEnabled();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /upload_with_selected_user/i }));
+    });
+
+    expect(
+      await screen.findByText(/UPLOAD_FAIL: 'legacy_bad_user' is not a common participant in current analyzed files/i)
+    ).toBeInTheDocument();
+    expect(submitReplayUploadMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps the prior pending state visible when a later preview fails", async () => {
+    render(<DashboardPage model={DASHBOARD_FIXTURE} />);
+
+    previewReplayUploadMock
+      .mockResolvedValueOnce({
+        success_count: 1,
+        total_files: 1,
+        results: [
+          {
+            ok: true,
+            filename: "first.rep",
+            preview: {
+              map_name: "Circuit Breaker",
+              start_time: "2026-03-23T01:23:45Z",
+              player_count: 6,
+              parsed_players: ["3x3_GG", "3x3_mh"]
+            }
+          }
+        ]
+      })
+      .mockRejectedValueOnce(new Error("broken preview"));
+
+    fireEvent.change(document.querySelector("#replay-file") as HTMLInputElement, {
+      target: {
+        files: [new File(["mock replay"], "first.rep", { type: "application/octet-stream" })]
+      }
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /analyze_replay/i }));
+    });
+
+    expect(screen.getByText(/common players: 3x3_GG/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /upload_with_selected_user/i })).toBeEnabled();
+
+    fireEvent.change(document.querySelector("#replay-file") as HTMLInputElement, {
+      target: {
+        files: [new File(["mock replay"], "second.rep", { type: "application/octet-stream" })]
+      }
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /analyze_replay/i }));
+    });
+
+    expect(await screen.findByText(/ANALYZE_FAIL: broken preview/i)).toBeInTheDocument();
+    expect(screen.getByText(/common players: 3x3_GG/i)).toBeInTheDocument();
+    expect(screen.getByText("first.rep")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /upload_with_selected_user/i })).toBeEnabled();
   });
 
   it("updates the upload module when a replay file is selected and analyzed", async () => {
@@ -204,6 +356,8 @@ describe("dashboard page", () => {
     expect(screen.getByRole("link", { name: /open replay vault/i })).toHaveAttribute("href", "/vault?currentUser=3x3_GG");
     expect(screen.getByRole("link", { name: /open analyzer/i })).toHaveAttribute("href", "/analyzer?currentUser=3x3_GG&gameId=88");
     expect(document.cookie).toContain("current_user=3x3_GG");
+    expect(globalThis.__TEST_ROUTER__.replace).toHaveBeenCalledWith("/?currentUser=3x3_GG");
+    expect(globalThis.__TEST_ROUTER__.refresh).toHaveBeenCalled();
   });
 
   it("queries live player stats and suggestions from the api", async () => {
@@ -275,6 +429,8 @@ describe("dashboard page", () => {
     expect(await screen.findAllByText("70.4%")).not.toHaveLength(0);
     expect(screen.getByLabelText(/플레이어 선택/i)).toHaveValue("3x3_smwoo");
     expect(document.cookie).toContain("current_user=3x3_smwoo");
+    expect(globalThis.__TEST_ROUTER__.replace).toHaveBeenCalledWith("/?currentUser=3x3_smwoo");
+    expect(globalThis.__TEST_ROUTER__.refresh).toHaveBeenCalled();
   });
 
   it("ignores stale suggestion responses when newer input finishes later", async () => {
