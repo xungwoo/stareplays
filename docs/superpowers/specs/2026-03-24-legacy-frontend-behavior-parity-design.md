@@ -66,7 +66,8 @@ legacy UI는 화면이 나뉘어 있어도 실제로는 아래 다섯 상태 축
 
 ### Initial Render
 
-- `previewSummary`는 초기 상태에서 `아직 파싱된 replay가 없습니다.`를 보여준다.
+- `previewSummary`는 shipped HTML 기준 초기 상태에서 `NO_PREVIEW`를 보여준다.
+- preview 결과가 오기 전까지 `renderPreviewSummary()`가 호출되지 않으므로, 초기 렌더에서 설명 문구로 자동 치환되지 않는다.
 - `uploadResult`는 `READY`로 시작한다.
 - `playerQuery`는 비어 있을 수 있다.
 - `current user`가 없으면 `Recent_Games`는 조회되지 않고 로그인 필요 메시지를 보여준다.
@@ -81,7 +82,8 @@ Classification:
 - parsed uploader select change는 즉시 `current user`를 바꾸고 `loadGames(true)`를 호출한다.
 - `Query` 버튼 클릭과 input `Enter`는 같은 동작이다.
 - `playerQuery` input은 280ms debounce 후 suggestion 요청을 보낸다.
-- `Refresh Games`, `Refresh Rankings`는 수동 액션이다.
+- `Refresh Games`는 실제 Dashboard UI의 수동 액션이다.
+- Dashboard 스크립트에는 `refreshRankings` 분기가 있지만, 해당 버튼은 Dashboard HTML에 존재하지 않는다.
 
 Classification:
 
@@ -111,6 +113,7 @@ Classification:
   - parsed uploader select options 재구성
   - 로그인 유저가 교집합에 있으면 자동 선택
   - 로그인 유저가 없고 교집합이 1명뿐이면 그 유저를 current user로 자동 설정
+  - 로그인 유저가 있으나 교집합에 없으면 current user는 유지되고 parsed uploader select만 비워진다.
   - preview summary에 파일별 `OK/FAIL`, map, start time, players를 렌더
   - `ANALYZE_OK: x/y files` 상태 문구 출력
 
@@ -135,7 +138,7 @@ Classification:
 
 - API: `POST /api/v1/games/upload`
 - body:
-  - `replay_files[]`
+  - repeated `replay_files`
   - `uploader_name`
 - 성공 시:
   - `UPLOAD_DONE: check terminal log`
@@ -214,6 +217,7 @@ Legacy Quirk:
 
 - suggestion 실패는 사용자-facing 에러 없이 log만 남긴다.
 - preview success 후 로그인 유저가 교집합에 없을 때 warning은 UI보다 log 중심이다.
+- preview 후 invalid current user가 유지된 채로 남고, 이후 upload 단계에서야 `UPLOAD_FAIL`로 차단된다.
 
 Legacy Bug:
 
@@ -225,7 +229,7 @@ Legacy Bug:
 
 - current user가 없으면 목록 대신 로그인 필요 메시지
 - current user가 있으면 `/games` 조회
-- selected game이 없으면 상세 영역은 `NO_GAME_SELECTED` 또는 유사 empty 상태
+- selected game이 없으면 상세 inline section 자체가 hidden 상태로 남고, 별도의 visible `NO_GAME_SELECTED` 패널을 렌더하지 않는다.
 
 Classification:
 
@@ -256,6 +260,7 @@ Classification:
 ### Selected Game Flow
 
 - row click 시 selected game 설정
+- 이미 선택된 같은 row를 다시 클릭하면 `selectedGameId = null`로 clear되고 inline detail section이 hidden 처리된다.
 - 선택 즉시:
   - row highlight
   - viewport sync
@@ -355,7 +360,8 @@ Legacy Bug:
 
 ### Initial Render
 
-- current user 기준으로 `/games?limit&page&user_name=...`
+- `/games?limit&offset`를 항상 호출하고, current user가 있을 때만 `user_name` query를 추가한다.
+- 즉 current user가 없어도 Analyzer는 전체 게임 목록을 로드할 수 있다.
 - URL의 `game_id`가 있으면 그 게임 우선 선택
 - 없고 목록이 있으면 첫 게임 자동 선택
 - 목록이 없으면 summary, status, player panel, inspector 모두 empty state
@@ -381,7 +387,7 @@ Classification:
 - `timelinePage=1`
 - `apmHiddenPlayers={}` reset
 - summary는 `LOADING_GAME...`
-- analyzer status 먼저 갱신
+- analyzer status는 즉시 초기화되지 않는다. 기존 selected game이 있으면 이전 상태가 새 fetch 완료 전까지 잠시 남을 수 있다.
 - 요청:
   - `GET /api/v1/games/:id`
   - `GET /api/v1/games/:id/detail`
@@ -479,6 +485,7 @@ Classification:
 - team comparison
 - timeline marker click -> player focus
 - marker에 kind badge, side label 표시
+- timeline은 단순 event list가 아니라 `detail.tech_tree.events`와 `analyzer.result.match_flow.events`를 합성한 뒤 필터/정렬/상한 적용 후 렌더된다.
 
 Classification:
 
@@ -687,7 +694,7 @@ Classification:
 
 Legacy Quirk:
 
-- API는 paging/sorting query를 지원하지만 legacy UI는 대부분 client-side sorting에 의존한다.
+- `docs/spec.md`와 backend API는 paging/sorting query를 지원하지만, frontend/web 기준으로 확인되는 실제 동작은 fixed-limit fetch 후 client-side sorting 중심이다.
 - page reload 시 active tab과 sort state는 유지되지 않는다.
 
 Legacy Bug:
@@ -826,4 +833,3 @@ Classification:
 3. `Analyzer` tab set / selected player / APM toggle parity
 4. `Rankings` sort/arrow/client-side semantics parity
 5. `Legacy Bug` 항목 중 보존하지 않을 항목을 명시적으로 결정
-
