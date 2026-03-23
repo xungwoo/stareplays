@@ -471,6 +471,57 @@ describe("api loaders", () => {
     expect(model.unitProductionSeries[0]).toEqual({ time: 1, winner: 7, loser: 4 });
   });
 
+  it("uses the requested analyzer game id when provided", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+
+      if (url.includes("/games?")) {
+        return createJsonResponse({
+          total: 2,
+          games: [
+            {
+              id: 47,
+              map_name: "Alpha Ridge",
+              winner_team: 1,
+              game_length: 760,
+              start_time: "2026-03-22T00:05:48Z",
+              edges: { players: [] }
+            },
+            {
+              id: 48,
+              map_name: "Beta Mesa",
+              winner_team: 2,
+              game_length: 810,
+              start_time: "2026-03-22T00:15:48Z",
+              edges: { players: [] }
+            }
+          ],
+          analysis_statuses: { 47: "succeeded", 48: "succeeded" }
+        });
+      }
+
+      if (url.includes("/games/47/detail") || url.includes("/games/48/detail")) {
+        return createJsonResponse({ detail: {}, tech_tree: {}, resource_spend: {}, unit_production: {} });
+      }
+
+      if (url.includes("/games/47/analyzer") || url.includes("/games/48/analyzer")) {
+        return createJsonResponse({ status: "succeeded", result: { summary: { teams: [], players: [] }, analysis_phase: {}, match_flow: {}, player_timeseries: { players: [] } } });
+      }
+
+      throw new Error(`Unexpected url: ${url}`);
+    });
+
+    const model = await loadAnalyzerPageModel({
+      fetchImpl: fetchMock,
+      apiBaseUrl: "http://127.0.0.1:3000",
+      currentUser: CURRENT_USER,
+      selectedGameId: 48
+    } as any);
+
+    expect(model.selectedGame.id).toBe(48);
+    expect(model.selectedGame.map).toBe("Beta Mesa");
+  });
+
   it("prefers the current user cookie before fixture fallback in the analyzer loader", async () => {
     const currentUserCookie = buildCurrentUserSessionCookie("cookie-user");
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
@@ -580,6 +631,9 @@ describe("route entrypoints", () => {
     const pageModule = await import(pagePath);
     await pageModule.default();
     await pageModule.default({ searchParams: { currentUser: "query-user" } });
+    if (pagePath === "@/app/analyzer/page") {
+      await pageModule.default({ searchParams: { currentUser: "query-user", gameId: "48" } });
+    }
 
     expect(loaderMock).toHaveBeenNthCalledWith(1, {
       currentUser: undefined,
@@ -589,5 +643,12 @@ describe("route entrypoints", () => {
       currentUser: "query-user",
       currentUserCookie: "cookie-user"
     });
+    if (pagePath === "@/app/analyzer/page") {
+      expect(loaderMock).toHaveBeenNthCalledWith(3, {
+        currentUser: "query-user",
+        currentUserCookie: "cookie-user",
+        selectedGameId: 48
+      });
+    }
   });
 });

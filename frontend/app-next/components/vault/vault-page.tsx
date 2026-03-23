@@ -21,6 +21,10 @@ const PLAYER_COLORS: Record<string, string> = {
   "3x3_syntax": "#fb923c"
 };
 
+function buildAnalyzerHref(currentUser: string, gameId: number) {
+  return `/analyzer?currentUser=${encodeURIComponent(currentUser)}&gameId=${gameId}`;
+}
+
 function PlayerBoardCard({ player, result }: { player: VaultPlayer; result: "WINNER" | "LOSER" }) {
   const isWinner = result === "WINNER";
 
@@ -96,7 +100,7 @@ function GameDetailExpand({ game, currentUser }: { game: VaultGame; currentUser:
         </div>
 
         <Link
-          href={`/analyzer?currentUser=${encodeURIComponent(currentUser)}&gameId=${game.id}`}
+          href={buildAnalyzerHref(currentUser, game.id)}
           className="flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-xs font-mono font-bold tracking-wider transition-all"
           style={{
             background: "linear-gradient(90deg, #0891b2, #1d4ed8)",

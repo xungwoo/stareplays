@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import AnalyzerPage from "@/app/analyzer/page";
@@ -74,6 +74,118 @@ describe("analyzer page", () => {
     expect(within(deepDive).getByText(/^APM$/i)).toBeInTheDocument();
     expect(within(deepDive).getByRole("button", { name: /3x3_gg/i })).toHaveStyle({
       backgroundColor: "rgba(34,211,238,0.08)"
+    });
+  });
+
+  it("syncs the selected game when the route-provided model changes", async () => {
+    const baseModel: AnalyzerPageModel = {
+      currentUser: "alpha",
+      games: [
+        {
+          id: 47,
+          map: "Alpha Ridge",
+          matchup: "PTZvPTZ",
+          winnerTeam: [{ name: "alpha", race: "P", apm: 100, eapm: 90, cmd: 1000, ecmd: 900, effective: 80, redundancy: 10, production: 95, isCurrentUser: true }],
+          loserTeam: [{ name: "charlie", race: "Z", apm: 120, eapm: 92, cmd: 1200, ecmd: 920, effective: 82, redundancy: 12, production: 97 }],
+          analyzerStatus: "DONE",
+          playTime: "12:34",
+          startTime: "2026-03-23 10:00",
+          matchStory: "Game 47"
+        },
+        {
+          id: 48,
+          map: "Beta Mesa",
+          matchup: "PTZvPTZ",
+          winnerTeam: [{ name: "alpha", race: "P", apm: 101, eapm: 91, cmd: 1001, ecmd: 901, effective: 81, redundancy: 11, production: 96, isCurrentUser: true }],
+          loserTeam: [{ name: "charlie", race: "Z", apm: 121, eapm: 93, cmd: 1201, ecmd: 921, effective: 83, redundancy: 13, production: 98 }],
+          analyzerStatus: "DONE",
+          playTime: "13:37",
+          startTime: "2026-03-23 11:00",
+          matchStory: "Game 48"
+        }
+      ],
+      selectedGame: {
+        id: 47,
+        map: "Alpha Ridge",
+        matchup: "PTZvPTZ",
+        winnerTeam: [{ name: "alpha", race: "P", apm: 100, eapm: 90, cmd: 1000, ecmd: 900, effective: 80, redundancy: 10, production: 95, isCurrentUser: true }],
+        loserTeam: [{ name: "charlie", race: "Z", apm: 120, eapm: 92, cmd: 1200, ecmd: 920, effective: 82, redundancy: 12, production: 97 }],
+        analyzerStatus: "DONE",
+        playTime: "12:34",
+        startTime: "2026-03-23 10:00",
+        matchStory: "Game 47"
+      },
+      players: [],
+      tabs: [
+        { id: "match_flow", label: "Match Flow" },
+        { id: "apm", label: "APM" },
+        { id: "resource", label: "Resource Spend" },
+        { id: "unit_prod", label: "Unit Production" },
+        { id: "tech", label: "Tech / Upgrade" }
+      ],
+      timeline: [],
+      comparison: {
+        kills: { winner: 1, loser: 2 },
+        workerPeak: { winner: 3, loser: 4 },
+        totalSpend: { winner: 5, loser: 6 },
+        techUpg: { winner: 7, loser: 8 }
+      },
+      apmSeries: [],
+      resourceSeries: [],
+      unitProductionSeries: [],
+      insightsByGameId: {
+        47: {
+          players: [{ name: "alpha", race: "P", apm: 100, eapm: 90, cmd: 1000, ecmd: 900, effective: 80, redundancy: 10, production: 95, isCurrentUser: true }],
+          timeline: [],
+          comparison: {
+            kills: { winner: 1, loser: 2 },
+            workerPeak: { winner: 3, loser: 4 },
+            totalSpend: { winner: 5, loser: 6 },
+            techUpg: { winner: 7, loser: 8 }
+          },
+          apmSeries: [],
+          resourceSeries: [],
+          unitProductionSeries: [],
+          keyPlayer: "alpha",
+          worstPlayer: "charlie"
+        },
+        48: {
+          players: [{ name: "alpha", race: "P", apm: 101, eapm: 91, cmd: 1001, ecmd: 901, effective: 81, redundancy: 11, production: 96, isCurrentUser: true }],
+          timeline: [],
+          comparison: {
+            kills: { winner: 1, loser: 2 },
+            workerPeak: { winner: 3, loser: 4 },
+            totalSpend: { winner: 5, loser: 6 },
+            techUpg: { winner: 7, loser: 8 }
+          },
+          apmSeries: [],
+          resourceSeries: [],
+          unitProductionSeries: [],
+          keyPlayer: "alpha",
+          worstPlayer: "charlie"
+        }
+      }
+    };
+
+    const { rerender } = render(<AnalyzerPageComponent model={baseModel} />);
+
+    expect(screen.getByText("Alpha Ridge")).toBeInTheDocument();
+    expect(screen.getByText(/^#47$/i).closest("tr")).toHaveStyle({
+      backgroundColor: "rgba(34,211,238,0.07)"
+    });
+
+    rerender(
+      <AnalyzerPageComponent
+        model={{
+          ...baseModel,
+          selectedGame: baseModel.games[1]
+        }}
+      />
+    );
+
+    await waitFor(() => expect(screen.getByText("Beta Mesa")).toBeInTheDocument());
+    expect(screen.getByText(/^#48$/i).closest("tr")).toHaveStyle({
+      backgroundColor: "rgba(34,211,238,0.07)"
     });
   });
 

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, Legend, LineChart, Line } from "recharts";
 import { ChevronLeft, ChevronRight, RefreshCw, User } from "lucide-react";
 
@@ -385,10 +385,22 @@ function PlayerDeepDive({
 }
 
 export function AnalyzerPage({ model }: { model: AnalyzerPageModel }) {
-  const [selectedGameId, setSelectedGameId] = useState(model.selectedGame.id);
+  const routeSelectedGameId = model.selectedGameId ?? model.selectedGame.id;
+  const [selectedGameId, setSelectedGameId] = useState(routeSelectedGameId);
   const [activeTab, setActiveTab] = useState<"match_flow" | "apm" | "resource" | "unit_prod" | "tech">("match_flow");
   const [focusedPlayer, setFocusedPlayer] = useState<string | null>(null);
   const [selectorPage, setSelectorPage] = useState(0);
+  const pageSize = 8;
+
+  useEffect(() => {
+    setSelectedGameId(routeSelectedGameId);
+    setFocusedPlayer(null);
+
+    const selectedIndex = model.games.findIndex((game) => game.id === routeSelectedGameId);
+    if (selectedIndex >= 0) {
+      setSelectorPage(Math.floor(selectedIndex / pageSize));
+    }
+  }, [model.games, routeSelectedGameId]);
 
   const selectedGame = model.games.find((game) => game.id === selectedGameId) ?? model.selectedGame;
   const selectedInsight = model.insightsByGameId[selectedGame.id] ?? {
@@ -402,7 +414,6 @@ export function AnalyzerPage({ model }: { model: AnalyzerPageModel }) {
     worstPlayer: selectedGame.worstPlayer
   };
 
-  const pageSize = 8;
   const selectorPages = Math.max(1, Math.ceil(model.games.length / pageSize));
   const selectorGames = useMemo(() => model.games.slice(selectorPage * pageSize, selectorPage * pageSize + pageSize), [model.games, selectorPage]);
   const startGridBoard = useMemo(() => getStartGridBoard(selectedGame), [selectedGame]);

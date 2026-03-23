@@ -66,6 +66,34 @@ describe("vault page", () => {
     });
   });
 
+  it("builds the analyzer deep link from the selected game id", async () => {
+    const model: VaultPageModel = {
+      currentUser: "neo_user",
+      games: [
+        {
+          id: 99,
+          map: "Test Arena",
+          matchup: "1v1",
+          winnerTeam: [
+            { name: "neo_user", race: "P", apm: 200, eapm: 180, cmd: 3000, ecmd: 2800, effective: 92, redundancy: 5, production: 140, isCurrentUser: true, startLocationX: 100, startLocationY: 100 }
+          ],
+          loserTeam: [
+            { name: "opponent", race: "Z", apm: 150, eapm: 130, cmd: 2200, ecmd: 2000, effective: 84, redundancy: 10, production: 120, startLocationX: 4000, startLocationY: 900 }
+          ],
+          analyzerStatus: "DONE",
+          playTime: "10:00",
+          startTime: "2026-03-23 09:00",
+          matchStory: "Test match"
+        }
+      ]
+    };
+
+    render(<VaultPageComponent model={model} />);
+    await userEvent.setup().click(screen.getByText(/^#99$/i));
+
+    expect(screen.getByRole("link", { name: /game analyzer/i })).toHaveAttribute("href", "/analyzer?currentUser=neo_user&gameId=99");
+  });
+
   it("renders the selected game around start-position sides instead of winner and loser columns", async () => {
     const model: VaultPageModel = {
       currentUser: "3x3_GG",

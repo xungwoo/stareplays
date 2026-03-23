@@ -6,6 +6,7 @@ export interface LoaderOptions {
   apiBaseUrl?: string;
   currentUser?: string;
   currentUserCookie?: string;
+  selectedGameId?: number;
   fetchImpl?: typeof fetch;
 }
 

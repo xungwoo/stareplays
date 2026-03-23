@@ -2,7 +2,11 @@ import { createAnalyzerPageModel, getAnalyzerPageModel } from "@/lib/adapters/an
 import { resolveCurrentUser, tryFetchApiJson, type LoaderOptions } from "@/lib/api/client";
 import type { ApiGameAnalyzerResponse, ApiGameDetailResponse, ApiGamesListResponse } from "@/types/api";
 
-export async function loadAnalyzerPageModel(options: LoaderOptions = {}) {
+type AnalyzerLoaderOptions = LoaderOptions & {
+  selectedGameId?: number;
+};
+
+export async function loadAnalyzerPageModel(options: AnalyzerLoaderOptions = {}) {
   const currentUser = resolveCurrentUser(options.currentUser, options.currentUserCookie);
   const gamesResponse = await tryFetchApiJson<ApiGamesListResponse>(
     `/api/v1/games?limit=10&offset=0&user_name=${encodeURIComponent(currentUser)}`,
@@ -10,7 +14,7 @@ export async function loadAnalyzerPageModel(options: LoaderOptions = {}) {
   );
 
   if (!gamesResponse) {
-    return getAnalyzerPageModel();
+    return getAnalyzerPageModel(options.selectedGameId);
   }
 
   const games = gamesResponse.games ?? [];
@@ -31,6 +35,7 @@ export async function loadAnalyzerPageModel(options: LoaderOptions = {}) {
     currentUser,
     gamesResponse,
     detailsByGameId: Object.fromEntries(detailEntries),
-    analyzersByGameId: Object.fromEntries(analyzerEntries)
+    analyzersByGameId: Object.fromEntries(analyzerEntries),
+    selectedGameId: options.selectedGameId
   });
 }

@@ -360,12 +360,13 @@ function applyInsightToGame(game: VaultGame, insight: AnalyzerGameInsight): Vaul
   };
 }
 
-export function getAnalyzerPageModel(): AnalyzerPageModel {
-  const selectedGame = ANALYZER_GAMES_FIXTURE.find((game) => game.id === ANALYZER_DEFAULT_GAME_ID) ?? ANALYZER_GAMES_FIXTURE[0];
+export function getAnalyzerPageModel(selectedGameId = ANALYZER_DEFAULT_GAME_ID): AnalyzerPageModel {
+  const selectedGame = ANALYZER_GAMES_FIXTURE.find((game) => game.id === selectedGameId) ?? ANALYZER_GAMES_FIXTURE.find((game) => game.id === ANALYZER_DEFAULT_GAME_ID) ?? ANALYZER_GAMES_FIXTURE[0];
   const insight = getFallbackInsight(selectedGame);
 
   return {
     currentUser: ANALYZER_CURRENT_USER,
+    selectedGameId: selectedGame.id,
     games: ANALYZER_GAMES_FIXTURE,
     selectedGame,
     players: insight.players,
@@ -393,10 +394,10 @@ export function createAnalyzerPageModel({
   selectedGameId?: number;
 } = {}): AnalyzerPageModel {
   if (!gamesResponse) {
-    return getAnalyzerPageModel();
+    return getAnalyzerPageModel(selectedGameId);
   }
 
-  const fallback = getAnalyzerPageModel();
+  const fallback = getAnalyzerPageModel(selectedGameId);
   const vaultModel = createVaultPageModel({
     currentUser,
     gamesResponse
@@ -424,6 +425,7 @@ export function createAnalyzerPageModel({
 
   return {
     currentUser,
+    selectedGameId: selectedGame.id,
     games: enhancedGames,
     selectedGame,
     players: selectedInsight.players,

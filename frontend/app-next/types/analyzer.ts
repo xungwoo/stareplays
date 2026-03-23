@@ -40,6 +40,7 @@ export interface AnalyzerGameInsight {
 
 export interface AnalyzerPageModel {
   currentUser: string;
+  selectedGameId?: number;
   games: VaultGame[];
   selectedGame: VaultGame;
   players: VaultPlayer[];
