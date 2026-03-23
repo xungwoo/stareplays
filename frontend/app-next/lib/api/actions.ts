@@ -122,7 +122,7 @@ export async function submitReplayUpload(
 export async function reanalyzeAnalyzerGame(
   gameId: number,
   options: ActionOptions = {}
-): Promise<ApiAnalyzerReanalyzeResponse> {
+): Promise<ApiAnalyzerReanalyzeResponse | undefined> {
   const body: ApiAnalyzerReanalyzeRequest = { game_id: gameId };
 
   return postApiJson<ApiAnalyzerReanalyzeResponse>("/api/v1/analyzer/reanalyze", body, options);

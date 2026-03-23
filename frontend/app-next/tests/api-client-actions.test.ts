@@ -152,6 +152,25 @@ describe("api actions", () => {
     ).resolves.toEqual({ ok: true, message: "queued" });
   });
 
+  it("allows analyzer reanalyze requests to succeed with no content", async () => {
+    const fetchMock = vi.fn(async () =>
+      ({
+        ok: true,
+        status: 204,
+        json: async () => {
+          throw new Error("json should not be called");
+        }
+      }) as unknown as Response
+    );
+
+    await expect(
+      reanalyzeAnalyzerGame(48, {
+        apiBaseUrl: "http://example.test",
+        fetchImpl: fetchMock
+      })
+    ).resolves.toBeUndefined();
+  });
+
   it("builds upload preview multipart bodies with replay files", async () => {
     const files = [
       new File(["alpha"], "first.rep", { type: "application/octet-stream" }),

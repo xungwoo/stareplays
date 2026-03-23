@@ -102,6 +102,36 @@ describe("analyzer page", () => {
     expect(await screen.findByText(/reanalyze failed/i)).toBeInTheDocument();
   });
 
+  it("falls back to a queued message when reanalyze succeeds with no body", async () => {
+    reanalyzeAnalyzerGameMock.mockResolvedValue(undefined);
+
+    render(<AnalyzerPageComponent model={getAnalyzerPageModel(48)} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: /reanalyze selected game/i }));
+
+    expect(await screen.findByText(/reanalyze queued for game #48/i)).toBeInTheDocument();
+  });
+
+  it("ignores stale reanalyze results after the user switches to another game", async () => {
+    let resolveRequest: ((value: { ok: true; message: string }) => void) | undefined;
+    const pendingRequest = new Promise<{ ok: true; message: string }>((resolve) => {
+      resolveRequest = resolve;
+    });
+    reanalyzeAnalyzerGameMock.mockReturnValue(pendingRequest);
+
+    render(<AnalyzerPageComponent model={getAnalyzerPageModel(48)} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: /reanalyze selected game/i }));
+    await user.click(screen.getByText(/^#47$/i));
+
+    resolveRequest?.({ ok: true, message: "reanalyze queued" });
+
+    await waitFor(() => expect(screen.getByRole("link", { name: /refresh/i })).toHaveAttribute("href", "/analyzer?currentUser=3x3_GG&gameId=47"));
+    expect(screen.queryByText(/reanalyze queued/i)).not.toBeInTheDocument();
+  });
+
   it("keeps the focused player selection when switching games, matching the source behavior", async () => {
     render(await AnalyzerPage({}));
     const user = userEvent.setup();

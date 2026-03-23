@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, Legend, LineChart, Line } from "recharts";
 import { ChevronLeft, ChevronRight, RefreshCw, User } from "lucide-react";
 
@@ -393,6 +393,7 @@ export function AnalyzerPage({ model }: { model: AnalyzerPageModel }) {
   const [selectorPage, setSelectorPage] = useState(0);
   const [reanalyzeState, setReanalyzeState] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [reanalyzeMessage, setReanalyzeMessage] = useState<string | null>(null);
+  const reanalyzeRequestIdRef = useRef(0);
   const pageSize = 8;
 
   useEffect(() => {
@@ -423,6 +424,7 @@ export function AnalyzerPage({ model }: { model: AnalyzerPageModel }) {
   const refreshHref = `/analyzer?currentUser=${encodeURIComponent(model.currentUser)}&gameId=${selectedGame.id}`;
 
   useEffect(() => {
+    reanalyzeRequestIdRef.current += 1;
     setReanalyzeState("idle");
     setReanalyzeMessage(null);
   }, [selectedGameId]);
@@ -432,15 +434,27 @@ export function AnalyzerPage({ model }: { model: AnalyzerPageModel }) {
       return;
     }
 
+    const requestGameId = selectedGame.id;
+    const requestId = reanalyzeRequestIdRef.current + 1;
+    reanalyzeRequestIdRef.current = requestId;
     setReanalyzeState("submitting");
     setReanalyzeMessage(null);
 
     try {
-      const response = await reanalyzeAnalyzerGame(selectedGame.id, { fetchImpl: fetch });
-      const message = response.message?.trim() || `reanalyze queued for game #${selectedGame.id}`;
+      const response = await reanalyzeAnalyzerGame(requestGameId, { fetchImpl: fetch });
+
+      if (reanalyzeRequestIdRef.current !== requestId) {
+        return;
+      }
+
+      const message = response?.message?.trim() || `reanalyze queued for game #${requestGameId}`;
       setReanalyzeMessage(message);
       setReanalyzeState("success");
     } catch (error) {
+      if (reanalyzeRequestIdRef.current !== requestId) {
+        return;
+      }
+
       setReanalyzeMessage(error instanceof Error ? error.message : "reanalyze failed");
       setReanalyzeState("error");
     }
