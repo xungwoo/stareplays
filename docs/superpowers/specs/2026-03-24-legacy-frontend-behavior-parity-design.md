@@ -33,7 +33,8 @@ legacy UI는 화면이 나뉘어 있어도 실제로는 아래 다섯 상태 축
 ### 1. Current User
 
 - Dashboard에서 `player query`, `parsed uploader select`, `single common participant auto-select`로 갱신된다.
-- Vault, Analyzer, Rankings 조회 기준으로 전파된다.
+- Vault와 Analyzer 조회 기준으로 직접 전파된다.
+- Rankings에서는 조회 filter보다는 상단 current user 표시와 `YOU` row highlight의 기준으로 사용된다.
 - current user가 비어 있으면 일부 화면은 조회 대신 로그인 필요 메시지를 보여준다.
 
 ### 2. Selected Game
@@ -70,6 +71,10 @@ legacy UI는 화면이 나뉘어 있어도 실제로는 아래 다섯 상태 축
 - preview 결과가 오기 전까지 `renderPreviewSummary()`가 호출되지 않으므로, 초기 렌더에서 설명 문구로 자동 치환되지 않는다.
 - `uploadResult`는 `READY`로 시작한다.
 - `playerQuery`는 비어 있을 수 있다.
+- localStorage에 `stareplays_current_user`가 있으면:
+  - current user UI를 즉시 복원
+  - `playerQuery`를 그 값으로 prefill
+  - `loadGames()`를 자동 실행
 - `current user`가 없으면 `Recent_Games`는 조회되지 않고 로그인 필요 메시지를 보여준다.
 
 Classification:
@@ -129,6 +134,7 @@ Classification:
 
 - 실패 시 `ANALYZE_FAIL: ...`
 - preview summary는 이전 상태를 유지하거나 실패 상태 로그를 별도로 남긴다.
+- 실패 시 기존 `pendingFiles`, `pendingCommonPlayers`, parsed uploader options는 자동으로 clear되지 않는다.
 
 Classification:
 
@@ -221,7 +227,7 @@ Legacy Quirk:
 
 Legacy Bug:
 
-- preview submit 시 파일이 없으면 사용자에게 아무 메시지도 주지 않는다.
+- 없음으로 간주. 파일 input이 `required`라서 blank submit은 브라우저 native validation이 먼저 차단한다.
 
 ## Vault Detailed Behavior
 
@@ -768,7 +774,6 @@ Classification:
 
 ### Legacy Bug
 
-- Dashboard preview에서 파일이 없을 때 명시적 피드백 없음
 - Analyzer `loadGames()`는 fetch 실패를 명시적으로 처리하지 않아 전역 에러로 번질 가능성 있음
 - Vault의 일부 selection/reset 동작은 필요 이상으로 과격하게 초기화될 수 있음
 
@@ -785,7 +790,7 @@ Classification:
 - [x] current user persistence
 - [x] user suggestion debounce/fetch
 - [ ] legacy terminal-style preview/upload summary를 더 정확히 복원
-- [ ] blank preview/query의 무반응 규칙을 그대로 가져갈지 대체 UX로 보완할지 결정
+- [ ] preview 실패 후 stale pending state를 그대로 둘지, parity 범위 안에서 복원할지 결정
 
 ### Vault
 
