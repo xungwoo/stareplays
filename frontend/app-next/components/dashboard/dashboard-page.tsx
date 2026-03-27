@@ -9,6 +9,8 @@ import { ErrorState } from "@/components/shared/error-state";
 import { LoadingState } from "@/components/shared/loading-state";
 import { RaceBadge } from "@/components/shared/race-badge";
 import { CURRENT_USER_CHANGE_EVENT } from "@/components/shell/current-user-chip";
+import { DashboardStatCard } from "@/components/dashboard/dashboard-stat-card";
+import { DashboardStatsTable } from "@/components/dashboard/dashboard-stats-table";
 import { previewReplayUpload, submitReplayUpload } from "@/lib/api/actions";
 import { CYAN_PANEL_STYLE, INNER_PANEL_STRONG_STYLE, INNER_PANEL_STYLE } from "@/lib/constants/ui-styles";
 import { buildApiUrl } from "@/lib/api/url";
@@ -29,8 +31,6 @@ import type {
   DashboardUploadSummary
 } from "@/types/dashboard";
 
-const CARD = "rounded-xl p-5";
-const CARD_STYLE = CYAN_PANEL_STYLE;
 const SECTION_LABEL = "text-[10px] font-mono font-semibold tracking-widest text-slate-500 uppercase mb-3";
 
 function toNumber(value: unknown, fallback = 0): number {
@@ -217,57 +217,6 @@ async function fetchBrowserApiJson<T>(path: string): Promise<T> {
   }
 
   return (await response.json()) as T;
-}
-
-function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
-  return (
-    <div
-      className="rounded-lg p-3 flex flex-col gap-1"
-      style={INNER_PANEL_STRONG_STYLE}
-    >
-      <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">{label}</span>
-      <span className="text-lg font-bold font-mono" style={{ color: "#22d3ee" }}>
-        {value}
-      </span>
-      {sub ? <span className="text-xs text-slate-500 font-mono">{sub}</span> : null}
-    </div>
-  );
-}
-
-function DashboardStatsTable({
-  title,
-  leadingLabel,
-  rows
-}: {
-  title: string;
-  leadingLabel: string;
-  rows: DashboardPlayerStats["raceStats"];
-}) {
-  return (
-    <section className={CARD} style={CARD_STYLE}>
-      <p className={SECTION_LABEL}>{title}</p>
-      <table className="w-full text-xs font-mono">
-        <thead>
-          <tr className="text-slate-600 text-[10px]">
-            <th className="text-left pb-2">{leadingLabel}</th>
-            <th className="text-right pb-2">W-L</th>
-            <th className="text-right pb-2">WIN%</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-800">
-          {rows.map((row) => (
-            <tr key={row.label} className="hover:bg-slate-800/40">
-              <td className="py-2 text-slate-300">{row.label}</td>
-              <td className="py-2 text-right text-slate-400">{row.record}</td>
-              <td className="py-2 text-right" style={{ color: row.winRate >= 50 ? "#34d399" : "#f87171" }}>
-                {row.winRate.toFixed(1)}%
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </section>
-  );
 }
 
 export function DashboardPage({ model }: { model: DashboardPageModel }) {
@@ -511,7 +460,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
     <div className="mx-auto max-w-[1400px] p-6">
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         <div className="lg:col-span-2 flex flex-col gap-4" aria-label="Replay Upload Workspace">
-          <div className={CARD} style={CARD_STYLE}>
+          <div className="rounded-xl p-5" style={CYAN_PANEL_STYLE}>
             <p className={SECTION_LABEL}>Replay Upload</p>
 
             <label
@@ -718,7 +667,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
         </div>
 
         <div className="lg:col-span-3 flex flex-col gap-4" aria-label="Player Statistics Workspace">
-          <div className={CARD} style={CARD_STYLE}>
+          <div className="rounded-xl p-5" style={CYAN_PANEL_STYLE}>
             <p className={SECTION_LABEL}>Player Stats Query</p>
             <div className="flex gap-2">
               <input
@@ -767,7 +716,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
             />
           ) : (
             <>
-              <div className={CARD} style={CARD_STYLE}>
+              <div className="rounded-xl p-5" style={CYAN_PANEL_STYLE}>
                 <div className="mb-4 flex items-start justify-between gap-4">
                   <div>
                     <p className="text-[10px] text-slate-500 font-mono tracking-widest mb-1">PLAYER</p>
@@ -784,11 +733,11 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <StatCard label="Win Rate" value={`${playerStats.winRate.toFixed(1)}%`} />
-                  <StatCard label="Games" value={String(playerStats.games)} />
-                  <StatCard label="Record" value={record} />
-                  <StatCard
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <DashboardStatCard label="Win Rate" value={`${playerStats.winRate.toFixed(1)}%`} />
+                  <DashboardStatCard label="Games" value={String(playerStats.games)} />
+                  <DashboardStatCard label="Record" value={record} />
+                  <DashboardStatCard
                     label="Avg APM / EAPM"
                     value={`${Math.round(playerStats.avgApm)}`}
                     sub={`EAPM: ${playerStats.avgEapm.toFixed(1)}`}
@@ -802,7 +751,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
                 <DashboardStatsTable title="Map Stats" leadingLabel="MAP" rows={playerStats.mapStats} />
               </div>
 
-              <div className={CARD} style={CARD_STYLE}>
+              <div className="rounded-xl p-5" style={CYAN_PANEL_STYLE}>
                 <p className={SECTION_LABEL}>Win Rate Progress</p>
                 <div className="flex items-center gap-4">
                   <div className="flex-1">

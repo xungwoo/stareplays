@@ -1,6 +1,8 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { vi } from "vitest";
 
+import { DashboardStatCard } from "@/components/dashboard/dashboard-stat-card";
+import { DashboardStatsTable } from "@/components/dashboard/dashboard-stats-table";
 import { DashboardPage } from "@/components/dashboard/dashboard-page";
 import { DASHBOARD_FIXTURE } from "@/lib/fixtures/dashboard";
 import { previewReplayUpload, submitReplayUpload } from "@/lib/api/actions";
@@ -132,6 +134,33 @@ describe("dashboard page", () => {
     expect(screen.getByText("56.4%")).toHaveStyle({
       color: "#34d399"
     });
+  });
+
+  it("renders extracted dashboard stat cards with the same visual contract", () => {
+    render(<DashboardStatCard label="Win Rate" value="56.4%" sub="EAPM: 164.2" />);
+
+    expect(screen.getByText("Win Rate")).toHaveClass("tracking-widest");
+    expect(screen.getByText("56.4%")).toHaveStyle({ color: "#22d3ee" });
+    expect(screen.getByText("EAPM: 164.2")).toHaveClass("text-slate-500");
+  });
+
+  it("renders extracted dashboard stats tables with the same layout and win-rate coloring", () => {
+    render(
+      <DashboardStatsTable
+        title="Race Stats"
+        leadingLabel="RACE"
+        rows={[
+          { label: "Protoss", record: "10-2", winRate: 83.3 },
+          { label: "Terran", record: "4-5", winRate: 44.4 }
+        ]}
+      />
+    );
+
+    expect(screen.getByText("Race Stats")).toHaveClass("font-mono");
+    expect(screen.getByText("RACE")).toBeInTheDocument();
+    expect(screen.getByText("10-2")).toBeInTheDocument();
+    expect(screen.getByText("83.3%")).toHaveStyle({ color: "#34d399" });
+    expect(screen.getByText("44.4%")).toHaveStyle({ color: "#f87171" });
   });
 
   it("shows the legacy preview success terminal summary", async () => {
