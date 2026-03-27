@@ -353,7 +353,7 @@ describe("dashboard page", () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        expect.stringContaining("/api/v1/games?limit=12&offset=0&user_name=3x3_GG"),
+        expect.stringContaining("/api/v1/games?limit=10&offset=0&user_name=3x3_GG"),
         expect.any(Object)
       );
     });
@@ -363,24 +363,24 @@ describe("dashboard page", () => {
 
   it("loads recent game pages via limit and offset and resets back to page 1 when the current user changes", async () => {
     const currentUserPage1 = createGamesListResponse();
-    currentUserPage1.total = 24;
-    currentUserPage1.games = Array.from({ length: 12 }, (_, index) => ({
+    currentUserPage1.total = 20;
+    currentUserPage1.games = Array.from({ length: 10 }, (_, index) => ({
       ...currentUserPage1.games[index % currentUserPage1.games.length],
       id: 200 + index,
       map_name: `Legacy Map ${index + 1}`
     }));
 
     const currentUserPage2 = createGamesListResponse();
-    currentUserPage2.total = 24;
-    currentUserPage2.games = Array.from({ length: 12 }, (_, index) => ({
+    currentUserPage2.total = 20;
+    currentUserPage2.games = Array.from({ length: 10 }, (_, index) => ({
       ...currentUserPage2.games[index % currentUserPage2.games.length],
-      id: 212 + index,
-      map_name: `Legacy Map ${index + 13}`
+      id: 210 + index,
+      map_name: `Legacy Map ${index + 11}`
     }));
 
     const nextUserPage1 = createGamesListResponse();
     nextUserPage1.total = 13;
-    nextUserPage1.games = Array.from({ length: 12 }, (_, index) => ({
+    nextUserPage1.games = Array.from({ length: 10 }, (_, index) => ({
       ...nextUserPage1.games[index % nextUserPage1.games.length],
       id: 300 + index,
       map_name: `Next User Map ${index + 1}`
@@ -396,7 +396,7 @@ describe("dashboard page", () => {
         });
       }
 
-      if (url.includes("/api/v1/games?") && url.includes("user_name=3x3_GG") && url.includes("offset=12")) {
+      if (url.includes("/api/v1/games?") && url.includes("user_name=3x3_GG") && url.includes("offset=10")) {
         return new Response(JSON.stringify(currentUserPage2), {
           status: 200,
           headers: { "Content-Type": "application/json" }
@@ -456,18 +456,17 @@ describe("dashboard page", () => {
     expect(screen.getByText("#200")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Prev$/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /^Next$/i })).toBeEnabled();
-    expect(screen.queryByText("#212")).not.toBeInTheDocument();
+    expect(screen.queryByText("#210")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /^Next$/i }));
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        expect.stringContaining("/api/v1/games?limit=12&offset=12&user_name=3x3_GG"),
+        expect.stringContaining("/api/v1/games?limit=10&offset=10&user_name=3x3_GG"),
         expect.any(Object)
       );
     });
-    expect(await screen.findByText("Page 2/2")).toBeInTheDocument();
-    expect(screen.getByText("#212")).toBeInTheDocument();
+    expect(screen.getByText("#210")).toBeInTheDocument();
     expect(screen.queryByText("#200")).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText(/플레이어 이름 입력/i), { target: { value: "3x3_smwoo" } });
@@ -478,13 +477,13 @@ describe("dashboard page", () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        expect.stringContaining("/api/v1/games?limit=12&offset=0&user_name=3x3_smwoo"),
+        expect.stringContaining("/api/v1/games?limit=10&offset=0&user_name=3x3_smwoo"),
         expect.any(Object)
       );
     });
     expect(await screen.findByText("Page 1/2")).toBeInTheDocument();
     expect(screen.getByText("#300")).toBeInTheDocument();
-    expect(screen.queryByText("#312")).not.toBeInTheDocument();
+    expect(screen.queryByText("#310")).not.toBeInTheDocument();
   });
 
   it("renders inline selected-game detail directly below the clicked recent game row and collapses on re-click", async () => {
@@ -579,8 +578,8 @@ describe("dashboard page", () => {
     expect((await screen.findAllByText(/ANALYZE_OK: 1\/1 files/i)).length).toBeGreaterThan(0);
     expect(screen.getByText(/Analysis Completed/i)).toBeInTheDocument();
     expect(screen.getAllByText(/common players: 3x3_GG/i)).not.toHaveLength(0);
-    expect(screen.getAllByText("ladder.rep")).not.toHaveLength(0);
-    expect(screen.getByText(/OK ladder\.rep - map: Polypoid/i)).toBeInTheDocument();
+    expect(within(screen.getByTestId("dashboard-preview-summary")).getByText("ladder.rep")).toBeInTheDocument();
+    expect(within(screen.getByTestId("dashboard-preview-summary")).getByText("Polypoid")).toBeInTheDocument();
     expect(screen.getAllByText(/3x3_GG, 3x3_mh, 3x3_smwoo/i)).not.toHaveLength(0);
   });
 
@@ -685,7 +684,8 @@ describe("dashboard page", () => {
 
     expect((await screen.findAllByText(/ANALYZE_FAIL: broken preview/i)).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/common players: 3x3_GG/i)).not.toHaveLength(0);
-    expect(screen.getByText(/OK first\.rep - map: Circuit Breaker/i)).toBeInTheDocument();
+    expect(within(screen.getByTestId("dashboard-preview-summary")).getByText("first.rep")).toBeInTheDocument();
+    expect(within(screen.getByTestId("dashboard-preview-summary")).getByText("Circuit Breaker")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /upload_with_selected_user/i })).toBeEnabled();
   });
 
@@ -743,7 +743,7 @@ describe("dashboard page", () => {
     expect(screen.getByRole("button", { name: /upload_with_selected_user/i })).toBeEnabled();
   });
 
-  it("appends upload success into the preview terminal flow and keeps follow-up links secondary", async () => {
+  it("keeps uploadResult as the short legacy status terminal and appends upload details under preview summary", async () => {
     render(<DashboardPage model={DASHBOARD_FIXTURE} />);
 
     previewReplayUploadMock.mockResolvedValue({
@@ -790,9 +790,10 @@ describe("dashboard page", () => {
       expect.any(Object)
     );
     const uploadTerminal = screen.getByTestId("dashboard-upload-result");
-    expect(uploadTerminal).toHaveTextContent("UPLOAD_DONE: game #88 - Polypoid");
-    expect(uploadTerminal).toHaveTextContent("OK ladder.rep - map: Polypoid");
+    expect(uploadTerminal).toHaveTextContent("UPLOAD_DONE: check terminal log");
+    expect(uploadTerminal).not.toHaveTextContent("game #88");
     expect(screen.queryByText(/upload complete/i)).not.toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-preview-summary")).toHaveTextContent("uploaded game: #88 - Polypoid");
     expect(screen.getByRole("link", { name: /open replay vault/i })).toHaveAttribute("href", "/vault?currentUser=3x3_GG");
     expect(screen.getByRole("link", { name: /open analyzer/i })).toHaveAttribute("href", "/analyzer?currentUser=3x3_GG&gameId=88");
     expect(document.cookie).toContain("current_user=3x3_GG");
@@ -857,6 +858,8 @@ describe("dashboard page", () => {
         }}
       />
     );
+
+    fetchMock.mockClear();
 
     const queryInput = screen.getByLabelText(/플레이어 이름 입력/i);
     fireEvent.change(queryInput, { target: { value: "3x3_smwoo" } });

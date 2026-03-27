@@ -41,7 +41,7 @@ import type { VaultGame, VaultPlayer } from "@/types/vault";
 
 const SECTION_LABEL = "text-[10px] font-mono font-semibold tracking-widest text-slate-500 uppercase mb-3";
 const RECENT_GAMES_LOGIN_REQUIRED = "LOGIN_REQUIRED: SIMPLE_LOGIN 후 Recent_Games 조회 가능";
-const RECENT_GAMES_PAGE_SIZE = 12;
+const RECENT_GAMES_PAGE_SIZE = 10;
 const VIZ_TABS = [
   { id: "apm", label: "APM" },
   { id: "unitprod", label: "Unit_Production" },
@@ -656,11 +656,8 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
       setUploadSummary(summary);
       setUploadState("success");
       setUploadErrorMessage(null);
-      const uploadMessage = summary.uploadedGameId
-        ? `UPLOAD_DONE: game #${summary.uploadedGameId}${summary.uploadedMapName ? ` - ${summary.uploadedMapName}` : ""}`
-        : "UPLOAD_DONE: batch upload completed";
-      setUploadStatusMessage(uploadMessage);
-      appendSystemLog(uploadMessage);
+      setUploadStatusMessage("UPLOAD_DONE: check terminal log");
+      appendSystemLog("UPLOAD_DONE: check terminal log");
       persistCurrentUser(normalizedCurrentUser, { refresh: true });
       if (summary.uploadedGameId != null) {
         setSelectedGameId(summary.uploadedGameId);
@@ -901,6 +898,31 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
                       </div>
                     ))}
                   </div>
+                  {uploadSummary ? (
+                    <div className="border-t border-white/5 pt-3">
+                      <p className="text-slate-400">
+                        {uploadSummary.uploadedGameId
+                          ? `uploaded game: #${uploadSummary.uploadedGameId}${uploadSummary.uploadedMapName ? ` - ${uploadSummary.uploadedMapName}` : ""}`
+                          : "uploaded game: batch upload completed"}
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <Link
+                          href={uploadSummary.vaultHref}
+                          className="rounded border px-3 py-2 text-[11px] font-mono font-bold text-cyan-200"
+                          style={{ borderColor: "rgba(34,211,238,0.24)", backgroundColor: "rgba(34,211,238,0.06)" }}
+                        >
+                          Open Replay Vault
+                        </Link>
+                        <Link
+                          href={uploadSummary.analyzerHref}
+                          className="rounded border px-3 py-2 text-[11px] font-mono font-bold text-cyan-200"
+                          style={{ borderColor: "rgba(34,211,238,0.24)", backgroundColor: "rgba(34,211,238,0.06)" }}
+                        >
+                          Open Analyzer
+                        </Link>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               ) : (
                 <div className="flex items-center gap-2 text-xs font-mono text-slate-500">
@@ -916,26 +938,8 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
               style={INNER_PANEL_STYLE}
             >
               <pre className="overflow-auto whitespace-pre-wrap text-[11px] font-mono text-slate-300">
-                {formatPreviewTerminal(previewSummary, uploadErrorMessage ?? uploadStatusMessage)}
+                {uploadErrorMessage ?? uploadStatusMessage}
               </pre>
-              {uploadSummary ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Link
-                    href={uploadSummary.vaultHref}
-                    className="rounded border px-3 py-2 text-[11px] font-mono font-bold text-cyan-200"
-                    style={{ borderColor: "rgba(34,211,238,0.24)", backgroundColor: "rgba(34,211,238,0.06)" }}
-                  >
-                    Open Replay Vault
-                  </Link>
-                  <Link
-                    href={uploadSummary.analyzerHref}
-                    className="rounded border px-3 py-2 text-[11px] font-mono font-bold text-cyan-200"
-                    style={{ borderColor: "rgba(34,211,238,0.24)", backgroundColor: "rgba(34,211,238,0.06)" }}
-                  >
-                    Open Analyzer
-                  </Link>
-                </div>
-              ) : null}
             </div>
           </div>
 
