@@ -453,7 +453,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
     }
   }
 
-  function persistCurrentUser(nextUser: string, options?: { refresh?: boolean }) {
+  function persistCurrentUser(nextUser: string, options?: { refresh?: boolean; preserveUploadTerminal?: boolean }) {
     const normalized = nextUser.trim();
     const currentNormalized = currentUser.trim();
 
@@ -464,7 +464,9 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
       setUploadState("idle");
       setUploadErrorMessage(null);
       setUploadSummary(null);
-      setUploadStatusMessage("READY");
+      if (!options?.preserveUploadTerminal) {
+        setUploadStatusMessage("READY");
+      }
     }
 
     setCurrentUser(normalized);
@@ -657,7 +659,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
       } else if (!currentUser.trim() && summary.commonPlayers.length === 1) {
         const preferredPlayer = summary.commonPlayers[0];
         setSelectedPlayer(preferredPlayer);
-        persistCurrentUser(preferredPlayer);
+        persistCurrentUser(preferredPlayer, { preserveUploadTerminal: true });
       } else {
         setSelectedPlayer("");
       }

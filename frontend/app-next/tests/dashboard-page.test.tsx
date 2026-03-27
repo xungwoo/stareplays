@@ -593,6 +593,55 @@ describe("dashboard page", () => {
     expect(screen.getAllByText(/3x3_GG, 3x3_mh, 3x3_smwoo/i)).not.toHaveLength(0);
   });
 
+  it("keeps the preview success terminal when auto-selecting the preferred player", async () => {
+    render(
+      <DashboardPage
+        model={{
+          ...DASHBOARD_FIXTURE,
+          currentUser: "",
+          playerStats: {
+            ...DASHBOARD_FIXTURE.playerStats,
+            name: ""
+          }
+        }}
+      />
+    );
+
+    previewReplayUploadMock.mockResolvedValue({
+      success_count: 1,
+      total_files: 1,
+      results: [
+        {
+          ok: true,
+          filename: "preferred.rep",
+          preview: {
+            map_name: "Destination",
+            start_time: "2026-03-23T01:23:45Z",
+            player_count: 6,
+            parsed_players: ["3x3_GG"]
+          }
+        }
+      ]
+    });
+
+    fireEvent.change(document.querySelector("#replay-file") as HTMLInputElement, {
+      target: {
+        files: [new File(["mock replay"], "preferred.rep", { type: "application/octet-stream" })]
+      }
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /analyze_replay/i }));
+    });
+
+    await waitFor(() => {
+      expect(within(screen.getByTestId("dashboard-upload-result")).getByText("ANALYZE_OK: 1/1 files")).toBeInTheDocument();
+    });
+    expect(screen.getByLabelText(/플레이어 선택/i)).toHaveValue("3x3_GG");
+    expect(screen.getByText(/^CURRENT_USER:$/i).nextElementSibling).toHaveTextContent("3x3_GG");
+    expect(screen.queryByText(/^READY$/i)).not.toBeInTheDocument();
+  });
+
   it("preserves the current user and shows a legacy upload failure when preview participants do not match", async () => {
     const mismatchModel = {
       ...DASHBOARD_FIXTURE,
