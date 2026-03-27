@@ -621,6 +621,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
     }
 
     const requestId = ++previewRequestRef.current;
+    uploadRequestRef.current += 1;
     setPreviewState("submitting");
     setUploadState("idle");
     setUploadErrorMessage(null);

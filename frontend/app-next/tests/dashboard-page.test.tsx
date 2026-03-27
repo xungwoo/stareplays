@@ -810,6 +810,62 @@ describe("dashboard page", () => {
     expect(screen.getByText("second.rep")).toBeInTheDocument();
   });
 
+  it("ignores stale upload results when a new preview starts while upload is in flight", async () => {
+    render(<DashboardPage model={DASHBOARD_FIXTURE} />);
+
+    const uploadDeferred = createDeferred<Awaited<ReturnType<typeof submitReplayUploadMock>>>();
+    submitReplayUploadMock.mockReturnValueOnce(uploadDeferred.promise as ReturnType<typeof submitReplayUploadMock>);
+
+    previewReplayUploadMock.mockResolvedValue({
+      success_count: 1,
+      total_files: 1,
+      preview_candidates: ["3x3_GG"],
+      results: [
+        {
+          ok: true,
+          filename: "first.rep",
+          preview: {
+            map_name: "Polypoid",
+            start_time: "2026-03-23T01:23:45Z",
+            player_count: 6,
+            parsed_players: ["3x3_GG"]
+          }
+        }
+      ]
+    });
+
+    fireEvent.change(document.querySelector("#replay-file") as HTMLInputElement, {
+      target: {
+        files: [new File(["mock replay"], "first.rep", { type: "application/octet-stream" })]
+      }
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /analyze_replay/i }));
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /upload_with_selected_user/i }));
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /analyze_replay/i }));
+    });
+
+    await act(async () => {
+      uploadDeferred.resolve({
+        game: {
+          id: 101,
+          map_name: "Polypoid"
+        }
+      });
+      await uploadDeferred.promise;
+    });
+
+    expect(within(screen.getByTestId("dashboard-upload-result")).getByText("ANALYZE_OK: 1/1 files")).toBeInTheDocument();
+    expect(screen.queryByText(/uploaded game: #101/i)).not.toBeInTheDocument();
+  });
+
   it("updates the upload module when a replay file is selected and analyzed", async () => {
     render(<DashboardPage model={DASHBOARD_FIXTURE} />);
 
