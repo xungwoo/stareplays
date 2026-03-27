@@ -3,6 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { vi } from "vitest";
 
 import VaultPage from "@/app/vault/page";
+import { VaultDetailPanel } from "@/components/vault/vault-detail-panel";
+import { VaultGameRow } from "@/components/vault/vault-game-row";
 import { VaultPage as VaultPageComponent } from "@/components/vault/vault-page";
 import type { VaultPageModel } from "@/types/vault";
 
@@ -194,6 +196,48 @@ describe("vault page", () => {
     expect(screen.getByRole("link", { name: /^REFRESH$/i })).toHaveStyle({
       border: "1px solid rgba(255,255,255,0.1)"
     });
+  });
+
+  it("renders the extracted vault row and detail panel shells", async () => {
+    const model = createSingleGameModel();
+    const game = model.games[0];
+
+    render(
+      <div>
+        <VaultGameRow game={game} isExpanded={true} onToggle={() => {}} />
+        <VaultDetailPanel
+          game={game}
+          currentUser={model.currentUser}
+          activeVizTab="apm"
+          isFullscreen={false}
+          highlightedPlayer={null}
+          techFocus={null}
+          onActiveVizTabChange={() => {}}
+          onFullscreenToggle={() => {}}
+          onTechFocusChange={() => {}}
+          hydratedDetail={{
+            reliability: "25%",
+            reliabilityMOfN: "1/4",
+            replayFileCount: 2,
+            analysisMessage: "detail ready",
+            apmSeries: [
+              {
+                time: 1,
+                "neo_user": 120,
+                opponent: 90
+              }
+            ]
+          }}
+        />
+      </div>
+    );
+
+    expect(screen.getAllByText(/^#99$/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole("link", { name: /game analyzer/i })).toHaveAttribute("href", "/analyzer?currentUser=neo_user&gameId=99");
+    expect(screen.getByText(/^SELECTED_GAME$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^APM TIMELINE$/i)).toBeInTheDocument();
+    expect(screen.getByTestId("vault-start-grid-left")).toBeInTheDocument();
+    expect(screen.getByTestId("vault-start-grid-right")).toBeInTheDocument();
   });
 
   it("builds the analyzer deep link from the selected game id", async () => {
