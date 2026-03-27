@@ -9,6 +9,13 @@ import { VaultGameRow } from "@/components/vault/vault-game-row";
 import { VaultPage as VaultPageComponent } from "@/components/vault/vault-page";
 import type { VaultGame, VaultPageModel } from "@/types/vault";
 
+type VaultPageRuntimeModel = VaultPageModel & {
+  page?: number;
+  pageSize?: number;
+  totalGames?: number;
+  tableMessage?: string | null;
+};
+
 describe("vault page", () => {
   beforeEach(() => {
     vi.stubGlobal(
@@ -19,6 +26,7 @@ describe("vault page", () => {
         disconnect() {}
       }
     );
+    vi.stubGlobal("scrollTo", vi.fn());
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
@@ -327,6 +335,20 @@ describe("vault page", () => {
     };
   }
 
+  function createManyGamesModel(count: number): VaultPageRuntimeModel {
+    const baseGame = createSingleGameModel().games[0];
+
+    return {
+      currentUser: "neo_user",
+      games: Array.from({ length: count }, (_, index) => ({
+        ...baseGame,
+        id: 99 + index,
+        map: `Arena ${index + 1}`,
+        startTime: `2026-03-${String(23 - index).padStart(2, "0")} 09:00`
+      }))
+    };
+  }
+
   it("renders the figma replay vault table and expanded analyzer bridge", async () => {
     render(await VaultPage({}));
     const user = userEvent.setup();
@@ -356,11 +378,7 @@ describe("vault page", () => {
     const resultBadges = screen.getAllByText(/^(WINNER|LOSER)$/i);
     expect(resultBadges.some((badge) => badge.className.includes("text-[10px]"))).toBe(true);
 
-    const matchStoryCard = screen.getByText(/^MATCH STORY$/i).parentElement;
-    expect(matchStoryCard).toHaveStyle({
-      backgroundColor: "rgba(34, 211, 238, 0.04)",
-      border: "1px solid rgba(34,211,238,0.1)"
-    });
+    expect(screen.queryByText(/^MATCH STORY$/i)).not.toBeInTheDocument();
 
     expect(screen.getByRole("button", { name: /^Prev$/i })).toHaveStyle({
       color: "#94a3b8"
@@ -375,7 +393,7 @@ describe("vault page", () => {
     expect(screen.getByTestId("vault-inline-detail-row")).toHaveStyle({
       borderColor: "rgba(34, 211, 238, 0.12)"
     });
-    expect(screen.getByText(/^analysis notice$/i).parentElement).toHaveStyle({
+    expect(screen.getByText(/detail ready/i, { selector: "p.mt-1" }).parentElement).toHaveStyle({
       backgroundColor: "#0a1428",
       border: "1px solid rgba(255,255,255,0.05)"
     });
@@ -398,7 +416,7 @@ describe("vault page", () => {
     });
   });
 
-  it("renders the extracted vault row and detail panel shells", async () => {
+  it("renders the legacy selected-game board layout and visible viz copy without scaffold placeholders", async () => {
     const model = createSingleGameModel();
     const game = model.games[0];
 
@@ -441,15 +459,26 @@ describe("vault page", () => {
     expect(screen.getAllByText(/^#99$/i).length).toBeGreaterThan(0);
     expect(screen.getByRole("link", { name: /open_in_analyzer/i })).toHaveAttribute("href", "/analyzer?game_id=99");
     expect(screen.getByText(/^SELECTED_GAME$/i)).toBeInTheDocument();
+    expect(screen.getByTestId("vault-detail-shell")).toHaveTextContent("#99 Test Arena");
     expect(screen.getByText(/^APM TIMELINE$/i)).toBeInTheDocument();
     expect(screen.getAllByText(/^REDUNDANCY%$/i)).toHaveLength(2);
-    expect(screen.getByText(/^analysis notice$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^viz tabs$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^chart area$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^legend row$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^chart hint$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^tech event info$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^summary area$/i)).toBeInTheDocument();
+    expect(screen.queryByText(/^RELIABILITY$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^REPLAY_FILES$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^DETAIL_STATUS$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^MATCH STORY$/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Unit Production$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Resource Spend$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Tech \/ Upgrade$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Battle Intensity$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Action Mix$/i })).toBeInTheDocument();
+    expect(screen.getByText(/^범례를 클릭하면 플레이어 라인이 강조됩니다\.$/)).toBeInTheDocument();
+    expect(screen.getByTestId("vault-tech-tree-focus")).toHaveTextContent("TECH_EVENT: NONE_SELECTED");
+    expect(screen.queryByText(/^viz tabs$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^chart area$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^legend row$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^chart hint$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^tech event info$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^summary area$/i)).not.toBeInTheDocument();
     expect(screen.getByTestId("vault-start-grid-left")).toBeInTheDocument();
     expect(screen.getByTestId("vault-start-grid-right")).toBeInTheDocument();
   });
@@ -480,7 +509,7 @@ describe("vault page", () => {
           onTechFocusChange={(focus) => {
             setTechFocus(focus);
             setHighlightedPlayer(focus?.playerName ?? null);
-            setTechEventInfo(focus ? `${focus.playerName} • ${focus.kind.toUpperCase()}` : null);
+            setTechEventInfo(focus ? "TECH_EVENT: CLICK_MARKER_TO_VIEW" : null);
           }}
           hydratedDetail={{
             reliability: "25%",
@@ -509,23 +538,22 @@ describe("vault page", () => {
 
     render(<Harness />);
 
-    expect(screen.getByText(/^analysis notice$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^chart area$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^legend row$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^chart hint$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^범례를 클릭하면 플레이어 라인이 강조됩니다\.$/)).toBeInTheDocument();
+    expect(screen.getByTestId("vault-tech-tree-focus")).toHaveTextContent("TECH_EVENT: NONE_SELECTED");
 
     await user.click(screen.getByRole("button", { name: /^neo_user$/i }));
     expect(screen.getByRole("button", { name: /^neo_user$/i })).toHaveAttribute("aria-pressed", "true");
 
-    await user.click(screen.getByRole("button", { name: /^Tech$/i }));
+    await user.click(screen.getByRole("button", { name: /^Tech \/ Upgrade$/i }));
     const techTree = screen.getByTestId("vault-tech-tree");
     const techMarkers = screen.getByTestId("vault-tech-tree-markers");
     await user.click(within(techTree).getByRole("button", { name: /^neo_user TECH 2$/i }));
-    expect(screen.getByTestId("vault-tech-tree-focus")).toHaveTextContent("neo_user • TECH");
+    expect(screen.getByText(/^필터: neo_user \/ TECH 강조$/)).toBeInTheDocument();
+    expect(screen.getByTestId("vault-tech-tree-focus")).toHaveTextContent("TECH_EVENT: CLICK_MARKER_TO_VIEW");
 
     await user.click(within(techMarkers).getByRole("button", { name: /^neo_user Psionic Storm 180s$/i }));
     expect(within(techTree).getByRole("button", { name: /^neo_user TECH 2$/i })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByTestId("vault-tech-tree-focus")).toHaveTextContent("neo_user • Psionic Storm • 180s");
+    expect(screen.getByTestId("vault-tech-tree-focus")).toHaveTextContent("TECH_EVENT: neo_user | Psionic Storm | TECH | 180s");
   });
 
   it("inserts the selected game detail as a row-adjacent table row under the clicked game", async () => {
@@ -542,6 +570,83 @@ describe("vault page", () => {
     expect(bodyRows[0]).toHaveTextContent("99");
     expect(bodyRows[1]).toHaveTextContent("Selected_Game");
     expect(bodyRows[2]).toHaveTextContent("100");
+  });
+
+  it("renders all loaded games without local client-side slicing and shows legacy table-state messages", () => {
+    const { rerender } = render(<VaultPageComponent model={createManyGamesModel(6)} />);
+
+    expect(screen.queryByTestId("vault-game-row-104")).toBeTruthy();
+    expect(screen.getByText(/^Page 1\/1$/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Next$/i })).toBeDisabled();
+
+    rerender(<VaultPageComponent model={{ currentUser: "", games: [] }} />);
+    expect(screen.getByText(/^LOGIN_REQUIRED: SIMPLE_LOGIN 후 Recent_Games 조회 가능$/i)).toBeInTheDocument();
+
+    rerender(<VaultPageComponent model={{ currentUser: "neo_user", games: [] }} />);
+    expect(screen.getByText(/^NO_GAMES_FOUND$/i)).toBeInTheDocument();
+
+    rerender(
+      <VaultPageComponent
+        model={
+          {
+            currentUser: "neo_user",
+            games: [],
+            tableMessage: "ERROR_LOAD_GAMES: upstream failed"
+          } as VaultPageRuntimeModel
+        }
+      />
+    );
+    expect(screen.getByText(/^ERROR_LOAD_GAMES: upstream failed$/i)).toBeInTheDocument();
+  });
+
+  it("syncs the selected row viewport on row selection using legacy-style top alignment", async () => {
+    const user = userEvent.setup();
+    const scrollTo = vi.fn();
+    vi.stubGlobal("scrollTo", scrollTo);
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      callback(0);
+      return 1;
+    });
+    Object.defineProperty(window, "scrollY", {
+      configurable: true,
+      value: 320
+    });
+
+    render(<VaultPageComponent model={createTwoGameModel()} />);
+
+    const row99 = screen.getByTestId("vault-game-row-99");
+    const row100 = screen.getByTestId("vault-game-row-100");
+
+    row99.getBoundingClientRect = vi.fn(() => ({
+      x: 0,
+      y: 180,
+      width: 1000,
+      height: 40,
+      top: 180,
+      right: 1000,
+      bottom: 220,
+      left: 0,
+      toJSON: () => ({})
+    }));
+    row100.getBoundingClientRect = vi.fn(() => ({
+      x: 0,
+      y: 420,
+      width: 1000,
+      height: 40,
+      top: 420,
+      right: 1000,
+      bottom: 460,
+      left: 0,
+      toJSON: () => ({})
+    }));
+
+    await user.click(within(row99).getByText("#99"));
+    expect(scrollTo).toHaveBeenCalledWith({ top: 492, behavior: "auto" });
+
+    scrollTo.mockClear();
+
+    await user.click(within(row100).getByText("#100"));
+    expect(scrollTo).toHaveBeenCalledWith({ top: 732, behavior: "auto" });
   });
 
   it("uses OUR_TEAM and ENEMY_TEAM semantics for the current user row", () => {
@@ -587,17 +692,19 @@ describe("vault page", () => {
     expect(screen.getByRole("link", { name: /^Open_In_Analyzer$/i })).toBeInTheDocument();
     expect(screen.getByText(/^Game_Detail_Visualization$/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^APM$/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^Unit_Production$/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^Resource_Spend$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Unit Production$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Resource Spend$/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Production$/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^Tech$/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^Battle$/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^Actions$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Tech \/ Upgrade$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Battle Intensity$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Action Mix$/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^크게 보기$/i })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^Tech \/ Upgrade$/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^Battle Intensity$/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^Action Mix$/i })).not.toBeInTheDocument();
-    expect(screen.getByText(/^analysis notice$/i).parentElement).toHaveStyle({
+    expect(screen.queryByRole("button", { name: /^Unit_Production$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Resource_Spend$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Battle$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Actions$/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/^analysis notice$/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/detail ready/i, { selector: "p.mt-1" }).parentElement).toHaveStyle({
       backgroundColor: "rgb(10, 20, 40)",
       border: "1px solid rgba(255, 255, 255, 0.05)"
     });
@@ -773,9 +880,11 @@ describe("vault page", () => {
       )
     );
 
-    await waitFor(() => expect(screen.getByText(/^DETAIL_STATUS$/i).nextElementSibling).toHaveTextContent("LIVE_DETAIL_READY"));
-    expect(screen.getByText(/^RELIABILITY$/i).nextElementSibling).toHaveTextContent("1/4 • 25%");
-    expect(screen.getByText(/^REPLAY_FILES$/i).nextElementSibling).toHaveTextContent("2");
+    await waitFor(() => expect(screen.getByTestId("vault-detail-shell")).toBeInTheDocument());
+    expect(screen.queryByText(/^DETAIL_STATUS$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^RELIABILITY$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^REPLAY_FILES$/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/^최신 분석 데이터입니다\.$/)).toBeInTheDocument();
   });
 
   it("re-fetches game detail when the same row is reselected after collapse", async () => {
@@ -879,17 +988,16 @@ describe("vault page", () => {
     await user.click(getGameIdCell(99));
     await waitFor(() => expect(screen.getByTestId("vault-detail-shell")).toBeInTheDocument());
 
-    const expectedTabLabels = ["APM", "Unit_Production", "Resource_Spend", "Production", "Tech", "Battle", "Actions"];
+    const expectedTabLabels = ["APM", "Unit Production", "Resource Spend", "Production", "Tech / Upgrade", "Battle Intensity", "Action Mix"];
     const tabButtons = screen
       .getAllByRole("button")
       .filter((button) => expectedTabLabels.includes(button.textContent?.trim() ?? ""));
 
     expect(tabButtons.map((button) => button.textContent?.trim())).toEqual(expectedTabLabels);
-    expect(screen.queryByRole("button", { name: /^Unit Production$/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^Resource Spend$/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^Tech \/ Upgrade$/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^Battle Intensity$/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^Action Mix$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Unit_Production$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Resource_Spend$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Battle$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Actions$/i })).not.toBeInTheDocument();
   });
 
   it("renders the production tab as a bucketed event-count chart instead of build-event chips", async () => {
@@ -970,7 +1078,7 @@ describe("vault page", () => {
     await user.click(getGameIdCell(99));
     await waitFor(() => expect(screen.getByTestId("vault-detail-shell")).toBeInTheDocument());
 
-    await user.click(screen.getByRole("button", { name: /^Resource_Spend$/i }));
+    await user.click(screen.getByRole("button", { name: /^Resource Spend$/i }));
 
     expect(screen.getByRole("button", { name: /^ALL$/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^MINERAL \+ GAS$/i })).not.toBeInTheDocument();
@@ -1023,7 +1131,7 @@ describe("vault page", () => {
     await user.click(getGameIdCell(99));
     await waitFor(() => expect(screen.getByTestId("vault-detail-shell")).toBeInTheDocument());
 
-    await user.click(screen.getByRole("button", { name: /^Battle$/i }));
+    await user.click(screen.getByRole("button", { name: /^Battle Intensity$/i }));
     const battleChart = screen.getByLabelText(/^Battle APM Timeline$/i);
     expect(battleChart).toBeInTheDocument();
     expect(battleChart.querySelectorAll("path")).toHaveLength(1);
@@ -1083,16 +1191,17 @@ describe("vault page", () => {
     await user.click(getGameIdCell(99));
     await waitFor(() => expect(screen.getByTestId("vault-detail-shell")).toBeInTheDocument());
 
-    await user.click(screen.getByRole("button", { name: /^Tech$/i }));
+    await user.click(screen.getByRole("button", { name: /^Tech \/ Upgrade$/i }));
     const techTree = screen.getByTestId("vault-tech-tree");
     await user.click(within(techTree).getByRole("button", { name: /^neo_user TECH 2$/i }));
-    expect(screen.getByTestId("vault-tech-tree-focus")).toHaveTextContent("neo_user • TECH");
+    expect(screen.getByText(/^필터: neo_user \/ TECH 강조$/)).toBeInTheDocument();
+    expect(screen.getByTestId("vault-tech-tree-focus")).toHaveTextContent("TECH_EVENT: CLICK_MARKER_TO_VIEW");
 
     await user.click(getGameIdCell(100));
     expect(screen.getByRole("button", { name: /^APM$/i })).toHaveAttribute("aria-pressed", "true");
 
-    await user.click(screen.getByRole("button", { name: /^Tech$/i }));
-    expect(screen.getByTestId("vault-tech-tree-focus")).toHaveTextContent("NO TECH EVENT SELECTED");
+    await user.click(screen.getByRole("button", { name: /^Tech \/ Upgrade$/i }));
+    expect(screen.getByTestId("vault-tech-tree-focus")).toHaveTextContent("TECH_EVENT: CLICK_MARKER_TO_VIEW");
   });
 
   it("replaces the selected game detail area with an error state when detail fetch fails", async () => {
@@ -1160,8 +1269,9 @@ describe("vault page", () => {
     render(<VaultPageComponent model={createSingleGameModel()} />);
 
     await user.click(getGameIdCell(99));
-    await waitFor(() => expect(screen.getByText(/^DETAIL_STATUS$/i).nextElementSibling).toHaveTextContent("LIVE_DETAIL_READY"));
-    expect(screen.getByText(/^RELIABILITY$/i).nextElementSibling).toHaveTextContent("1/4 • 25%");
+    await waitFor(() => expect(screen.getAllByText(/live detail/i).length).toBeGreaterThan(0));
+    expect(screen.queryByText(/^DETAIL_STATUS$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^RELIABILITY$/i)).not.toBeInTheDocument();
 
     await user.click(getGameIdCell(99));
     await waitFor(() => expect(screen.queryByText(/^SELECTED_GAME$/i)).not.toBeInTheDocument());

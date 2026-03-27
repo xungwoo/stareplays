@@ -115,12 +115,12 @@ const CARD_STYLE = CYAN_PANEL_STYLE;
 const WINDOW_FRAMES = 238;
 const VIZ_TABS = [
   { id: "apm", label: "APM" },
-  { id: "unitprod", label: "Unit_Production" },
-  { id: "spend", label: "Resource_Spend" },
+  { id: "unitprod", label: "Unit Production" },
+  { id: "spend", label: "Resource Spend" },
   { id: "production", label: "Production" },
-  { id: "tech", label: "Tech" },
-  { id: "battle", label: "Battle" },
-  { id: "actions", label: "Actions" }
+  { id: "tech", label: "Tech / Upgrade" },
+  { id: "battle", label: "Battle Intensity" },
+  { id: "actions", label: "Action Mix" }
 ] as const;
 
 export type VaultVizTab = (typeof VIZ_TABS)[number]["id"];
@@ -445,12 +445,8 @@ function buildAnalyzerHref(gameId: number) {
   return `/analyzer?game_id=${gameId}`;
 }
 
-function buildTechEventLabel(playerName: string, kind: "tech" | "upgrade") {
-  return `${playerName} • ${kind.toUpperCase()}`;
-}
-
 function buildTechMarkerLabel(event: VaultTechEvent) {
-  return `${event.playerName} • ${event.name} • ${event.second}s`;
+  return `TECH_EVENT: ${event.playerName} | ${event.name} | ${event.kind.toUpperCase()} | ${event.second}s`;
 }
 
 function normalizeBuildOrderEvent(event: Partial<VaultBuildEvent> | undefined): VaultBuildEvent {
@@ -616,9 +612,7 @@ function getApmData(game: VaultGame, hydratedDetail?: VaultHydratedDetail): Vaul
 
 export function VaultDetailPanel({
   game,
-  currentUser,
   hydratedDetail,
-  isHydrating,
   hydrateError,
   activeVizTab,
   isFullscreen,
@@ -653,9 +647,6 @@ export function VaultDetailPanel({
   const allGamePlayers = getAllGamePlayers(game);
   const board = useMemo(() => getStartGridBoard(game), [game]);
   const insightMessage = hydratedDetail?.analysisMessage || game.matchStory;
-  const reliabilityLabel = hydratedDetail?.reliabilityMOfN
-    ? `${hydratedDetail.reliabilityMOfN}${hydratedDetail.reliability ? ` • ${hydratedDetail.reliability}` : ""}`
-    : hydratedDetail?.reliability || "UNAVAILABLE";
   const unitProductionRows = useMemo(
     () =>
       allGamePlayers.map((player) =>
@@ -741,6 +732,7 @@ export function VaultDetailPanel({
   function handleTechSummaryClick(playerName: string, kind: "tech" | "upgrade") {
     const nextFocus = techFocus?.playerName === playerName && techFocus.kind === kind ? null : { playerName, kind };
     onTechFocusChange(nextFocus);
+    onTechEventInfoChange?.(nextFocus ? "TECH_EVENT: CLICK_MARKER_TO_VIEW" : null);
   }
 
   function handleTechMarkerClick(event: VaultTechEvent) {
@@ -1253,9 +1245,9 @@ export function VaultDetailPanel({
   function renderChartHint() {
     switch (activeVizTab) {
       case "apm":
-        return "click legend items to emphasize a player";
+        return "범례를 클릭하면 플레이어 라인이 강조됩니다.";
       case "unitprod":
-        return "click a player to compare production profiles";
+        return "시간 구간별 유닛 생산량(유효 생산 기준)입니다.";
       case "spend":
         if (!selectedSpendPlayer) {
           return "전체 플레이어 조회 모드입니다. 플레이어 버튼([M]/[G])을 클릭하면 해당 플레이어가 선택됩니다.";
@@ -1270,18 +1262,22 @@ export function VaultDetailPanel({
       case "production":
         return "시간 구간별 생산 이벤트 개수입니다.";
       case "tech":
-        return "click markers or summary buttons to set tech focus";
+        return techFocus ? `필터: ${techFocus.playerName} / ${techFocus.kind.toUpperCase()} 강조` : "Tech/UPG 숫자를 클릭하면 해당 플레이어의 해당 이벤트만 강조됩니다.";
       case "battle":
         return "전 플레이어 APM 합계 기반 교전 강도 추정치입니다.";
       case "actions":
-        return "compare action mix and redundancy";
+        return "APM + 생산 이벤트 기반 액션 비중 추정치입니다.";
       default:
-        return "click legend items to emphasize a player";
+        return "범례를 클릭하면 플레이어 라인이 강조됩니다.";
     }
   }
 
   function renderTechEventInfo() {
-    return techEventInfo ?? (techFocus ? buildTechEventLabel(techFocus.playerName, techFocus.kind) : "NO TECH EVENT SELECTED");
+    if (activeVizTab === "tech") {
+      return techEventInfo ?? "TECH_EVENT: CLICK_MARKER_TO_VIEW";
+    }
+
+    return "TECH_EVENT: NONE_SELECTED";
   }
 
   function renderSummaryArea() {
@@ -1492,14 +1488,8 @@ export function VaultDetailPanel({
 
   return (
     <div data-testid="vault-detail-shell" data-fullscreen={isFullscreen ? "true" : "false"} className="rounded-xl p-5" style={{ backgroundColor: "#080e1f", border: "1px solid rgba(34,211,238,0.12)" }}>
-      <div className="mb-4 flex items-center gap-3">
-        <span className="text-xs font-mono text-slate-400">#{game.id}</span>
-        <span className="text-sm font-mono font-semibold text-slate-200">{game.map}</span>
-        <span className="text-xs font-mono text-slate-500">{game.startTime}</span>
-      </div>
-
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-        <div>
+        <article>
           <div className="mb-3 flex items-center justify-between gap-3">
             <p className="text-[10px] font-mono tracking-widest text-slate-500">Selected_Game</p>
             <Link
@@ -1516,65 +1506,77 @@ export function VaultDetailPanel({
             </Link>
           </div>
 
-          <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
-            <div className="rounded-lg px-3 py-2" style={INNER_PANEL_STYLE}>
-              <p className="text-[10px] font-mono tracking-widest text-slate-500">RELIABILITY</p>
-              <p className="mt-1 text-xs font-mono text-slate-200">{reliabilityLabel}</p>
-            </div>
-            <div className="rounded-lg px-3 py-2" style={INNER_PANEL_STYLE}>
-              <p className="text-[10px] font-mono tracking-widest text-slate-500">REPLAY_FILES</p>
-              <p className="mt-1 text-xs font-mono text-slate-200">{hydratedDetail?.replayFileCount ?? "-"}</p>
-            </div>
-            <div className="rounded-lg px-3 py-2" style={INNER_PANEL_STYLE}>
-              <p className="text-[10px] font-mono tracking-widest text-slate-500">DETAIL_STATUS</p>
-              <p className="mt-1 text-xs font-mono text-slate-200">{isHydrating ? "FETCHING_LIVE_DETAIL..." : hydrateError ? "DETAIL_FALLBACK" : "LIVE_DETAIL_READY"}</p>
-            </div>
-          </div>
-
-          <div className="my-3 grid gap-3 xl:grid-cols-[minmax(0,1fr)_260px_minmax(0,1fr)]">
-            <div data-testid="vault-start-grid-left" className="flex flex-col gap-2">
-              {board.leftColumn.map((entry) => (
-                <PlayerBoardCard key={entry.player.name} player={entry.player} result={entry.result} highlighted={!highlightedPlayer || highlightedPlayer === entry.player.name} />
-              ))}
+          <div className="rounded-lg border p-3" style={{ backgroundColor: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.08)" }}>
+            <div className="mb-2 flex items-center justify-between gap-3 text-[10px] font-mono uppercase">
+              <div className="font-bold text-slate-200">
+                #{game.id} {game.map}
+              </div>
+              <div className="text-slate-500">{game.startTime}</div>
             </div>
 
-            <div className="flex flex-col items-center justify-center rounded-xl px-4 py-5 text-center" style={{ background: "radial-gradient(circle at center, rgba(255,255,255,0.08), rgba(255,255,255,0.02))", border: "1px solid rgba(255,255,255,0.08)" }}>
-              <div className="text-4xl font-mono font-bold text-slate-300">{game.matchup}</div>
-              <div className="mt-3 flex items-center gap-2">
-                <div className="flex gap-0.5">
-                  {board.leftColumn.map((entry) => (
-                    <RaceBadge key={`left-${entry.player.name}`} race={entry.player.race} />
-                  ))}
+            <div className="rounded border p-1" style={{ backgroundColor: "rgba(74,79,89,0.72)", borderColor: "rgba(255,255,255,0.08)" }}>
+              <div className="grid gap-px md:grid-cols-[minmax(0,1fr)_minmax(180px,0.9fr)_minmax(0,1fr)]">
+                <div data-testid="vault-start-grid-left" className="contents">
+                  {Array.from({ length: 3 }, (_, rowIndex) => {
+                    const entry = board.leftColumn[rowIndex];
+                    return entry ? (
+                      <PlayerBoardCard key={`left-${entry.player.name}`} player={entry.player} result={entry.result} highlighted={!highlightedPlayer || highlightedPlayer === entry.player.name} />
+                    ) : (
+                      <div key={`left-empty-${rowIndex}`} className="min-h-[140px] rounded-sm bg-white/70" />
+                    );
+                  })}
                 </div>
-                <span className="text-base font-mono font-bold text-slate-500">vs</span>
-                <div className="flex gap-0.5">
-                  {board.rightColumn.map((entry) => (
-                    <RaceBadge key={`right-${entry.player.name}`} race={entry.player.race} />
-                  ))}
+
+                <div className="contents">
+                  {Array.from({ length: 3 }, (_, rowIndex) =>
+                    rowIndex === 1 ? (
+                      <div
+                        key="center-card"
+                        className="flex min-h-[140px] flex-col items-center justify-center rounded-sm px-4 py-5 text-center"
+                        style={{
+                          background:
+                            "radial-gradient(circle at 28% 25%, rgba(255,255,255,0.22), transparent 40%), radial-gradient(circle at 72% 72%, rgba(255,255,255,0.18), transparent 34%), rgba(219,219,223,0.92)"
+                        }}
+                      >
+                        <div className="text-4xl font-mono font-bold text-slate-700">{game.matchup}</div>
+                        <div className="mt-3 flex items-center gap-2">
+                          <div className="flex gap-0.5">
+                            {board.leftColumn.map((entry) => (
+                              <RaceBadge key={`left-${entry.player.name}`} race={entry.player.race} />
+                            ))}
+                          </div>
+                          <span className="text-base font-mono font-bold text-slate-500">vs</span>
+                          <div className="flex gap-0.5">
+                            {board.rightColumn.map((entry) => (
+                              <RaceBadge key={`right-${entry.player.name}`} race={entry.player.race} />
+                            ))}
+                          </div>
+                        </div>
+                        <div className="mt-3 text-xs font-mono tracking-widest text-slate-500">PLAY TIME</div>
+                        <div className="text-3xl font-mono font-bold text-slate-700">{game.playTime}</div>
+                      </div>
+                    ) : (
+                      <div key={`center-empty-${rowIndex}`} className="min-h-[140px] rounded-sm bg-white/70" />
+                    )
+                  )}
+                </div>
+
+                <div data-testid="vault-start-grid-right" className="contents">
+                  {Array.from({ length: 3 }, (_, rowIndex) => {
+                    const entry = board.rightColumn[rowIndex];
+                    return entry ? (
+                      <PlayerBoardCard key={`right-${entry.player.name}`} player={entry.player} result={entry.result} highlighted={!highlightedPlayer || highlightedPlayer === entry.player.name} />
+                    ) : (
+                      <div key={`right-empty-${rowIndex}`} className="min-h-[140px] rounded-sm bg-white/70" />
+                    );
+                  })}
                 </div>
               </div>
-              <div className="mt-3 text-xs font-mono tracking-widest text-slate-500">PLAY TIME</div>
-              <div className="text-3xl font-mono font-bold" style={{ color: "#22d3ee" }}>
-                {game.playTime}
-              </div>
-            </div>
-
-            <div data-testid="vault-start-grid-right" className="flex flex-col gap-2">
-              {board.rightColumn.map((entry) => (
-                <PlayerBoardCard key={entry.player.name} player={entry.player} result={entry.result} highlighted={!highlightedPlayer || highlightedPlayer === entry.player.name} />
-              ))}
             </div>
           </div>
+        </article>
 
-          {game.matchStory ? (
-            <div className="mt-3 rounded-lg p-3" style={{ backgroundColor: "rgba(34,211,238,0.04)", border: "1px solid rgba(34,211,238,0.1)" }}>
-              <p className="mb-1 text-[10px] font-mono tracking-widest text-cyan-500">MATCH STORY</p>
-              <p className="text-xs leading-relaxed text-slate-300">{insightMessage}</p>
-            </div>
-          ) : null}
-        </div>
-
-        <div
+        <article
           data-testid="vault-viz-panel"
           style={
             isFullscreen
@@ -1615,12 +1617,10 @@ export function VaultDetailPanel({
           ) : (
             <div className="space-y-3">
               <div className="rounded-lg px-3 py-2 text-xs font-mono text-slate-300" style={INNER_PANEL_STYLE}>
-                <p className="text-[10px] uppercase tracking-widest text-slate-500">analysis notice</p>
                 <p className="mt-1">{insightMessage || "analysis pending"}</p>
               </div>
 
               <div className="flex flex-wrap gap-2">
-                <p className="mr-2 self-center text-[10px] font-mono uppercase tracking-widest text-slate-500">viz tabs</p>
                 {VIZ_TABS.map((tab) => (
                   <button
                     key={tab.id}
@@ -1639,33 +1639,22 @@ export function VaultDetailPanel({
                 ))}
               </div>
 
-              <div className="space-y-3">
-                <p className="text-[10px] font-mono uppercase tracking-widest text-slate-500">chart area</p>
-                {renderChartArea()}
-              </div>
+              {renderChartArea()}
 
-              <div className="space-y-3">
-                <p className="text-[10px] font-mono uppercase tracking-widest text-slate-500">legend row</p>
-                {renderLegendRow()}
-              </div>
+              {renderLegendRow()}
 
               <div className="rounded-lg px-3 py-2 text-xs font-mono text-slate-400" style={INNER_PANEL_STYLE}>
-                <p className="text-[10px] uppercase tracking-widest text-slate-500">chart hint</p>
                 <p className="mt-1">{renderChartHint()}</p>
               </div>
 
               <div className="rounded-lg px-3 py-2 text-xs font-mono text-slate-300" style={INNER_PANEL_STYLE}>
-                <p className="text-[10px] uppercase tracking-widest text-slate-500">tech event info</p>
                 <p data-testid="vault-tech-tree-focus" className="mt-1">{renderTechEventInfo()}</p>
               </div>
 
-              <div className="space-y-3">
-                <p className="text-[10px] font-mono uppercase tracking-widest text-slate-500">summary area</p>
-                {renderSummaryArea()}
-              </div>
+              {renderSummaryArea()}
             </div>
           )}
-        </div>
+        </article>
       </div>
     </div>
   );

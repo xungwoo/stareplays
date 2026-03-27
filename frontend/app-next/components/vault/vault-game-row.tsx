@@ -66,16 +66,20 @@ function TeamCell({
 export function VaultGameRow({
   game,
   isExpanded,
-  onToggle
+  onToggle,
+  rowRef
 }: {
   game: VaultGame;
   isExpanded: boolean;
   onToggle: () => void;
+  rowRef?: (node: HTMLTableRowElement | null) => void;
 }) {
   const { ourTeam, enemyTeam, ourResult, enemyResult } = resolveTeamSemantics(game);
 
   return (
     <tr
+      ref={rowRef}
+      data-game-id={game.id}
       data-testid={`vault-game-row-${game.id}`}
       className="border-b transition-colors hover:bg-slate-800/30"
       style={{

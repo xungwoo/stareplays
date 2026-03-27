@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { RefreshCw } from "lucide-react";
 
 import { CYAN_PANEL_STYLE, CYAN_SECTION_DIVIDER_STYLE } from "@/lib/constants/ui-styles";
@@ -12,6 +12,15 @@ import type { ApiGameDetailResponse, ApiGetGameResponse } from "@/types/api";
 import type { VaultPageModel } from "@/types/vault";
 
 const CARD_STYLE = CYAN_PANEL_STYLE;
+const LOGIN_REQUIRED_MESSAGE = "LOGIN_REQUIRED: SIMPLE_LOGIN 후 Recent_Games 조회 가능";
+const NO_GAMES_FOUND_MESSAGE = "NO_GAMES_FOUND";
+
+type VaultRuntimeModel = VaultPageModel & {
+  page?: number;
+  pageSize?: number;
+  totalGames?: number;
+  tableMessage?: string | null;
+};
 
 async function fetchBrowserApiJson<T>(path: string): Promise<T> {
   const response = await fetch(buildApiUrl(path), {
@@ -41,8 +50,9 @@ async function fetchBrowserApiJson<T>(path: string): Promise<T> {
 }
 
 export function VaultPage({ model }: { model: VaultPageModel }) {
+  const runtimeModel = model as VaultRuntimeModel;
+  const currentUser = model.currentUser.trim();
   const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [page, setPage] = useState(1);
   const [detailByGameId, setDetailByGameId] = useState<Record<number, VaultHydratedDetail>>({});
   const [detailStatusByGameId, setDetailStatusByGameId] = useState<Record<number, "idle" | "loading" | "success" | "error">>({});
   const [detailErrorByGameId, setDetailErrorByGameId] = useState<Record<number, string | null>>({});
@@ -51,13 +61,48 @@ export function VaultPage({ model }: { model: VaultPageModel }) {
   const [techFocus, setTechFocus] = useState<VaultTechFocus>(null);
   const [techEventInfo, setTechEventInfo] = useState<string | null>(null);
   const [highlightedPlayer, setHighlightedPlayer] = useState<string | null>(null);
-  const pageSize = 5;
-  const totalPages = Math.max(1, Math.ceil(model.games.length / pageSize));
-  const pageGames = model.games.slice((page - 1) * pageSize, page * pageSize);
-  const currentUserHref = `/vault?currentUser=${encodeURIComponent(model.currentUser)}`;
-  const expandedGame =
-    expandedId == null ? null : model.games.find((game) => game.id === expandedId) ?? pageGames.find((game) => game.id === expandedId) ?? null;
+  const rowRefs = useRef<Record<number, HTMLTableRowElement | null>>({});
+  const tableMessage = !currentUser ? LOGIN_REQUIRED_MESSAGE : runtimeModel.tableMessage?.trim() || (model.games.length === 0 ? NO_GAMES_FOUND_MESSAGE : null);
+  const totalGames = tableMessage ? 0 : Math.max(model.games.length, runtimeModel.totalGames ?? model.games.length);
+  const pageSize = Math.max(1, runtimeModel.pageSize ?? Math.max(totalGames, 1));
+  const totalPages = Math.max(1, Math.ceil(totalGames / pageSize));
+  const page = Math.min(Math.max(1, runtimeModel.page ?? 1), totalPages);
+  const currentUserHref = currentUser ? `/vault?currentUser=${encodeURIComponent(currentUser)}` : "/vault";
+  const expandedGame = expandedId == null ? null : model.games.find((game) => game.id === expandedId) ?? null;
   const expandedDetailStatus = expandedId == null ? null : detailStatusByGameId[expandedId] ?? null;
+  const canPaginate = false;
+
+  function stickyTopOffset() {
+    const nav = document.querySelector("nav.sticky");
+    const navHeight = nav instanceof HTMLElement ? Math.ceil(nav.getBoundingClientRect().height) : 0;
+    return navHeight + 8;
+  }
+
+  function syncSelectedRowViewport(gameId: number, force = false) {
+    const sync = () => {
+      const row = rowRefs.current[gameId];
+      if (!row) {
+        return;
+      }
+
+      const offset = stickyTopOffset();
+      const rect = row.getBoundingClientRect();
+      const needScroll = force || rect.top < offset || rect.top > offset + 40;
+      if (!needScroll) {
+        return;
+      }
+
+      const rowTopOnDoc = window.scrollY + rect.top;
+      const targetTop = Math.max(0, rowTopOnDoc - offset);
+      if (typeof globalThis.scrollTo === "function") {
+        globalThis.scrollTo({ top: targetTop, behavior: "auto" });
+      }
+    };
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(sync);
+    });
+  }
 
   useEffect(() => {
     if (expandedId != null && !model.games.some((game) => game.id === expandedId)) {
@@ -86,6 +131,24 @@ export function VaultPage({ model }: { model: VaultPageModel }) {
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [isFullscreen]);
+
+  useEffect(() => {
+    if (expandedId == null) {
+      return;
+    }
+
+    syncSelectedRowViewport(expandedId, true);
+  }, [expandedId]);
+
+  useEffect(() => {
+    if (expandedId == null) {
+      return;
+    }
+
+    if (expandedDetailStatus === "success" || expandedDetailStatus === "error") {
+      syncSelectedRowViewport(expandedId, false);
+    }
+  }, [expandedDetailStatus, expandedId]);
 
   useEffect(() => {
     if (expandedId == null) {
@@ -208,78 +271,96 @@ export function VaultPage({ model }: { model: VaultPageModel }) {
             </tr>
           </thead>
           <tbody>
-            {pageGames.map((game) => (
-              <Fragment key={game.id}>
-                <VaultGameRow game={game} isExpanded={expandedId === game.id} onToggle={() => handleSelectGame(game.id)} />
-                {expandedId === game.id ? (
-                  <tr data-testid="vault-inline-detail-row" className="border-b" style={{ borderColor: "rgba(34,211,238,0.12)" }}>
-                    <td colSpan={8} className="p-3">
-                      {expandedDetailStatus === "loading" || !expandedGame ? (
-                        <div
-                          className="rounded-xl px-5 py-4 text-xs font-mono text-slate-400"
-                          style={{ backgroundColor: "#080e1f", border: "1px solid rgba(34,211,238,0.12)" }}
-                        >
-                          FETCHING_GAME...
-                        </div>
-                      ) : expandedDetailStatus === "error" ? (
-                        <div
-                          data-testid="vault-inline-detail-error"
-                          className="rounded-xl px-5 py-4 text-xs font-mono"
-                          style={{ backgroundColor: "#1a0f17", border: "1px solid rgba(239,68,68,0.25)", color: "#fecdd3" }}
-                        >
-                          <p className="text-[10px] uppercase tracking-widest text-red-200">DETAIL_ERROR</p>
-                          <p className="mt-2 font-semibold">Unable to load selected game detail.</p>
-                          <p className="mt-1 text-red-100/90">{detailErrorByGameId[expandedId] ?? "failed to load selected game detail"}</p>
-                        </div>
-                      ) : (
-                        <VaultDetailPanel
-                          game={expandedGame}
-                          currentUser={model.currentUser}
-                          hydratedDetail={detailByGameId[expandedId]}
-                          isHydrating={false}
-                          activeVizTab={activeVizTab}
-                          isFullscreen={isFullscreen}
-                          techFocus={techFocus}
-                          techEventInfo={techEventInfo}
-                          highlightedPlayer={highlightedPlayer}
-                          onActiveVizTabChange={setActiveVizTab}
-                          onFullscreenToggle={() => setIsFullscreen((current) => !current)}
-                          onTechFocusChange={(focus) => {
-                            setTechFocus(focus);
-                            setHighlightedPlayer(focus?.playerName ?? null);
-                            setTechEventInfo(focus ? `${focus.playerName} • ${focus.kind.toUpperCase()}` : null);
-                          }}
-                          onTechEventInfoChange={setTechEventInfo}
-                          onHighlightedPlayerChange={(playerName) => {
-                            setHighlightedPlayer(playerName);
-                          }}
-                        />
-                      )}
-                    </td>
-                  </tr>
-                ) : null}
-              </Fragment>
-            ))}
+            {tableMessage ? (
+              <tr>
+                <td colSpan={8} className="p-3 text-center text-[11px] text-slate-500">
+                  {tableMessage}
+                </td>
+              </tr>
+            ) : (
+              model.games.map((game) => (
+                <Fragment key={game.id}>
+                  <VaultGameRow
+                    game={game}
+                    isExpanded={expandedId === game.id}
+                    onToggle={() => handleSelectGame(game.id)}
+                    rowRef={(node) => {
+                      rowRefs.current[game.id] = node;
+                    }}
+                  />
+                  {expandedId === game.id ? (
+                    <tr data-testid="vault-inline-detail-row" className="border-b" style={{ borderColor: "rgba(34,211,238,0.12)" }}>
+                      <td colSpan={8} className="p-3">
+                        {expandedDetailStatus === "loading" || !expandedGame ? (
+                          <div
+                            className="rounded-xl px-5 py-4 text-xs font-mono text-slate-400"
+                            style={{ backgroundColor: "#080e1f", border: "1px solid rgba(34,211,238,0.12)" }}
+                          >
+                            FETCHING_GAME...
+                          </div>
+                        ) : expandedDetailStatus === "error" ? (
+                          <div
+                            data-testid="vault-inline-detail-error"
+                            className="rounded-xl px-5 py-4 text-xs font-mono"
+                            style={{ backgroundColor: "#1a0f17", border: "1px solid rgba(239,68,68,0.25)", color: "#fecdd3" }}
+                          >
+                            <p className="text-[10px] uppercase tracking-widest text-red-200">DETAIL_ERROR</p>
+                            <p className="mt-2 font-semibold">Unable to load selected game detail.</p>
+                            <p className="mt-1 text-red-100/90">{detailErrorByGameId[expandedId] ?? "failed to load selected game detail"}</p>
+                          </div>
+                        ) : (
+                          <VaultDetailPanel
+                            game={expandedGame}
+                            currentUser={currentUser}
+                            hydratedDetail={detailByGameId[expandedId]}
+                            isHydrating={false}
+                            activeVizTab={activeVizTab}
+                            isFullscreen={isFullscreen}
+                            techFocus={techFocus}
+                            techEventInfo={techEventInfo}
+                            highlightedPlayer={highlightedPlayer}
+                            onActiveVizTabChange={(tab) => {
+                              setActiveVizTab(tab);
+                              if (tab !== "tech") {
+                                setTechEventInfo(null);
+                              }
+                            }}
+                            onFullscreenToggle={() => setIsFullscreen((current) => !current)}
+                            onTechFocusChange={(focus) => {
+                              setTechFocus(focus);
+                              setHighlightedPlayer(focus?.playerName ?? null);
+                              setTechEventInfo(focus ? "TECH_EVENT: CLICK_MARKER_TO_VIEW" : null);
+                            }}
+                            onTechEventInfoChange={setTechEventInfo}
+                            onHighlightedPlayerChange={(playerName) => {
+                              setHighlightedPlayer(playerName);
+                            }}
+                          />
+                        )}
+                      </td>
+                    </tr>
+                  ) : null}
+                </Fragment>
+              ))
+            )}
           </tbody>
         </table>
 
         <div className="flex items-center justify-between px-4 py-3" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
           <button
             type="button"
-            onClick={() => setPage((current) => Math.max(1, current - 1))}
-            disabled={page === 1}
+            disabled={!canPaginate || page === 1}
             className="rounded px-4 py-1.5 text-xs font-mono transition-all hover:bg-slate-800 disabled:opacity-30"
             style={{ border: "1px solid rgba(255,255,255,0.1)", color: "#94a3b8" }}
           >
             Prev
           </button>
           <span className="text-xs font-mono text-slate-500">
-            PAGE {page}/{totalPages}
+            Page {page}/{totalPages}
           </span>
           <button
             type="button"
-            onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-            disabled={page === totalPages}
+            disabled={!canPaginate || page === totalPages}
             className="rounded px-4 py-1.5 text-xs font-mono transition-all hover:bg-slate-800 disabled:opacity-30"
             style={{ border: "1px solid rgba(255,255,255,0.1)", color: "#94a3b8" }}
           >
