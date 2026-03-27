@@ -15,6 +15,18 @@ vi.mock("@/lib/api/actions", () => ({
 const previewReplayUploadMock = vi.mocked(previewReplayUpload);
 const submitReplayUploadMock = vi.mocked(submitReplayUpload);
 
+function createDeferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+
+  return { promise, resolve, reject };
+}
+
 function createGamesListResponse() {
   return {
     total: 2,
@@ -686,6 +698,116 @@ describe("dashboard page", () => {
     expect(screen.queryByText(/common players: 3x3_GG/i)).not.toBeInTheDocument();
     expect(screen.queryByText("first.rep")).not.toBeInTheDocument();
     expect(submitReplayUploadMock).not.toHaveBeenCalled();
+  });
+
+  it("ignores stale preview results when the replay file changes before preview resolves", async () => {
+    render(<DashboardPage model={DASHBOARD_FIXTURE} />);
+
+    const firstPreview = createDeferred<Awaited<ReturnType<typeof previewReplayUploadMock>>>();
+    previewReplayUploadMock.mockReturnValueOnce(firstPreview.promise as ReturnType<typeof previewReplayUploadMock>);
+
+    fireEvent.change(document.querySelector("#replay-file") as HTMLInputElement, {
+      target: {
+        files: [new File(["mock replay"], "first.rep", { type: "application/octet-stream" })]
+      }
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /analyze_replay/i }));
+    });
+
+    fireEvent.change(document.querySelector("#replay-file") as HTMLInputElement, {
+      target: {
+        files: [new File(["mock replay"], "second.rep", { type: "application/octet-stream" })]
+      }
+    });
+
+    await act(async () => {
+      firstPreview.resolve({
+        success_count: 1,
+        total_files: 1,
+        results: [
+          {
+            ok: true,
+            filename: "first.rep",
+            preview: {
+              map_name: "Circuit Breaker",
+              start_time: "2026-03-23T01:23:45Z",
+              player_count: 6,
+              parsed_players: ["3x3_GG", "3x3_mh"]
+            }
+          }
+        ]
+      });
+      await firstPreview.promise;
+    });
+
+    expect(within(screen.getByTestId("dashboard-preview-summary")).getByText("NO_PREVIEW")).toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-upload-result")).toHaveTextContent("READY");
+    expect(screen.getByRole("button", { name: /upload_with_selected_user/i })).toBeDisabled();
+    expect(screen.getByText("second.rep")).toBeInTheDocument();
+    expect(screen.queryByText("first.rep")).not.toBeInTheDocument();
+  });
+
+  it("ignores stale upload results when the replay file changes before upload resolves", async () => {
+    render(<DashboardPage model={DASHBOARD_FIXTURE} />);
+
+    const uploadDeferred = createDeferred<Awaited<ReturnType<typeof submitReplayUploadMock>>>();
+    submitReplayUploadMock.mockReturnValueOnce(uploadDeferred.promise as ReturnType<typeof submitReplayUploadMock>);
+
+    previewReplayUploadMock.mockResolvedValue({
+      success_count: 1,
+      total_files: 1,
+      preview_candidates: ["3x3_GG"],
+      results: [
+        {
+          ok: true,
+          filename: "first.rep",
+          preview: {
+            map_name: "Polypoid",
+            start_time: "2026-03-23T01:23:45Z",
+            player_count: 6,
+            parsed_players: ["3x3_GG"]
+          }
+        }
+      ]
+    });
+
+    fireEvent.change(document.querySelector("#replay-file") as HTMLInputElement, {
+      target: {
+        files: [new File(["mock replay"], "first.rep", { type: "application/octet-stream" })]
+      }
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /analyze_replay/i }));
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /upload_with_selected_user/i }));
+    });
+
+    fireEvent.change(document.querySelector("#replay-file") as HTMLInputElement, {
+      target: {
+        files: [new File(["mock replay"], "second.rep", { type: "application/octet-stream" })]
+      }
+    });
+
+    await act(async () => {
+      uploadDeferred.resolve({
+        game: {
+          id: 99,
+          map_name: "Polypoid"
+        }
+      });
+      await uploadDeferred.promise;
+    });
+
+    expect(within(screen.getByTestId("dashboard-preview-summary")).getByText("NO_PREVIEW")).toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-upload-result")).toHaveTextContent("READY");
+    expect(screen.queryByText(/uploaded game: #99/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("first.rep")).not.toBeInTheDocument();
+    expect(screen.getByText("second.rep")).toBeInTheDocument();
   });
 
   it("updates the upload module when a replay file is selected and analyzed", async () => {

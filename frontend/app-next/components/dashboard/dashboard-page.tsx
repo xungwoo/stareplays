@@ -382,6 +382,8 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
   const suggestionRequestRef = useRef(0);
   const queryRequestRef = useRef(0);
   const recentGamesRequestRef = useRef(0);
+  const previewRequestRef = useRef(0);
+  const uploadRequestRef = useRef(0);
 
   const selectedFile = selectedFiles[0] ?? null;
   const record = `${playerStats.wins}-${playerStats.losses}-${playerStats.draws}`;
@@ -591,6 +593,8 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const nextFiles = Array.from(event.target.files ?? []);
+    previewRequestRef.current += 1;
+    uploadRequestRef.current += 1;
     setSelectedFiles(nextFiles);
     setPreviewState("idle");
     setPreviewSummary(null);
@@ -616,6 +620,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
       return;
     }
 
+    const requestId = ++previewRequestRef.current;
     setPreviewState("submitting");
     setUploadState("idle");
     setUploadErrorMessage(null);
@@ -625,6 +630,9 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
 
     try {
       const result = (await previewReplayUpload(selectedFiles, { fetchImpl: fetch })) as ApiReplayPreviewResponse;
+      if (previewRequestRef.current !== requestId) {
+        return;
+      }
       const summary = createPreviewSummary(result);
       setPreviewSummary(summary);
       setPreviewState("success");
@@ -648,6 +656,9 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
         setSelectedPlayer("");
       }
     } catch (error) {
+      if (previewRequestRef.current !== requestId) {
+        return;
+      }
       const message = error instanceof Error ? error.message : "preview failed";
       setPreviewState("error");
       setUploadStatusMessage(`ANALYZE_FAIL: ${message}`);
@@ -694,6 +705,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
       return;
     }
 
+    const requestId = ++uploadRequestRef.current;
     setUploadState("submitting");
     setUploadErrorMessage(null);
     setUploadSummary(null);
@@ -702,6 +714,9 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
 
     try {
       const result = (await submitReplayUpload(pendingFiles, normalizedCurrentUser, { fetchImpl: fetch })) as ApiReplayUploadResponse;
+      if (uploadRequestRef.current !== requestId) {
+        return;
+      }
       const summary = createUploadSummary(result, normalizedCurrentUser);
       setUploadSummary(summary);
       setUploadState("success");
@@ -714,6 +729,9 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
       }
       void loadRecentGames(normalizedCurrentUser, "UPLOAD_REFRESH", 1);
     } catch (error) {
+      if (uploadRequestRef.current !== requestId) {
+        return;
+      }
       const message = error instanceof Error ? error.message : "upload failed";
       setUploadState("error");
       setUploadErrorMessage(message);
