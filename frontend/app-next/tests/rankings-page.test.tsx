@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
+import { RankingsTable } from "@/components/rankings/rankings-tables";
 import { RankingsPage } from "@/components/rankings/rankings-page";
 import { getRankingsPageModel } from "@/lib/adapters/rankings";
 import type { RankingsPageModel } from "@/types/rankings";
@@ -26,6 +27,26 @@ function expectDocumentOrder(before: HTMLElement, after: HTMLElement) {
 }
 
 describe("rankings page", () => {
+  it("renders the extracted rankings table with the legacy columns", () => {
+    const model = createModel();
+
+    render(
+      <RankingsTable
+        model={model}
+        currentUser={model.currentUser}
+        sortBy="win_rate"
+        sortDesc
+        onSortChange={() => {}}
+      />
+    );
+
+    expect(screen.getByRole("heading", { name: /rankings_3v3/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /win rate/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /avg apm/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /avg eapm/i })).toBeInTheDocument();
+    expect(screen.getByText(/CURRENT_USER:/i)).toBeInTheDocument();
+  });
+
   it("toggles ranking sorts, preserves tab state, and uses legacy tie-break rules", async () => {
     render(<RankingsPage model={createModel()} />);
     const user = userEvent.setup();
