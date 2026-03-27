@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { vi } from "vitest";
 
+import { AnalyzerTabs } from "@/components/analyzer/analyzer-tabs";
 import { AnalyzerSummaryStrip } from "@/components/analyzer/analyzer-summary-strip";
 import { AnalyzerPage as AnalyzerPageComponent } from "@/components/analyzer/analyzer-page";
 import { reanalyzeAnalyzerGame } from "@/lib/api/actions";
@@ -205,6 +206,32 @@ describe("analyzer page", () => {
     expect(screen.getByRole("button", { name: /^combat$/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^resource spend$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^unit production$/i })).not.toBeInTheDocument();
+  });
+
+  it("renders the extracted analyzer tab shell with the six legacy tabs", () => {
+    const model = getAnalyzerPageModel(48);
+
+    render(
+      <AnalyzerTabs
+        activeTab="match-flow"
+        focusedPlayer={null}
+        game={model.selectedGame}
+        hiddenApmPlayers={{}}
+        insight={model.insightsByGameId[model.selectedGame.id]}
+        matchFlowResetKey="48-match-flow"
+        onActiveTabChange={() => {}}
+        onSelectPlayer={() => {}}
+        onToggleApmPlayer={() => {}}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: /^match flow$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^economy$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^apm$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^production$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^tech$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^combat$/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^resource spend$/i })).not.toBeInTheDocument();
   });
 
   it("uses text-first status refresh copy while preserving the last rendered analyzer status", async () => {
