@@ -16,3 +16,7 @@ export const INNER_PANEL_STRONG_STYLE = {
 export const CYAN_SECTION_DIVIDER_STYLE = {
   borderBottom: "1px solid rgba(34,211,238,0.1)"
 } as const;
+
+export const CYAN_SECTION_ACCENT_STYLE = {
+  backgroundColor: "#22d3ee"
+} as const;
