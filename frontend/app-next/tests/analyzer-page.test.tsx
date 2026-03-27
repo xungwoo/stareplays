@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { vi } from "vitest";
 
+import { AnalyzerPlayerDeepDive } from "@/components/analyzer/analyzer-player-deep-dive";
 import { AnalyzerTabs } from "@/components/analyzer/analyzer-tabs";
 import { AnalyzerSummaryStrip } from "@/components/analyzer/analyzer-summary-strip";
 import { AnalyzerPage as AnalyzerPageComponent } from "@/components/analyzer/analyzer-page";
@@ -232,6 +233,40 @@ describe("analyzer page", () => {
     expect(screen.getByRole("button", { name: /^tech$/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^combat$/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^resource spend$/i })).not.toBeInTheDocument();
+  });
+
+  it("renders the extracted player deep dive with all-players and focused-player states", () => {
+    const model = getAnalyzerPageModel(48);
+
+    const { rerender } = render(
+      <AnalyzerPlayerDeepDive
+        game={model.selectedGame}
+        insight={model.insightsByGameId[model.selectedGame.id]}
+        focusedPlayer={null}
+        onClearSelection={() => {}}
+        onSelectPlayer={() => {}}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: /all players/i })).toBeInTheDocument();
+    expect(screen.getByText(/^all players$/i, { selector: "p" })).toBeInTheDocument();
+    expect(screen.getByText(/^key player$/i)).toBeInTheDocument();
+    expect(screen.getAllByText(model.selectedGame.keyPlayer ?? "").length).toBeGreaterThan(0);
+    expect(screen.getByText(/^worst impact$/i)).toBeInTheDocument();
+    expect(screen.getAllByText(model.selectedGame.worstPlayer ?? "").length).toBeGreaterThan(0);
+
+    rerender(
+      <AnalyzerPlayerDeepDive
+        game={model.selectedGame}
+        insight={model.insightsByGameId[model.selectedGame.id]}
+        focusedPlayer={model.selectedGame.winnerTeam[0]?.name ?? null}
+        onClearSelection={() => {}}
+        onSelectPlayer={() => {}}
+      />
+    );
+
+    expect(screen.getByText(/^player read$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^tech$/i)).toBeInTheDocument();
   });
 
   it("uses text-first status refresh copy while preserving the last rendered analyzer status", async () => {
