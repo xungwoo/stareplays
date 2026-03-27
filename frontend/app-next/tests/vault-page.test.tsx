@@ -211,7 +211,8 @@ describe("vault page", () => {
 
     await waitFor(() => expect(screen.getByTestId("vault-detail-shell")).toBeInTheDocument());
     expect(screen.getByRole("button", { name: /^APM$/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /^Open_In_Analyzer$/i }).getAttribute("href")).toContain("/analyzer?currentUser=3x3_GG&game_id=");
+    expect(screen.getByRole("link", { name: /^Open_In_Analyzer$/i }).getAttribute("href")).toContain("/analyzer?game_id=");
+    expect(screen.getByRole("link", { name: /^Open_In_Analyzer$/i }).getAttribute("href")).not.toContain("currentUser=");
     expect(screen.queryByRole("link", { name: /game analyzer/i })).not.toBeInTheDocument();
   });
 
@@ -309,7 +310,7 @@ describe("vault page", () => {
     );
 
     expect(screen.getAllByText(/^#99$/i).length).toBeGreaterThan(0);
-    expect(screen.getByRole("link", { name: /open_in_analyzer/i })).toHaveAttribute("href", "/analyzer?currentUser=neo_user&game_id=99");
+    expect(screen.getByRole("link", { name: /open_in_analyzer/i })).toHaveAttribute("href", "/analyzer?game_id=99");
     expect(screen.getByText(/^SELECTED_GAME$/i)).toBeInTheDocument();
     expect(screen.getByText(/^APM TIMELINE$/i)).toBeInTheDocument();
     expect(screen.getAllByText(/^REDUNDANCY%$/i)).toHaveLength(2);
@@ -521,7 +522,7 @@ describe("vault page", () => {
     await user.click(getGameIdCell(99));
     await waitFor(() => expect(screen.getByRole("link", { name: /open_in_analyzer/i })).toBeInTheDocument());
 
-    expect(screen.getByRole("link", { name: /open_in_analyzer/i })).toHaveAttribute("href", "/analyzer?currentUser=neo_user&game_id=99");
+    expect(screen.getByRole("link", { name: /open_in_analyzer/i })).toHaveAttribute("href", "/analyzer?game_id=99");
     expect(screen.getByRole("link", { name: /open_in_analyzer/i }).getAttribute("href")).not.toContain("gameId=");
   });
 
@@ -828,7 +829,30 @@ describe("vault page", () => {
                 { player_name: "neo_user", data_points: [{ second: 10, count: 4 }, { second: 20, count: 10 }, { second: 30, count: 16 }] },
                 { player_name: "opponent", data_points: [{ second: 10, count: 3 }, { second: 20, count: 7 }, { second: 30, count: 11 }] }
               ]
-            }
+            },
+            compressed_build_orders: [
+              {
+                player_name: "neo_user",
+                events: [
+                  { frame: 240, event_type: "build", unit: "Gateway" },
+                  { frame: 480, event_type: "tech", tech: "Citadel of Adun" }
+                ]
+              },
+              {
+                player_name: "opponent",
+                events: [{ frame: 120, event_type: "build", unit: "Hatchery" }]
+              }
+            ],
+            build_orders: [
+              {
+                player_name: "neo_user",
+                events: [{ frame: 120, event_type: "build", unit: "Probe" }]
+              },
+              {
+                player_name: "opponent",
+                events: [{ frame: 240, event_type: "build", unit: "Drone" }]
+              }
+            ]
           }),
           {
             status: 200,
@@ -853,7 +877,16 @@ describe("vault page", () => {
     await user.click(screen.getByRole("button", { name: /^Unit_Production$/i }));
     const unitProductionChart = screen.getByLabelText(/^Unit Production Chart$/i);
     expect(unitProductionChart).toBeInTheDocument();
-    expect(screen.queryByText(/unit production ledger/i)).not.toBeInTheDocument();
+    expect(unitProductionChart.querySelectorAll("path").length).toBeGreaterThan(0);
+    expect(unitProductionChart.querySelectorAll('rect[rx="4"]').length).toBe(0);
+    const unitProductionTable = screen.getByTestId("vault-unit-production-summary");
+    expect(within(unitProductionTable).getAllByRole("columnheader").map((header) => header.textContent?.trim())).toEqual([
+      "PLAYER",
+      "TOTAL",
+      "WORKER",
+      "ARMY",
+      "TECH_UNIT"
+    ]);
 
     await user.click(screen.getByRole("button", { name: /^Resource_Spend$/i }));
     const resourceSpendChart = screen.getByLabelText(/^Resource Spend Timeline$/i);
@@ -863,8 +896,9 @@ describe("vault page", () => {
     await user.click(screen.getByRole("button", { name: /^Production$/i }));
     const productionTimeline = screen.getByLabelText(/^Build Order Timeline$/i);
     expect(productionTimeline).toBeInTheDocument();
-    expect(within(productionTimeline).getAllByRole("button").map((button) => button.textContent?.trim())).toContain("BUILD 01");
-    expect(screen.queryByText(/production cadence/i)).not.toBeInTheDocument();
+    expect(within(productionTimeline).getByRole("button", { name: /^neo_user 00:10 Gateway$/i })).toBeInTheDocument();
+    expect(within(productionTimeline).getByRole("button", { name: /^neo_user 00:20 Citadel of Adun$/i })).toBeInTheDocument();
+    expect(within(productionTimeline).queryByText(/BUILD 01/)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /^Tech$/i }));
     const techChart = screen.getByLabelText(/^Tech Marker Chart$/i);
@@ -872,9 +906,11 @@ describe("vault page", () => {
     expect(within(techChart).getByRole("button", { name: /^neo_user Psionic Storm 180s$/i })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /^Battle$/i }));
-    const battleChart = screen.getByLabelText(/^Battle Pressure Sparkline$/i);
+    const battleChart = screen.getByLabelText(/^Battle APM Timeline$/i);
     expect(battleChart).toBeInTheDocument();
-    expect(battleChart.querySelector("path")).not.toBeNull();
+    expect(battleChart.querySelectorAll("path")).toHaveLength(1);
+    expect(screen.getByText(/^SUMMED APM$/i)).toBeInTheDocument();
+    expect(screen.getByText(/210\.0 \/ 270\.0 \/ 270\.0/)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /^Actions$/i }));
     const actionMixMatrix = screen.getByLabelText(/^Action Mix Matrix$/i);

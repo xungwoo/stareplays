@@ -50,6 +50,28 @@ type VaultTechEvent = {
   name: string;
 };
 
+type VaultBuildEvent = {
+  frame: number;
+  endFrame?: number;
+  count?: number;
+  eventType?: string;
+  unit?: string;
+  tech?: string;
+  upgrade?: string;
+  order?: string;
+  x?: number;
+  y?: number;
+  isMorph?: boolean;
+  isEffective?: boolean;
+  ineffKind?: string;
+  isQueued?: boolean;
+};
+
+type VaultBuildOrder = {
+  playerName: string;
+  events: VaultBuildEvent[];
+};
+
 export type VaultHydratedDetail = {
   reliability: string | null;
   reliabilityMOfN: string | null;
@@ -62,6 +84,8 @@ export type VaultHydratedDetail = {
   resourceSpendSeries?: VaultTimelinePoint[];
   techTreeSummaries?: VaultTechSummary[];
   techTreeEvents?: VaultTechEvent[];
+  buildOrders?: VaultBuildOrder[];
+  compressedBuildOrders?: VaultBuildOrder[];
 };
 
 const CARD_STYLE = CYAN_PANEL_STYLE;
@@ -323,6 +347,10 @@ export function createHydratedVaultDetail(gameResponse: ApiGetGameResponse, deta
   const detailSummaries = detailResponse.tech_tree?.summary ?? [];
   const resourceSpendSummaries = detailResponse.resource_spend?.summaries ?? [];
   const unitProductionSummaries = detailResponse.unit_production?.summaries ?? [];
+  const detailWithBuildOrders = detailResponse as ApiGameDetailResponse & {
+    build_orders?: Array<Partial<VaultBuildOrder>>;
+    compressed_build_orders?: Array<Partial<VaultBuildOrder>>;
+  };
 
   return {
     reliability: gameResponse.reliability?.trim() || null,
@@ -349,7 +377,9 @@ export function createHydratedVaultDetail(gameResponse: ApiGetGameResponse, deta
       upgradeCount: toNumber(summary.upgrade_count),
       prereqBuildCount: toNumber(summary.prereq_build_count)
     })),
-    techTreeEvents: buildTechEvents(detailResponse)
+    techTreeEvents: buildTechEvents(detailResponse),
+    compressedBuildOrders: (detailWithBuildOrders.compressed_build_orders ?? []).map((order) => normalizeBuildOrder(order)).filter((order): order is VaultBuildOrder => order != null),
+    buildOrders: (detailWithBuildOrders.build_orders ?? []).map((order) => normalizeBuildOrder(order)).filter((order): order is VaultBuildOrder => order != null)
   };
 }
 
@@ -357,8 +387,8 @@ function getAllGamePlayers(game: VaultGame): VaultPlayer[] {
   return [...game.winnerTeam, ...game.loserTeam];
 }
 
-function buildAnalyzerHref(currentUser: string, gameId: number) {
-  return `/analyzer?currentUser=${encodeURIComponent(currentUser)}&game_id=${gameId}`;
+function buildAnalyzerHref(gameId: number) {
+  return `/analyzer?game_id=${gameId}`;
 }
 
 function buildTechEventLabel(playerName: string, kind: "tech" | "upgrade") {
@@ -367,6 +397,66 @@ function buildTechEventLabel(playerName: string, kind: "tech" | "upgrade") {
 
 function buildTechMarkerLabel(event: VaultTechEvent) {
   return `${event.playerName} • ${event.name} • ${event.second}s`;
+}
+
+function normalizeBuildOrderEvent(event: Partial<VaultBuildEvent> | undefined): VaultBuildEvent {
+  return {
+    frame: toNumber(event?.frame),
+    endFrame: event?.endFrame != null ? toNumber(event.endFrame) : undefined,
+    count: event?.count != null ? toNumber(event.count) : undefined,
+    eventType: event?.eventType?.trim() || (event as { event_type?: string } | undefined)?.event_type?.trim() || undefined,
+    unit: event?.unit?.trim() || undefined,
+    tech: event?.tech?.trim() || undefined,
+    upgrade: event?.upgrade?.trim() || undefined,
+    order: event?.order?.trim() || undefined,
+    x: event?.x != null ? toNumber(event.x) : undefined,
+    y: event?.y != null ? toNumber(event.y) : undefined,
+    isMorph: event?.isMorph,
+    isEffective: event?.isEffective,
+    ineffKind: event?.ineffKind?.trim() || undefined,
+    isQueued: event?.isQueued
+  };
+}
+
+function normalizeBuildOrder(order: Partial<VaultBuildOrder> | undefined): VaultBuildOrder | null {
+  const playerName = order?.playerName?.trim() || (order as { player_name?: string } | undefined)?.player_name?.trim();
+  if (!playerName) {
+    return null;
+  }
+
+  return {
+    playerName,
+    events: ((order?.events ?? (order as { events?: Array<Partial<VaultBuildEvent>> } | undefined)?.events) ?? []).map((event) =>
+      normalizeBuildOrderEvent(event)
+    )
+  };
+}
+
+function pickBuildOrders(detail?: VaultHydratedDetail) {
+  const compressed = detail?.compressedBuildOrders ?? [];
+  if (compressed.length > 0) {
+    return compressed;
+  }
+
+  return detail?.buildOrders ?? [];
+}
+
+function buildOrderEventLabel(event: VaultBuildEvent) {
+  return event.unit || event.tech || event.upgrade || event.order || event.eventType || "EVENT";
+}
+
+function formatBuildOrderTime(frame: number) {
+  const totalSeconds = Math.max(0, Math.round(frame / 23.8));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+function buildSummedApmSeries(points: VaultTimelinePoint[]) {
+  return points.map((point) => ({
+    time: point.time,
+    sum: Object.entries(point).reduce((total, [key, value]) => (key === "time" ? total : total + toNumber(value)), 0)
+  }));
 }
 
 function getActionMixDominantLabel(mix: ReturnType<typeof getActionMix>) {
@@ -522,6 +612,16 @@ export function VaultDetailPanel({
     [allGamePlayers, hydratedDetail?.techTreeSummaries]
   );
   const techEvents = useMemo(() => hydratedDetail?.techTreeEvents ?? [], [hydratedDetail?.techTreeEvents]);
+  const buildOrders = useMemo(() => pickBuildOrders(hydratedDetail), [hydratedDetail?.buildOrders, hydratedDetail?.compressedBuildOrders]);
+  const buildOrderRows = useMemo(
+    () =>
+      allGamePlayers.map((player) => ({
+        playerName: player.name,
+        events:
+          buildOrders.find((order) => order.playerName === player.name)?.events.slice().sort((left, right) => left.frame - right.frame) ?? []
+      })),
+    [allGamePlayers, buildOrders]
+  );
   const productionSeries = useMemo<VaultTimelinePoint[]>(
     () =>
       hydratedDetail?.unitProductionSeries?.length
@@ -536,7 +636,7 @@ export function VaultDetailPanel({
         : (generateResourceSeries(getGameMinutes(game)) as unknown as VaultTimelinePoint[]),
     [game, hydratedDetail?.resourceSpendSeries]
   );
-  const battlePressure = useMemo(() => getBattlePressure(game), [game]);
+  const battleSeries = useMemo(() => buildSummedApmSeries(apmData), [apmData]);
 
   function handleLegendPlayerClick(playerName: string) {
     onHighlightedPlayerChange(highlightedPlayer === playerName ? null : playerName);
@@ -599,57 +699,60 @@ export function VaultDetailPanel({
       const chartWidth = 640;
       const chartHeight = 220;
       const timeLabels = productionSeries.map((point) => point.time);
+      const innerWidth = chartWidth - 32;
+      const innerHeight = chartHeight - 32;
       const maxValue = Math.max(
         1,
         ...productionSeries.flatMap((point) => allGamePlayers.map((player) => toNumber(point[player.name])))
       );
+      const chartLines = allGamePlayers.map((player) => {
+        const values = productionSeries.map((point) => toNumber(point[player.name]));
+        const points = values.map((value, index) => ({
+          x: 16 + (values.length === 1 ? innerWidth / 2 : (index / Math.max(1, values.length - 1)) * innerWidth),
+          y: 16 + (1 - value / maxValue) * innerHeight
+        }));
+
+        return {
+          player,
+          path: buildSmoothPath(points)
+        };
+      });
 
       return (
         <section aria-label="Unit Production Chart" className="space-y-3 rounded-lg p-3 text-xs font-mono text-slate-300" style={INNER_PANEL_STYLE}>
           <div className="flex items-center justify-between gap-3">
             <p className="text-[10px] uppercase tracking-widest text-slate-500">unit production chart</p>
-            <span className="text-[10px] uppercase tracking-widest text-slate-500">COUNT / TIME / PLAYER</span>
+            <span className="text-[10px] uppercase tracking-widest text-slate-500">LINE SERIES / PLAYER</span>
           </div>
           <div className="space-y-3">
             <svg aria-hidden="true" focusable="false" viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-56 w-full rounded-lg bg-slate-950/40" preserveAspectRatio="none">
               <rect x="0" y="0" width={chartWidth} height={chartHeight} fill="#081428" rx="12" />
               {timeLabels.map((time, index) => (
                 <line
-                  key={`grid-${time}-${index}`}
-                  x1={16 + (index / Math.max(1, timeLabels.length - 1)) * (chartWidth - 32)}
+                  key={`unitprod-grid-${time}-${index}`}
+                  x1={16 + (index / Math.max(1, timeLabels.length - 1)) * innerWidth}
                   y1="16"
-                  x2={16 + (index / Math.max(1, timeLabels.length - 1)) * (chartWidth - 32)}
+                  x2={16 + (index / Math.max(1, timeLabels.length - 1)) * innerWidth}
                   y2={chartHeight - 30}
                   stroke="rgba(255,255,255,0.05)"
                 />
               ))}
-              {allGamePlayers.map((player, playerIndex) => {
-                const values = productionSeries.map((point) => toNumber(point[player.name]));
-                const barWidth = (chartWidth - 32) / Math.max(1, values.length) - 10;
-
-                return values.map((value, index) => {
-                  const barHeight = ((value / maxValue) * (chartHeight - 60)) || 0;
-                  const x = 16 + index * ((chartWidth - 32) / Math.max(1, values.length)) + playerIndex * 5 - (playerIndex * 8);
-                  const y = chartHeight - 26 - barHeight;
-
-                  return (
-                    <rect
-                      key={`${player.name}-${index}`}
-                      x={x}
-                      y={y}
-                      width={Math.max(8, barWidth / Math.max(1, allGamePlayers.length))}
-                      height={Math.max(8, barHeight)}
-                      rx="4"
-                      fill={getPlayerColor(player.name)}
-                      opacity={highlightedPlayer && highlightedPlayer !== player.name ? 0.25 : 0.95}
-                    />
-                  );
-                });
-              })}
+              {chartLines.map(({ player, path }) => (
+                <path
+                  key={player.name}
+                  d={path}
+                  fill="none"
+                  stroke={getPlayerColor(player.name)}
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  opacity={highlightedPlayer && highlightedPlayer !== player.name ? 0.25 : 0.95}
+                />
+              ))}
               {timeLabels.map((time, index) => (
                 <text
-                  key={`time-${time}-${index}`}
-                  x={16 + (index / Math.max(1, timeLabels.length - 1)) * (chartWidth - 32)}
+                  key={`unitprod-time-${time}-${index}`}
+                  x={16 + (index / Math.max(1, timeLabels.length - 1)) * innerWidth}
                   y={chartHeight - 8}
                   textAnchor="middle"
                   fill="#64748b"
@@ -659,26 +762,6 @@ export function VaultDetailPanel({
                 </text>
               ))}
             </svg>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {unitProductionRows.map((row) => {
-                const isDimmed = highlightedPlayer != null && highlightedPlayer !== row.playerName;
-
-                return (
-                  <div key={row.playerName} className="rounded border px-3 py-2" style={{ borderColor: "rgba(255,255,255,0.08)", opacity: isDimmed ? 0.5 : 1 }}>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-slate-200">{row.playerName}</span>
-                      <span className="text-slate-500">TOTAL {row.total}</span>
-                    </div>
-                    <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] uppercase tracking-widest text-slate-500 sm:grid-cols-4">
-                      <span>WORKER {row.worker}</span>
-                      <span>ARMY {row.army}</span>
-                      <span>TECH_UNIT {row.techUnit}</span>
-                      <span>PROD {row.total}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
           </div>
         </section>
       );
@@ -760,10 +843,7 @@ export function VaultDetailPanel({
     }
 
     if (activeVizTab === "production") {
-      const buildEvents = productionSeries.map((point, index) => ({
-        second: Math.max(1, point.time * 60),
-        label: `BUILD ${String(index + 1).padStart(2, "0")}`
-      }));
+      const hasBuildEvents = buildOrderRows.some((row) => row.events.length > 0);
 
       return (
         <section aria-label="Build Order Timeline" className="space-y-3 rounded-lg p-3 text-xs font-mono text-slate-300" style={INNER_PANEL_STYLE}>
@@ -771,37 +851,49 @@ export function VaultDetailPanel({
             <p className="text-[10px] uppercase tracking-widest text-slate-500">build order timeline</p>
             <span className="text-[10px] uppercase tracking-widest text-slate-500">EVENTS / PLAYER</span>
           </div>
-          <div className="space-y-2">
-            {unitProductionRows.map((row) => {
-              const isDimmed = highlightedPlayer != null && highlightedPlayer !== row.playerName;
+          {hasBuildEvents ? (
+            <div className="space-y-2">
+              {buildOrderRows.map((row) => {
+                const isDimmed = highlightedPlayer != null && highlightedPlayer !== row.playerName;
 
-              return (
-                <div key={row.playerName} className="rounded border px-3 py-3" style={{ borderColor: "rgba(255,255,255,0.08)", opacity: isDimmed ? 0.5 : 1 }}>
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-slate-200">{row.playerName}</span>
-                    <span className="text-slate-500">BUILD EVENTS {buildEvents.length}</span>
+                return (
+                  <div key={row.playerName} className="rounded border px-3 py-3" style={{ borderColor: "rgba(255,255,255,0.08)", opacity: isDimmed ? 0.5 : 1 }}>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-slate-200">{row.playerName}</span>
+                      <span className="text-slate-500">BUILD EVENTS {row.events.length}</span>
+                    </div>
+                    {row.events.length > 0 ? (
+                      <ol className="mt-2 flex flex-wrap gap-2" aria-label={`${row.playerName} build order events`}>
+                        {row.events.map((event) => {
+                          const timeLabel = formatBuildOrderTime(event.frame);
+                          const eventLabel = buildOrderEventLabel(event);
+
+                          return (
+                            <li key={`${row.playerName}-${event.frame}-${eventLabel}`}>
+                              <button
+                                type="button"
+                                aria-label={`${row.playerName} ${timeLabel} ${eventLabel}`}
+                                className="rounded border px-2 py-1 text-[10px] uppercase tracking-widest transition-all"
+                                style={{ borderColor: "rgba(255,255,255,0.12)", color: "#cbd5e1", backgroundColor: "rgba(255,255,255,0.04)" }}
+                              >
+                                {timeLabel} {eventLabel}
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ol>
+                    ) : (
+                      <div className="mt-2 text-[10px] uppercase tracking-widest text-slate-500">NO_BUILD_ORDER_EVENTS</div>
+                    )}
                   </div>
-                  <ol className="mt-2 flex flex-wrap gap-2" aria-label={`${row.playerName} build order events`}>
-                    {buildEvents.map((event) => (
-                      <li key={`${row.playerName}-${event.label}`}>
-                        <button
-                          type="button"
-                          aria-label={`${row.playerName} ${event.label} ${event.second}s`}
-                          className="rounded border px-2 py-1 text-[10px] uppercase tracking-widest transition-all"
-                          style={{ borderColor: "rgba(255,255,255,0.12)", color: "#cbd5e1", backgroundColor: "rgba(255,255,255,0.04)" }}
-                        >
-                          {event.label}
-                        </button>
-                      </li>
-                    ))}
-                  </ol>
-                  <div className="mt-2 text-[10px] uppercase tracking-widest text-slate-500">
-                    OPENING {getSeriesSnapshot(productionSeries, row.playerName, row.total).opening} MID {getSeriesSnapshot(productionSeries, row.playerName, row.total).mid} LATE {getSeriesSnapshot(productionSeries, row.playerName, row.total).late}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="rounded border px-3 py-3 text-[10px] uppercase tracking-widest text-slate-500" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+              NO_BUILD_ORDER_EVENTS
+            </div>
+          )}
         </section>
       );
     }
@@ -909,20 +1001,15 @@ export function VaultDetailPanel({
     if (activeVizTab === "battle") {
       const chartWidth = 640;
       const chartHeight = 180;
-      const battleValues = [
-        Math.max(1, battlePressure.loserAverage * 0.7),
-        Math.max(1, battlePressure.loserAverage),
-        Math.max(1, (battlePressure.winnerAverage + battlePressure.loserAverage) / 2),
-        Math.max(1, battlePressure.winnerAverage),
-        Math.max(1, battlePressure.winnerAverage * 1.05)
-      ];
+      const battleValues = battleSeries.map((point) => Math.max(0, point.sum));
       const points = scaleSeriesPoints(battleValues, chartWidth, chartHeight, 18);
+      const battleSnapshot = getSeriesSnapshot(battleSeries, "sum", 0);
 
       return (
-        <section aria-label="Battle Pressure Sparkline" data-testid="vault-battle-pressure" className="space-y-3 rounded-lg p-3 text-xs font-mono text-slate-300" style={INNER_PANEL_STYLE}>
+        <section aria-label="Battle APM Timeline" data-testid="vault-battle-pressure" className="space-y-3 rounded-lg p-3 text-xs font-mono text-slate-300" style={INNER_PANEL_STYLE}>
           <div className="flex items-center justify-between gap-3">
-            <p className="text-[10px] uppercase tracking-widest text-slate-500">battle pressure sparkline</p>
-            <span className="text-[10px] uppercase tracking-widest text-slate-500">single line graph</span>
+            <p className="text-[10px] uppercase tracking-widest text-slate-500">battle apm timeline</p>
+            <span className="text-[10px] uppercase tracking-widest text-slate-500">summed / smoothed</span>
           </div>
           <div className="rounded border px-3 py-2" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
             <svg aria-hidden="true" focusable="false" viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-44 w-full" preserveAspectRatio="none">
@@ -934,8 +1021,11 @@ export function VaultDetailPanel({
               ))}
             </svg>
             <div className="mt-3 flex items-center justify-between gap-3">
-              <span className="text-slate-300">WINNER {battlePressure.winnerAverage.toFixed(1)} / LOSER {battlePressure.loserAverage.toFixed(1)}</span>
-              <span className="text-slate-500">SWING {battlePressure.swing.toFixed(1)}</span>
+              <span className="text-slate-300">SUMMED APM</span>
+              <span className="text-slate-300">
+                {battleSnapshot.opening.toFixed(1)} / {battleSnapshot.mid.toFixed(1)} / {battleSnapshot.late.toFixed(1)}
+              </span>
+              <span className="text-slate-500">SMOOTHED SINGLE LINE</span>
             </div>
           </div>
         </section>
@@ -1043,7 +1133,7 @@ export function VaultDetailPanel({
       case "tech":
         return "click markers or summary buttons to set tech focus";
       case "battle":
-        return "compare combat pressure across players";
+        return "inspect summed apm across all players";
       case "actions":
         return "compare action mix and redundancy";
       default:
@@ -1073,18 +1163,33 @@ export function VaultDetailPanel({
 
     if (activeVizTab === "unitprod") {
       return (
-        <div className="space-y-3 rounded-lg p-3" style={INNER_PANEL_STYLE}>
-          <p className="text-[10px] font-mono uppercase tracking-widest text-slate-500">unit production summary</p>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {unitProductionRows.map((row) => (
-              <div key={row.playerName} className="rounded border p-2 text-xs font-mono" style={INNER_PANEL_STYLE}>
-                <div className="text-slate-300">{row.playerName}</div>
-                <div className="mt-1 text-slate-500">
-                  TOTAL {row.total} WORKER {row.worker} ARMY {row.army} TECH_UNIT {row.techUnit}
-                </div>
-              </div>
-            ))}
-          </div>
+        <div className="overflow-hidden rounded-lg" style={INNER_PANEL_STYLE}>
+          <table data-testid="vault-unit-production-summary" className="w-full text-xs font-mono">
+            <thead>
+              <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                {["PLAYER", "TOTAL", "WORKER", "ARMY", "TECH_UNIT"].map((header) => (
+                  <th key={header} className="px-3 py-2 text-left text-[10px] tracking-widest text-slate-500">
+                    {header}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {unitProductionRows.map((row) => {
+                const isDimmed = highlightedPlayer != null && highlightedPlayer !== row.playerName;
+
+                return (
+                  <tr key={row.playerName} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", opacity: isDimmed ? 0.5 : 1 }}>
+                    <td className="px-3 py-2 text-slate-300">{row.playerName}</td>
+                    <td className="px-3 py-2 text-slate-200">{row.total}</td>
+                    <td className="px-3 py-2 text-slate-400">{row.worker}</td>
+                    <td className="px-3 py-2 text-slate-400">{row.army}</td>
+                    <td className="px-3 py-2 text-slate-400">{row.techUnit}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       );
     }
@@ -1113,22 +1218,34 @@ export function VaultDetailPanel({
 
     if (activeVizTab === "production") {
       return (
-        <div className="space-y-3 rounded-lg p-3" style={INNER_PANEL_STYLE}>
-          <p className="text-[10px] font-mono uppercase tracking-widest text-slate-500">production event summary</p>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {unitProductionRows.map((row) => {
-              const snap = getSeriesSnapshot(productionSeries, row.playerName, row.total);
+        <div className="overflow-hidden rounded-lg" style={INNER_PANEL_STYLE}>
+          <table className="w-full text-xs font-mono">
+            <thead>
+              <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                {["PLAYER", "EVENTS", "FIRST", "LAST"].map((header) => (
+                  <th key={header} className="px-3 py-2 text-left text-[10px] tracking-widest text-slate-500">
+                    {header}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {buildOrderRows.map((row) => {
+                const firstEvent = row.events[0];
+                const lastEvent = row.events[row.events.length - 1];
+                const isDimmed = highlightedPlayer != null && highlightedPlayer !== row.playerName;
 
-              return (
-                <div key={row.playerName} className="rounded border p-2 text-xs font-mono" style={INNER_PANEL_STYLE}>
-                  <div className="text-slate-300">{row.playerName}</div>
-                  <div className="mt-1 text-slate-500">
-                    OPENING {snap.opening} MID {snap.mid} LATE {snap.late}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                return (
+                  <tr key={row.playerName} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", opacity: isDimmed ? 0.5 : 1 }}>
+                    <td className="px-3 py-2 text-slate-300">{row.playerName}</td>
+                    <td className="px-3 py-2 text-slate-200">{row.events.length}</td>
+                    <td className="px-3 py-2 text-slate-400">{firstEvent ? `${formatBuildOrderTime(firstEvent.frame)} ${buildOrderEventLabel(firstEvent)}` : "NO_BUILD_ORDER_EVENTS"}</td>
+                    <td className="px-3 py-2 text-slate-400">{lastEvent ? `${formatBuildOrderTime(lastEvent.frame)} ${buildOrderEventLabel(lastEvent)}` : "NO_BUILD_ORDER_EVENTS"}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       );
     }
@@ -1159,21 +1276,23 @@ export function VaultDetailPanel({
     }
 
     if (activeVizTab === "battle") {
+      const battleSnapshot = getSeriesSnapshot(battleSeries, "sum", 0);
+
       return (
         <div className="space-y-3 rounded-lg p-3" style={INNER_PANEL_STYLE}>
-          <p className="text-[10px] font-mono uppercase tracking-widest text-slate-500">battle summary</p>
+          <p className="text-[10px] font-mono uppercase tracking-widest text-slate-500">summed apm summary</p>
           <div className="grid gap-2 sm:grid-cols-3">
             <div className="rounded border p-2 text-xs font-mono" style={INNER_PANEL_STYLE}>
-              <div className="text-slate-300">WINNER</div>
-              <div className="mt-1 text-slate-500">{battlePressure.winnerAverage.toFixed(1)}</div>
+              <div className="text-slate-300">OPEN</div>
+              <div className="mt-1 text-slate-500">{battleSnapshot.opening.toFixed(1)}</div>
             </div>
             <div className="rounded border p-2 text-xs font-mono" style={INNER_PANEL_STYLE}>
-              <div className="text-slate-300">LOSER</div>
-              <div className="mt-1 text-slate-500">{battlePressure.loserAverage.toFixed(1)}</div>
+              <div className="text-slate-300">MID</div>
+              <div className="mt-1 text-slate-500">{battleSnapshot.mid.toFixed(1)}</div>
             </div>
             <div className="rounded border p-2 text-xs font-mono" style={INNER_PANEL_STYLE}>
-              <div className="text-slate-300">SWING</div>
-              <div className="mt-1 text-slate-500">{battlePressure.swing.toFixed(1)}</div>
+              <div className="text-slate-300">LATE</div>
+              <div className="mt-1 text-slate-500">{battleSnapshot.late.toFixed(1)}</div>
             </div>
           </div>
         </div>
@@ -1229,7 +1348,7 @@ export function VaultDetailPanel({
           <div className="mb-3 flex items-center justify-between gap-3">
             <p className="text-[10px] font-mono tracking-widest text-slate-500">Selected_Game</p>
             <Link
-              href={buildAnalyzerHref(currentUser, game.id)}
+              href={buildAnalyzerHref(game.id)}
               className="flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-xs font-mono font-bold tracking-wider transition-all"
               style={{
                 background: "linear-gradient(90deg, #0891b2, #1d4ed8)",
