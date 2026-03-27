@@ -955,6 +955,13 @@ describe("dashboard page", () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = typeof input === "string" ? input : input.toString();
 
+      if (url.includes("/api/v1/users/suggest?q=3x3&limit=5")) {
+        return new Response(JSON.stringify({ users: ["3x3_GG", "3x3_smwoo"] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+
       if (url.includes("/api/v1/users/suggest?q=3x3_fail")) {
         return new Response(JSON.stringify({ error: "suggest down" }), {
           status: 503,
@@ -984,16 +991,72 @@ describe("dashboard page", () => {
     );
 
     const queryInput = screen.getByLabelText(/플레이어 이름 입력/i);
-    fireEvent.change(queryInput, { target: { value: "3x3_fail" } });
+    fireEvent.change(queryInput, { target: { value: "3x3" } });
+    await act(async () => {
+      vi.advanceTimersByTime(280);
+      await Promise.resolve();
+    });
+
+    expect(document.querySelectorAll("#dashboard-player-suggestions option")).toHaveLength(2);
+
+    await act(async () => {
+      fireEvent.change(queryInput, { target: { value: "3x3_fail" } });
+      await Promise.resolve();
+    });
+    expect(document.querySelectorAll("#dashboard-player-suggestions option")).toHaveLength(0);
 
     await act(async () => {
       vi.advanceTimersByTime(280);
       await Promise.resolve();
     });
 
-    expect(screen.queryByRole("option", { name: "3x3_fail" })).not.toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "3x3_GG" })).toBeInTheDocument();
+    expect(document.querySelectorAll("#dashboard-player-suggestions option")).toHaveLength(0);
     expect(screen.getByTestId("dashboard-system-logs")).toHaveTextContent("SUGGEST_FAIL: 3x3_fail");
+    vi.useRealTimers();
+  });
+
+  it("does not inject fallback options when the suggestion API returns no users", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+
+      if (url.includes("/api/v1/users/suggest?q=3x3_empty&limit=5")) {
+        return new Response(JSON.stringify({ users: [] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+
+      return new Response(JSON.stringify({ users: [] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" }
+      });
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <DashboardPage
+        model={{
+          ...DASHBOARD_FIXTURE,
+          currentUser: "",
+          playerStats: {
+            ...DASHBOARD_FIXTURE.playerStats,
+            name: ""
+          }
+        }}
+      />
+    );
+
+    const queryInput = screen.getByLabelText(/플레이어 이름 입력/i);
+    fireEvent.change(queryInput, { target: { value: "3x3_empty" } });
+
+    await act(async () => {
+      vi.advanceTimersByTime(280);
+      await Promise.resolve();
+    });
+
+    expect(document.querySelectorAll("#dashboard-player-suggestions option")).toHaveLength(0);
     vi.useRealTimers();
   });
 
@@ -1044,5 +1107,25 @@ describe("dashboard page", () => {
     expect(screen.queryByRole("option", { name: "3x3_legacy" })).not.toBeInTheDocument();
     expect(document.querySelectorAll("#dashboard-player-suggestions option")).toHaveLength(0);
     vi.useRealTimers();
+  });
+
+  it("renders the full legacy inline detail structure for the selected game", async () => {
+    render(<DashboardPage model={DASHBOARD_FIXTURE} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /open recent game 48/i }));
+
+    const inlineRow = await screen.findByTestId("dashboard-inline-game-detail-row");
+
+    expect(within(inlineRow).getByText("Selected_Game")).toBeInTheDocument();
+    expect(within(inlineRow).getByText("Game_Detail_Visualization")).toBeInTheDocument();
+    expect(within(inlineRow).getByRole("button", { name: /fullscreen/i })).toBeInTheDocument();
+    expect(within(inlineRow).getByText(/analysis notice/i)).toBeInTheDocument();
+    expect(within(inlineRow).getByText(/tab row/i)).toBeInTheDocument();
+    expect(within(inlineRow).getByText(/chart canvas/i)).toBeInTheDocument();
+    expect(within(inlineRow).getByText(/legend/i)).toBeInTheDocument();
+    expect(within(inlineRow).getByText(/hint/i)).toBeInTheDocument();
+    expect(within(inlineRow).getByText(/tech-event info/i)).toBeInTheDocument();
+    expect(within(inlineRow).getByText(/summary area/i)).toBeInTheDocument();
+    expect(within(inlineRow).getAllByText(/REDUNDANCY%/i).length).toBeGreaterThan(0);
   });
 });

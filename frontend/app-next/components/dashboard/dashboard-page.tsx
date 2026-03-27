@@ -376,6 +376,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
   const [gameDetailById, setGameDetailById] = useState<Record<number, DashboardGameDetailModel>>({});
   const [gameDetailStateById, setGameDetailStateById] = useState<Record<number, DashboardActionStatus>>({});
   const [activeVizTab, setActiveVizTab] = useState<DashboardVizTab>("apm");
+  const [isDetailFullscreen, setIsDetailFullscreen] = useState(false);
   const [systemLogs, setSystemLogs] = useState<string[]>(model.currentUser.trim() ? ["READY"] : ["READY", RECENT_GAMES_LOGIN_REQUIRED]);
   const suggestionTimerRef = useRef<number | null>(null);
   const suggestionRequestRef = useRef(0);
@@ -548,6 +549,17 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
     };
   }, [selectedGameId, gameDetailById]);
 
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsDetailFullscreen(false);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const nextFiles = Array.from(event.target.files ?? []);
     setSelectedFiles(nextFiles);
@@ -687,6 +699,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
       return;
     }
 
+    setQuerySuggestions([]);
     const requestId = suggestionRequestRef.current + 1;
     suggestionRequestRef.current = requestId;
 
@@ -698,11 +711,12 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
         if (suggestionRequestRef.current !== requestId) {
           return;
         }
-        setQuerySuggestions(result.users?.length ? result.users : [normalized]);
+        setQuerySuggestions((result.users ?? []).map((suggestion) => String(suggestion).trim()).filter(Boolean));
       } catch {
         if (suggestionRequestRef.current !== requestId) {
           return;
         }
+        setQuerySuggestions([]);
         appendSystemLog(`SUGGEST_FAIL: ${normalized}`);
       }
     }, 280);
@@ -1202,6 +1216,9 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
                                                 <p className="text-[10px] font-mono text-slate-500">
                                                   EFFECTIVE {leftEntry.player.effective.toFixed(1)}% / PROD {leftEntry.player.production}
                                                 </p>
+                                                <p className="text-[10px] font-mono text-slate-500">
+                                                  REDUNDANCY% {leftEntry.player.redundancy}
+                                                </p>
                                               </>
                                             ) : null}
                                           </div>
@@ -1235,6 +1252,9 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
                                                 <p className="text-[10px] font-mono text-slate-500">
                                                   EFFECTIVE {rightEntry.player.effective.toFixed(1)}% / PROD {rightEntry.player.production}
                                                 </p>
+                                                <p className="text-[10px] font-mono text-slate-500">
+                                                  REDUNDANCY% {rightEntry.player.redundancy}
+                                                </p>
                                               </>
                                             ) : null}
                                           </div>
@@ -1247,37 +1267,73 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
                                 <div className="rounded-lg px-4 py-3" style={INNER_PANEL_STYLE}>
                                   <div className="flex items-center justify-between gap-3">
                                     <p className={SECTION_LABEL}>Game_Detail_Visualization</p>
-                                    <StatusBadge status={selectedGame.analyzerStatus} />
+                                    <button
+                                      type="button"
+                                      onClick={() => setIsDetailFullscreen((current) => !current)}
+                                      className="rounded border px-3 py-1.5 text-[11px] font-mono font-bold uppercase tracking-widest"
+                                      style={{
+                                        borderColor: "rgba(34,211,238,0.3)",
+                                        backgroundColor: isDetailFullscreen ? "rgba(34,211,238,0.16)" : "rgba(255,255,255,0.02)",
+                                        color: isDetailFullscreen ? "#67e8f9" : "#94a3b8"
+                                      }}
+                                    >
+                                      {isDetailFullscreen ? "Exit_Fullscreen" : "Fullscreen"}
+                                    </button>
                                   </div>
-                                  <div className="rounded-lg px-3 py-3 text-[11px] font-mono text-slate-300" style={INNER_PANEL_STRONG_STYLE}>
-                                    <p>
-                                      {selectedGameDetailState === "submitting"
-                                        ? "FETCHING_GAME..."
-                                        : selectedGameDetail?.analysisMessage || selectedGame.matchStory}
-                                    </p>
-                                    <p className="mt-2 text-slate-500">
-                                      {selectedGameDetail ? selectedGameDetail.reliabilityLabel : "DETAIL_PENDING"}
-                                    </p>
-                                  </div>
-                                  <div className="mt-3 flex flex-wrap gap-2">
-                                    {VIZ_TABS.map((tab) => (
-                                      <button
-                                        key={tab.id}
-                                        type="button"
-                                        onClick={() => setActiveVizTab(tab.id)}
-                                        className="rounded border px-2.5 py-1 text-[10px] font-mono font-bold uppercase tracking-widest"
-                                        style={{
-                                          borderColor: activeVizTab === tab.id ? "rgba(34,211,238,0.3)" : "rgba(255,255,255,0.08)",
-                                          backgroundColor: activeVizTab === tab.id ? "rgba(34,211,238,0.12)" : "rgba(255,255,255,0.02)",
-                                          color: activeVizTab === tab.id ? "#67e8f9" : "#94a3b8"
-                                        }}
-                                      >
-                                        {tab.label}
-                                      </button>
-                                    ))}
-                                  </div>
-                                  <div className="mt-3 rounded-lg px-3 py-3 text-[11px] font-mono text-slate-300" style={INNER_PANEL_STRONG_STYLE}>
-                                    {getVizPanelSummary(selectedGame, selectedGameDetail, activeVizTab)}
+                                  <div className="mt-3 space-y-3">
+                                    <div className="rounded-lg px-3 py-3 text-[11px] font-mono text-slate-300" style={INNER_PANEL_STRONG_STYLE}>
+                                      <p className={SECTION_LABEL}>analysis notice</p>
+                                      <p>{selectedGameDetailState === "submitting" ? "FETCHING_GAME..." : selectedGameDetail?.analysisMessage || selectedGame.matchStory}</p>
+                                      <p className="mt-2 text-slate-500">
+                                        {selectedGameDetail ? selectedGameDetail.reliabilityLabel : "DETAIL_PENDING"}
+                                      </p>
+                                    </div>
+
+                                    <div>
+                                      <p className={SECTION_LABEL}>tab row</p>
+                                      <div className="flex flex-wrap gap-2">
+                                        {VIZ_TABS.map((tab) => (
+                                          <button
+                                            key={tab.id}
+                                            type="button"
+                                            onClick={() => setActiveVizTab(tab.id)}
+                                            className="rounded border px-2.5 py-1 text-[10px] font-mono font-bold uppercase tracking-widest"
+                                            style={{
+                                              borderColor: activeVizTab === tab.id ? "rgba(34,211,238,0.3)" : "rgba(255,255,255,0.08)",
+                                              backgroundColor: activeVizTab === tab.id ? "rgba(34,211,238,0.12)" : "rgba(255,255,255,0.02)",
+                                              color: activeVizTab === tab.id ? "#67e8f9" : "#94a3b8"
+                                            }}
+                                          >
+                                            {tab.label}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+
+                                    <div className="rounded-lg px-3 py-3 text-[11px] font-mono text-slate-300" style={INNER_PANEL_STRONG_STYLE}>
+                                      <p className={SECTION_LABEL}>chart canvas</p>
+                                      <p>{`Canvas shell for ${activeVizTab.toUpperCase()}`}</p>
+                                    </div>
+
+                                    <div className="rounded-lg px-3 py-3 text-[11px] font-mono text-slate-300" style={INNER_PANEL_STRONG_STYLE}>
+                                      <p className={SECTION_LABEL}>legend</p>
+                                      <p>{selectedGame.winnerTeam.map((player) => player.name).join(", ")}</p>
+                                    </div>
+
+                                    <div className="rounded-lg px-3 py-3 text-[11px] font-mono text-slate-300" style={INNER_PANEL_STRONG_STYLE}>
+                                      <p className={SECTION_LABEL}>hint</p>
+                                      <p>Tap a tab or use Escape to leave fullscreen.</p>
+                                    </div>
+
+                                    <div className="rounded-lg px-3 py-3 text-[11px] font-mono text-slate-300" style={INNER_PANEL_STRONG_STYLE}>
+                                      <p className={SECTION_LABEL}>tech-event info</p>
+                                      <p>{selectedGameDetail ? selectedGameDetail.reliabilityLabel : selectedGame.analyzerStatus}</p>
+                                    </div>
+
+                                    <div className="rounded-lg px-3 py-3 text-[11px] font-mono text-slate-300" style={INNER_PANEL_STRONG_STYLE}>
+                                      <p className={SECTION_LABEL}>summary area</p>
+                                      <p>{getVizPanelSummary(selectedGame, selectedGameDetail, activeVizTab)}</p>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
