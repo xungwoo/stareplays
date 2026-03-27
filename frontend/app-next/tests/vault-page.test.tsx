@@ -6,7 +6,7 @@ import VaultPage from "@/app/vault/page";
 import { VaultDetailPanel } from "@/components/vault/vault-detail-panel";
 import { VaultGameRow } from "@/components/vault/vault-game-row";
 import { VaultPage as VaultPageComponent } from "@/components/vault/vault-page";
-import type { VaultPageModel } from "@/types/vault";
+import type { VaultGame, VaultPageModel } from "@/types/vault";
 
 describe("vault page", () => {
   beforeEach(() => {
@@ -128,6 +128,45 @@ describe("vault page", () => {
     };
   }
 
+  function createTwoGameModel(): VaultPageModel {
+    return {
+      currentUser: "neo_user",
+      games: [
+        {
+          id: 99,
+          map: "Test Arena",
+          matchup: "1v1",
+          winnerTeam: [
+            { name: "neo_user", race: "P", apm: 200, eapm: 180, cmd: 3000, ecmd: 2800, effective: 92, redundancy: 5, production: 140, isCurrentUser: true, startLocationX: 100, startLocationY: 100 }
+          ],
+          loserTeam: [
+            { name: "opponent", race: "Z", apm: 150, eapm: 130, cmd: 2200, ecmd: 2000, effective: 84, redundancy: 10, production: 120, startLocationX: 4000, startLocationY: 900 }
+          ],
+          analyzerStatus: "DONE",
+          playTime: "10:00",
+          startTime: "2026-03-23 09:00",
+          matchStory: "First match"
+        },
+        {
+          id: 100,
+          map: "Backup Arena",
+          matchup: "2v2",
+          winnerTeam: [
+            { name: "ally", race: "T", apm: 180, eapm: 160, cmd: 2400, ecmd: 2200, effective: 91, redundancy: 7, production: 150, isCurrentUser: false, startLocationX: 120, startLocationY: 120 },
+            { name: "neo_user", race: "P", apm: 210, eapm: 190, cmd: 3100, ecmd: 2900, effective: 93, redundancy: 4, production: 145, isCurrentUser: true, startLocationX: 140, startLocationY: 140 }
+          ],
+          loserTeam: [
+            { name: "enemy", race: "Z", apm: 140, eapm: 120, cmd: 2000, ecmd: 1800, effective: 82, redundancy: 11, production: 118, startLocationX: 4000, startLocationY: 900 }
+          ],
+          analyzerStatus: "PENDING",
+          playTime: "12:30",
+          startTime: "2026-03-22 08:30",
+          matchStory: "Second match"
+        }
+      ]
+    };
+  }
+
   it("renders the figma replay vault table and expanded analyzer bridge", async () => {
     render(await VaultPage({}));
     const user = userEvent.setup();
@@ -171,15 +210,14 @@ describe("vault page", () => {
       backgroundColor: "#0d1833",
       border: "1px solid rgba(34,211,238,0.1)"
     });
-    expect(screen.getByText(/^SELECTED_GAME$/i).closest(".mt-2")).toHaveStyle({
-      backgroundColor: "#080e1f",
-      border: "1px solid rgba(34,211,238,0.12)"
+    expect(screen.getByTestId("vault-inline-detail-row")).toHaveStyle({
+      borderColor: "rgba(34, 211, 238, 0.12)"
     });
     expect(screen.getByRole("button", { name: /^APM$/i }).parentElement?.nextElementSibling).toHaveStyle({
       backgroundColor: "#0a1428",
       border: "1px solid rgba(255,255,255,0.05)"
     });
-    expect(getGameIdCell(9).closest("div.border-b")).toHaveStyle({
+    expect(getGameIdCell(9).closest("tr")).toHaveStyle({
       borderColor: "rgba(255,255,255,0.05)"
     });
     expect(screen.getByRole("button", { name: /^Prev$/i }).parentElement).toHaveStyle({
@@ -204,7 +242,11 @@ describe("vault page", () => {
 
     render(
       <div>
-        <VaultGameRow game={game} isExpanded={true} onToggle={() => {}} />
+        <table>
+          <tbody>
+            <VaultGameRow game={game} isExpanded={true} onToggle={() => {}} />
+          </tbody>
+        </table>
         <VaultDetailPanel
           game={game}
           currentUser={model.currentUser}
@@ -238,6 +280,93 @@ describe("vault page", () => {
     expect(screen.getByText(/^APM TIMELINE$/i)).toBeInTheDocument();
     expect(screen.getByTestId("vault-start-grid-left")).toBeInTheDocument();
     expect(screen.getByTestId("vault-start-grid-right")).toBeInTheDocument();
+  });
+
+  it("inserts the selected game detail as a row-adjacent table row under the clicked game", async () => {
+    const user = userEvent.setup();
+
+    render(<VaultPageComponent model={createTwoGameModel()} />);
+
+    const table = screen.getByRole("table");
+    await user.click(within(table).getByText("#99"));
+
+    await waitFor(() => expect(screen.getByText(/^SELECTED_GAME$/i)).toBeInTheDocument());
+    const bodyRows = within(table).getAllByRole("row").slice(1);
+
+    expect(bodyRows[0]).toHaveTextContent("99");
+    expect(bodyRows[1]).toHaveTextContent("SELECTED_GAME");
+    expect(bodyRows[2]).toHaveTextContent("100");
+  });
+
+  it("uses OUR_TEAM and ENEMY_TEAM semantics for the current user row", () => {
+    const game: VaultGame = {
+      id: 77,
+      map: "Semantics Test",
+      matchup: "1v1",
+      winnerTeam: [
+        { name: "enemy_winner", race: "T", apm: 240, eapm: 210, cmd: 3200, ecmd: 3000, effective: 95, redundancy: 4, production: 160, startLocationX: 4000, startLocationY: 900 }
+      ],
+      loserTeam: [
+        { name: "neo_user", race: "P", apm: 180, eapm: 165, cmd: 2500, ecmd: 2300, effective: 88, redundancy: 8, production: 135, isCurrentUser: true, startLocationX: 100, startLocationY: 100 },
+        { name: "enemy_support", race: "Z", apm: 172, eapm: 151, cmd: 2400, ecmd: 2200, effective: 86, redundancy: 9, production: 128, startLocationX: 130, startLocationY: 130 }
+      ],
+      analyzerStatus: "DONE",
+      playTime: "09:45",
+      startTime: "2026-03-21 10:00",
+      matchStory: "Semantics"
+    };
+
+    render(
+      <table>
+        <tbody>
+          <VaultGameRow game={game} isExpanded={false} onToggle={() => {}} />
+        </tbody>
+      </table>
+    );
+
+    expect(screen.getByText(/^OUR_TEAM$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^ENEMY_TEAM$/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/^YOU$/i)).toHaveLength(1);
+    expect(screen.getByText("neo_user").closest("td")).toHaveTextContent("OUR_TEAM");
+  });
+
+  it("renders the legacy visualization section headings, tab labels, and fullscreen text", async () => {
+    const user = userEvent.setup();
+
+    render(<VaultPageComponent model={createSingleGameModel()} />);
+    await user.click(getGameIdCell(99));
+    await waitFor(() => expect(screen.getByTestId("vault-detail-shell")).toBeInTheDocument());
+
+    expect(screen.getByText(/^SELECTED_GAME$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Game_Detail_Visualization$/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^APM$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Unit Production$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Resource Spend$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Production$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Tech \/ Upgrade$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Battle Intensity$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Action Mix$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^크게 보기$/i })).toBeInTheDocument();
+  });
+
+  it("switches the fullscreen label and exits fullscreen with Escape", async () => {
+    const user = userEvent.setup();
+
+    render(<VaultPageComponent model={createSingleGameModel()} />);
+    await user.click(getGameIdCell(99));
+    await waitFor(() => expect(screen.getByTestId("vault-detail-shell")).toBeInTheDocument());
+
+    const fullscreenButton = screen.getByRole("button", { name: /^크게 보기$/i });
+    await user.click(fullscreenButton);
+
+    expect(screen.getByRole("button", { name: /^작게 보기$/i })).toBeInTheDocument();
+    expect(screen.getByTestId("vault-detail-shell")).toHaveAttribute("data-fullscreen", "true");
+
+    await user.keyboard("{Escape}");
+
+    expect(screen.getByRole("button", { name: /^크게 보기$/i })).toBeInTheDocument();
+    expect(screen.getByTestId("vault-detail-shell")).not.toHaveAttribute("data-fullscreen", "true");
+    expect(document.body).not.toHaveClass("viz-fullscreen-lock");
   });
 
   it("builds the analyzer deep link from the selected game id", async () => {
@@ -511,7 +640,7 @@ describe("vault page", () => {
     await user.click(getGameIdCell(99));
     await waitFor(() => expect(screen.getByTestId("vault-detail-shell")).toBeInTheDocument());
 
-    await user.click(screen.getByRole("button", { name: /fullscreen/i }));
+    await user.click(screen.getByRole("button", { name: /^크게 보기$/i }));
     expect(screen.getByTestId("vault-detail-shell")).toHaveAttribute("data-fullscreen", "true");
     expect(document.body).toHaveClass("viz-fullscreen-lock");
 

@@ -321,7 +321,7 @@ export function VaultDetailPanel({
   };
 
   return (
-    <div data-testid="vault-detail-shell" data-fullscreen={isFullscreen ? "true" : "false"} className="mt-2 rounded-xl p-5" style={{ backgroundColor: "#080e1f", border: "1px solid rgba(34,211,238,0.12)" }}>
+    <div data-testid="vault-detail-shell" data-fullscreen={isFullscreen ? "true" : "false"} className="rounded-xl p-5" style={{ backgroundColor: "#080e1f", border: "1px solid rgba(34,211,238,0.12)" }}>
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="text-xs font-mono text-slate-400">#{game.id}</span>
@@ -332,7 +332,6 @@ export function VaultDetailPanel({
         <div className="flex items-center gap-2">
           <button
             type="button"
-            aria-label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
             onClick={onFullscreenToggle}
             className="rounded-lg px-3 py-1.5 text-xs font-mono font-bold tracking-wider transition-all"
             style={{
@@ -341,7 +340,7 @@ export function VaultDetailPanel({
               border: "1px solid rgba(255,255,255,0.1)"
             }}
           >
-            FULLSCREEN
+            {isFullscreen ? "작게 보기" : "크게 보기"}
           </button>
           <Link
             href={buildAnalyzerHref(currentUser, game.id)}
@@ -421,6 +420,7 @@ export function VaultDetailPanel({
         </div>
 
         <div>
+          <p className="mb-3 text-[10px] font-mono tracking-widest text-slate-500">Game_Detail_Visualization</p>
           <div className="mb-3 flex flex-wrap gap-2">
             {VIZ_TABS.map((tab) => (
               <button

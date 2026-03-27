@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 
-import { CYAN_PANEL_STYLE, CYAN_SECTION_DIVIDER_STYLE, INNER_PANEL_STYLE } from "@/lib/constants/ui-styles";
+import { CYAN_PANEL_STYLE, CYAN_SECTION_DIVIDER_STYLE } from "@/lib/constants/ui-styles";
 import { VaultDetailPanel, type VaultHydratedDetail, type VaultTechFocus, type VaultVizTab, createHydratedVaultDetail } from "@/components/vault/vault-detail-panel";
 import { VaultGameRow } from "@/components/vault/vault-game-row";
 import { buildApiUrl } from "@/lib/api/url";
@@ -54,6 +54,9 @@ export function VaultPage({ model }: { model: VaultPageModel }) {
   const totalPages = Math.max(1, Math.ceil(model.games.length / pageSize));
   const pageGames = model.games.slice((page - 1) * pageSize, page * pageSize);
   const currentUserHref = `/vault?currentUser=${encodeURIComponent(model.currentUser)}`;
+  const expandedGame =
+    expandedId == null ? null : model.games.find((game) => game.id === expandedId) ?? pageGames.find((game) => game.id === expandedId) ?? null;
+  const expandedDetailStatus = expandedId == null ? null : detailStatusByGameId[expandedId] ?? null;
 
   useEffect(() => {
     if (expandedId != null && !model.games.some((game) => game.id === expandedId)) {
@@ -165,29 +168,69 @@ export function VaultPage({ model }: { model: VaultPageModel }) {
       </div>
 
       <div className="rounded-xl overflow-hidden" style={CARD_STYLE}>
-        <div
-          className="grid items-center gap-4 px-4 py-2.5"
-          style={{
-            gridTemplateColumns: "50px 1fr 80px 2fr 2fr 100px 80px 1fr",
-            backgroundColor: "#081428",
-            ...CYAN_SECTION_DIVIDER_STYLE
-          }}
-        >
-          {["ID", "MAP_NAME", "MATCHUP", "OUR_TEAM", "ENEMY_TEAM", "ANALYZER", "TIME", "START_TIME"].map((header) => (
-            <span key={header} className="text-[10px] font-mono font-semibold uppercase tracking-widest text-slate-600">
-              {header}
-            </span>
-          ))}
-        </div>
-
-        {pageGames.map((game) => (
-          <VaultGameRow
-            key={game.id}
-            game={game}
-            isExpanded={expandedId === game.id}
-            onToggle={() => handleSelectGame(game.id)}
-          />
-        ))}
+        <table className="w-full table-fixed text-xs font-mono text-slate-300">
+          <colgroup>
+            <col style={{ width: "50px" }} />
+            <col />
+            <col style={{ width: "80px" }} />
+            <col style={{ width: "2fr" }} />
+            <col style={{ width: "2fr" }} />
+            <col style={{ width: "100px" }} />
+            <col style={{ width: "80px" }} />
+            <col style={{ width: "1fr" }} />
+          </colgroup>
+          <thead style={{ backgroundColor: "#081428", ...CYAN_SECTION_DIVIDER_STYLE }}>
+            <tr className="text-[10px] uppercase tracking-widest text-slate-600">
+              <th className="px-4 py-2.5 text-left">#ID</th>
+              <th className="px-4 py-2.5 text-left">MAP_NAME</th>
+              <th className="px-4 py-2.5 text-left">MATCHUP</th>
+              <th className="px-4 py-2.5 text-left">OUR_TEAM</th>
+              <th className="px-4 py-2.5 text-left">ENEMY_TEAM</th>
+              <th className="px-4 py-2.5 text-left">ANALYZER</th>
+              <th className="px-4 py-2.5 text-left">PLAY_TIME</th>
+              <th className="px-4 py-2.5 text-left">START_TIME</th>
+            </tr>
+          </thead>
+          <tbody>
+            {pageGames.map((game) => (
+              <Fragment key={game.id}>
+                <VaultGameRow game={game} isExpanded={expandedId === game.id} onToggle={() => handleSelectGame(game.id)} />
+                {expandedId === game.id ? (
+                  <tr data-testid="vault-inline-detail-row" className="border-b" style={{ borderColor: "rgba(34,211,238,0.12)" }}>
+                    <td colSpan={8} className="p-3">
+                      {expandedDetailStatus === "loading" || !expandedGame ? (
+                        <div
+                          className="rounded-xl px-5 py-4 text-xs font-mono text-slate-400"
+                          style={{ backgroundColor: "#080e1f", border: "1px solid rgba(34,211,238,0.12)" }}
+                        >
+                          FETCHING_GAME...
+                        </div>
+                      ) : (
+                        <VaultDetailPanel
+                          game={expandedGame}
+                          currentUser={model.currentUser}
+                          hydratedDetail={detailByGameId[expandedId]}
+                          isHydrating={false}
+                          hydrateError={detailErrorByGameId[expandedId]}
+                          activeVizTab={activeVizTab}
+                          isFullscreen={isFullscreen}
+                          techFocus={techFocus}
+                          highlightedPlayer={highlightedPlayer}
+                          onActiveVizTabChange={setActiveVizTab}
+                          onFullscreenToggle={() => setIsFullscreen((current) => !current)}
+                          onTechFocusChange={(focus) => {
+                            setTechFocus(focus);
+                            setHighlightedPlayer(focus?.playerName ?? null);
+                          }}
+                        />
+                      )}
+                    </td>
+                  </tr>
+                ) : null}
+              </Fragment>
+            ))}
+          </tbody>
+        </table>
 
         <div className="flex items-center justify-between px-4 py-3" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
           <button
@@ -213,50 +256,6 @@ export function VaultPage({ model }: { model: VaultPageModel }) {
           </button>
         </div>
       </div>
-
-      {expandedId != null
-        ? (() => {
-            const expandedGame =
-              model.games.find((game) => game.id === expandedId) ??
-              pageGames.find((game) => game.id === expandedId) ??
-              null;
-
-            if (!expandedGame) {
-              return null;
-            }
-
-            if (detailStatusByGameId[expandedId] === "loading") {
-              return (
-                <div
-                  className="mt-2 rounded-xl px-5 py-4 text-xs font-mono text-slate-400"
-                  style={{ backgroundColor: "#080e1f", border: "1px solid rgba(34,211,238,0.12)" }}
-                >
-                  FETCHING_GAME...
-                </div>
-              );
-            }
-
-            return (
-              <VaultDetailPanel
-                game={expandedGame}
-                currentUser={model.currentUser}
-                hydratedDetail={detailByGameId[expandedId]}
-                isHydrating={false}
-                hydrateError={detailErrorByGameId[expandedId]}
-                activeVizTab={activeVizTab}
-                isFullscreen={isFullscreen}
-                techFocus={techFocus}
-                highlightedPlayer={highlightedPlayer}
-                onActiveVizTabChange={setActiveVizTab}
-                onFullscreenToggle={() => setIsFullscreen((current) => !current)}
-                onTechFocusChange={(focus) => {
-                  setTechFocus(focus);
-                  setHighlightedPlayer(focus?.playerName ?? null);
-                }}
-              />
-            );
-          })()
-        : null}
     </div>
   );
 }
