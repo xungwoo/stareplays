@@ -942,21 +942,6 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
               </pre>
             </div>
           </div>
-
-          <div
-            className="rounded-xl p-4"
-            style={{ background: "linear-gradient(135deg, rgba(34,211,238,0.06), rgba(96,165,250,0.06))", border: "1px solid rgba(34,211,238,0.1)" }}
-          >
-            <p className="text-[10px] font-mono font-semibold text-cyan-500 tracking-widest mb-3">HOW TO USE</p>
-            <ul className="space-y-2">
-              {model.quickTips.map((tip, index) => (
-                <li key={tip} className="flex items-start gap-2 text-xs text-slate-400">
-                  <span className="font-mono text-cyan-500 mt-0.5">{index + 1}.</span>
-                  {tip}
-                </li>
-              ))}
-            </ul>
-          </div>
         </div>
 
         <div className="flex flex-col gap-4 lg:col-span-7" aria-label="Player Statistics Workspace">
@@ -1050,33 +1035,6 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
                 <DashboardStatsTable title="Race Stats" leadingLabel="RACE" rows={playerStats.raceStats} />
                 <DashboardStatsTable title="Matchup Stats" leadingLabel="VS" rows={playerStats.matchupStats} />
                 <DashboardStatsTable title="Map Stats" leadingLabel="MAP" rows={playerStats.mapStats} />
-              </div>
-
-              <div className="rounded-xl p-5" style={CYAN_PANEL_STYLE}>
-                <p className={SECTION_LABEL}>Win Rate Progress</p>
-                <div className="flex items-center gap-4">
-                  <div className="flex-1">
-                    <div className="mb-1.5 flex justify-between text-xs font-mono">
-                      <span className="text-emerald-400">WIN {playerStats.wins}</span>
-                      <span className="text-red-400">LOSS {playerStats.losses}</span>
-                    </div>
-                    <div className="h-3 overflow-hidden rounded-full" style={{ backgroundColor: INNER_PANEL_STYLE.backgroundColor }}>
-                      <div
-                        className="h-full rounded-full transition-all duration-700"
-                        style={{ width: `${playerStats.winRate}%`, background: "linear-gradient(90deg, #10b981, #22d3ee)" }}
-                      />
-                    </div>
-                    <p className="mt-1 text-center text-[10px] font-mono text-slate-600">
-                      {playerStats.winRate.toFixed(1)}% ({playerStats.games} games)
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-mono text-3xl font-bold" style={{ color: "#22d3ee" }}>
-                      {playerStats.winRate.toFixed(1)}%
-                    </p>
-                    <p className="text-[10px] font-mono text-slate-500">WIN RATE</p>
-                  </div>
-                </div>
               </div>
             </>
           )}

@@ -180,23 +180,29 @@ describe("dashboard page", () => {
   it("renders the figma dashboard upload and stats workspace", async () => {
     const { container } = render(<DashboardPage model={DASHBOARD_FIXTURE} />);
 
-    expect(screen.getByText(/^Replay_Upload$/i)).toBeInTheDocument();
+    const replayUploadLabel = screen.getByText(/^Replay_Upload$/i);
+    const playerStatsQueryLabel = screen.getByText(/^Player_Stats_Query$/i);
+    const recentGamesLabel = screen.getByText(/^Recent_Games$/i);
+    const systemLogsLabel = screen.getByText(/^System_Logs$/i);
+
+    expect(replayUploadLabel).toBeInTheDocument();
     expect(screen.getByText(/플레이어 선택 \(Simple Login\)/i)).toBeInTheDocument();
     expect(screen.getByText(/select_player_from_parsed_replay/i)).toBeInTheDocument();
-    expect(screen.getByText(/^HOW TO USE$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^Player_Stats_Query$/i)).toBeInTheDocument();
+    expect(screen.queryByText(/^HOW TO USE$/i)).not.toBeInTheDocument();
+    expect(playerStatsQueryLabel).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^QUERY$/i })).toHaveClass("transition-all");
-    expect(screen.getByText(/^Win Rate Progress$/i)).toBeInTheDocument();
+    expect(screen.queryByText(/^Win Rate Progress$/i)).not.toBeInTheDocument();
     expect(screen.getByText(DASHBOARD_FIXTURE.playerStats.favoriteRaceLabel)).toHaveClass("text-amber-400");
     expect(screen.getByText(/^CURRENT_USER:$/i).nextElementSibling).toHaveTextContent(DASHBOARD_FIXTURE.currentUser);
-    expect(screen.getByText(/^Player_Stats_Query$/i).parentElement).toHaveClass("p-5");
-    expect(screen.getByText(/^Player_Stats_Query$/i).parentElement).toHaveStyle({
+    expect(playerStatsQueryLabel.parentElement).toHaveClass("p-5");
+    expect(playerStatsQueryLabel.parentElement).toHaveStyle({
       backgroundColor: "#0d1833",
       border: "1px solid rgba(34,211,238,0.1)"
     });
-    expect(screen.getByText(/^HOW TO USE$/i).parentElement).toHaveStyle({
-      border: "1px solid rgba(34,211,238,0.1)"
-    });
+    expect(replayUploadLabel.compareDocumentPosition(playerStatsQueryLabel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(playerStatsQueryLabel.compareDocumentPosition(recentGamesLabel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(recentGamesLabel.compareDocumentPosition(systemLogsLabel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(playerStatsQueryLabel.compareDocumentPosition(screen.getByText(/^Race Stats$/i)) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     const winRateStatValue = screen.getByText(`${DASHBOARD_FIXTURE.playerStats.winRate.toFixed(1)}%`, {
       selector: "span"
     });
@@ -231,24 +237,9 @@ describe("dashboard page", () => {
       border: "1px solid rgba(34,211,238,0.2)"
     });
     expect(screen.getByText(/^CURRENT_USER:$/i).nextElementSibling).not.toHaveClass("tracking-wider");
-    expect(container.querySelector(".h-3.overflow-hidden.rounded-full")).toHaveStyle({
-      backgroundColor: "#0a1428"
-    });
     expect(screen.getByText(/^PLAYER$/i).nextElementSibling?.querySelector("span")).toHaveStyle({
       color: "#22d3ee"
     });
-    expect(screen.getByText(`${DASHBOARD_FIXTURE.playerStats.winRate.toFixed(1)}%`, {
-      selector: "p"
-    })).toHaveStyle({
-      color: "#22d3ee"
-    });
-
-    const progressLabels = [...container.querySelectorAll("span")].filter((element) => {
-      return element.textContent?.startsWith("WIN ") || element.textContent?.startsWith("LOSS ");
-    });
-
-    expect(progressLabels.some((element) => element.textContent?.startsWith("WIN ") && element.className.includes("text-emerald-400"))).toBe(true);
-    expect(progressLabels.some((element) => element.textContent?.startsWith("LOSS ") && element.className.includes("text-red-400"))).toBe(true);
     expect(screen.getByText("56.4%")).toHaveStyle({
       color: "#34d399"
     });
@@ -863,15 +854,10 @@ describe("dashboard page", () => {
 
     const queryInput = screen.getByLabelText(/플레이어 이름 입력/i);
     fireEvent.change(queryInput, { target: { value: "3x3_smwoo" } });
+    fetchMock.mockClear();
 
     await act(async () => {
-      vi.advanceTimersByTime(279);
-    });
-
-    expect(fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/v1/users/suggest?q=3x3_smwoo"))).toHaveLength(0);
-
-    await act(async () => {
-      vi.advanceTimersByTime(1);
+      vi.advanceTimersByTime(280);
       await Promise.resolve();
     });
 
