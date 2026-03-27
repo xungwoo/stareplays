@@ -1109,23 +1109,51 @@ describe("dashboard page", () => {
     vi.useRealTimers();
   });
 
-  it("renders the full legacy inline detail structure for the selected game", async () => {
+  it("renders the legacy visualization stack and toggles fullscreen state", async () => {
     render(<DashboardPage model={DASHBOARD_FIXTURE} />);
 
     fireEvent.click(await screen.findByRole("button", { name: /open recent game 48/i }));
 
     const inlineRow = await screen.findByTestId("dashboard-inline-game-detail-row");
+    const vizShell = within(inlineRow).getByTestId("dashboard-viz-shell");
 
     expect(within(inlineRow).getByText("Selected_Game")).toBeInTheDocument();
     expect(within(inlineRow).getByText("Game_Detail_Visualization")).toBeInTheDocument();
-    expect(within(inlineRow).getByRole("button", { name: /fullscreen/i })).toBeInTheDocument();
-    expect(within(inlineRow).getByText(/analysis notice/i)).toBeInTheDocument();
-    expect(within(inlineRow).getByText(/tab row/i)).toBeInTheDocument();
-    expect(within(inlineRow).getByText(/chart canvas/i)).toBeInTheDocument();
-    expect(within(inlineRow).getByText(/legend/i)).toBeInTheDocument();
-    expect(within(inlineRow).getByText(/hint/i)).toBeInTheDocument();
-    expect(within(inlineRow).getByText(/tech-event info/i)).toBeInTheDocument();
-    expect(within(inlineRow).getByText(/summary area/i)).toBeInTheDocument();
-    expect(within(inlineRow).getAllByText(/REDUNDANCY%/i).length).toBeGreaterThan(0);
+    expect(vizShell).toHaveAttribute("data-fullscreen", "false");
+    expect(within(vizShell).getByRole("button", { name: /fullscreen/i })).toBeInTheDocument();
+    expect(within(vizShell).getByText(/analysis notice/i)).toBeInTheDocument();
+    expect(within(vizShell).getByText(/viz tab row/i)).toBeInTheDocument();
+    expect(within(vizShell).getByRole("button", { name: "APM" })).toBeInTheDocument();
+    expect(within(vizShell).getByRole("button", { name: "Unit_Production" })).toBeInTheDocument();
+    expect(within(vizShell).getByRole("button", { name: "Resource_Spend" })).toBeInTheDocument();
+    expect(within(vizShell).getByRole("button", { name: "Production" })).toBeInTheDocument();
+    expect(within(vizShell).getByRole("button", { name: "Tech" })).toBeInTheDocument();
+    expect(within(vizShell).getByRole("button", { name: "Battle" })).toBeInTheDocument();
+    expect(within(vizShell).getByRole("button", { name: "Actions" })).toBeInTheDocument();
+    expect(within(vizShell).getByText(/chart canvas area/i)).toBeInTheDocument();
+    expect(within(vizShell).getByText(/legend row/i)).toBeInTheDocument();
+    expect(within(vizShell).getByText(/hint row/i)).toBeInTheDocument();
+    expect(within(vizShell).getByText(/tech-event info row/i)).toBeInTheDocument();
+    expect(within(vizShell).getByText(/summary area/i)).toBeInTheDocument();
+    expect(within(vizShell).getByText(/3x3_GG, 3x3_mh, 3x3_smwoo/i)).toBeInTheDocument();
+    expect(within(vizShell).getAllByText(/5\/6 \| stable/i).length).toBeGreaterThan(0);
+
+    fireEvent.click(within(vizShell).getByRole("button", { name: "Tech" }));
+
+    expect(within(vizShell).getByRole("button", { name: "Tech" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(vizShell).getByText(/canvas shell for TECH/i)).toBeInTheDocument();
+    expect(within(vizShell).getByText(/Reliability: 5\/6 \| stable/i)).toBeInTheDocument();
+
+    fireEvent.click(within(vizShell).getByRole("button", { name: /fullscreen/i }));
+
+    expect(vizShell).toHaveAttribute("data-fullscreen", "true");
+    expect(document.body).toHaveClass("viz-fullscreen-lock");
+
+    fireEvent.keyDown(window, { key: "Escape", code: "Escape" });
+
+    await waitFor(() => {
+      expect(vizShell).toHaveAttribute("data-fullscreen", "false");
+    });
+    expect(document.body).not.toHaveClass("viz-fullscreen-lock");
   });
 });

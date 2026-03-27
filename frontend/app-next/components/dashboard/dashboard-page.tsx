@@ -560,6 +560,22 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+
+    if (!isDetailFullscreen) {
+      document.body.classList.remove("viz-fullscreen-lock");
+      return;
+    }
+
+    document.body.classList.add("viz-fullscreen-lock");
+    return () => {
+      document.body.classList.remove("viz-fullscreen-lock");
+    };
+  }, [isDetailFullscreen]);
+
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const nextFiles = Array.from(event.target.files ?? []);
     setSelectedFiles(nextFiles);
@@ -762,11 +778,13 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
 
   function handleToggleSelectedGame(gameId: number) {
     if (selectedGameId === gameId) {
+      setIsDetailFullscreen(false);
       setSelectedGameId(null);
       appendSystemLog(`COLLAPSE_GAME: #${gameId}`);
       return;
     }
 
+    setIsDetailFullscreen(false);
     setSelectedGameId(gameId);
     setActiveVizTab("apm");
     appendSystemLog(`SELECT_GAME: #${gameId}`);
@@ -1264,7 +1282,20 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
                                   </div>
                                 </div>
 
-                                <div className="rounded-lg px-4 py-3" style={INNER_PANEL_STYLE}>
+                                <div
+                                  data-testid="dashboard-viz-shell"
+                                  data-fullscreen={isDetailFullscreen ? "true" : "false"}
+                                  className="rounded-lg px-4 py-3 transition-all duration-200"
+                                  style={{
+                                    ...INNER_PANEL_STYLE,
+                                    position: isDetailFullscreen ? "fixed" : "relative",
+                                    inset: isDetailFullscreen ? "1rem" : undefined,
+                                    zIndex: isDetailFullscreen ? 60 : "auto",
+                                    overflow: isDetailFullscreen ? "auto" : undefined,
+                                    maxHeight: isDetailFullscreen ? "calc(100vh - 2rem)" : undefined,
+                                    boxShadow: isDetailFullscreen ? "0 30px 80px rgba(0,0,0,0.45)" : undefined
+                                  }}
+                                >
                                   <div className="flex items-center justify-between gap-3">
                                     <p className={SECTION_LABEL}>Game_Detail_Visualization</p>
                                     <button
@@ -1290,13 +1321,15 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
                                     </div>
 
                                     <div>
-                                      <p className={SECTION_LABEL}>tab row</p>
+                                      <p className={SECTION_LABEL}>viz tab row</p>
                                       <div className="flex flex-wrap gap-2">
                                         {VIZ_TABS.map((tab) => (
                                           <button
                                             key={tab.id}
                                             type="button"
                                             onClick={() => setActiveVizTab(tab.id)}
+                                            aria-pressed={activeVizTab === tab.id}
+                                            data-active={activeVizTab === tab.id ? "true" : "false"}
                                             className="rounded border px-2.5 py-1 text-[10px] font-mono font-bold uppercase tracking-widest"
                                             style={{
                                               borderColor: activeVizTab === tab.id ? "rgba(34,211,238,0.3)" : "rgba(255,255,255,0.08)",
@@ -1311,22 +1344,22 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
                                     </div>
 
                                     <div className="rounded-lg px-3 py-3 text-[11px] font-mono text-slate-300" style={INNER_PANEL_STRONG_STYLE}>
-                                      <p className={SECTION_LABEL}>chart canvas</p>
+                                      <p className={SECTION_LABEL}>chart canvas area</p>
                                       <p>{`Canvas shell for ${activeVizTab.toUpperCase()}`}</p>
                                     </div>
 
                                     <div className="rounded-lg px-3 py-3 text-[11px] font-mono text-slate-300" style={INNER_PANEL_STRONG_STYLE}>
-                                      <p className={SECTION_LABEL}>legend</p>
+                                      <p className={SECTION_LABEL}>legend row</p>
                                       <p>{selectedGame.winnerTeam.map((player) => player.name).join(", ")}</p>
                                     </div>
 
                                     <div className="rounded-lg px-3 py-3 text-[11px] font-mono text-slate-300" style={INNER_PANEL_STRONG_STYLE}>
-                                      <p className={SECTION_LABEL}>hint</p>
+                                      <p className={SECTION_LABEL}>hint row</p>
                                       <p>Tap a tab or use Escape to leave fullscreen.</p>
                                     </div>
 
                                     <div className="rounded-lg px-3 py-3 text-[11px] font-mono text-slate-300" style={INNER_PANEL_STRONG_STYLE}>
-                                      <p className={SECTION_LABEL}>tech-event info</p>
+                                      <p className={SECTION_LABEL}>tech-event info row</p>
                                       <p>{selectedGameDetail ? selectedGameDetail.reliabilityLabel : selectedGame.analyzerStatus}</p>
                                     </div>
 
