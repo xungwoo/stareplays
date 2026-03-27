@@ -211,7 +211,7 @@ describe("vault page", () => {
 
     await waitFor(() => expect(screen.getByTestId("vault-detail-shell")).toBeInTheDocument());
     expect(screen.getByRole("button", { name: /^APM$/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /^Open_In_Analyzer$/i }).getAttribute("href")).toContain("/analyzer?currentUser=3x3_GG&gameId=");
+    expect(screen.getByRole("link", { name: /^Open_In_Analyzer$/i }).getAttribute("href")).toContain("/analyzer?currentUser=3x3_GG&game_id=");
     expect(screen.queryByRole("link", { name: /game analyzer/i })).not.toBeInTheDocument();
   });
 
@@ -309,7 +309,7 @@ describe("vault page", () => {
     );
 
     expect(screen.getAllByText(/^#99$/i).length).toBeGreaterThan(0);
-    expect(screen.getByRole("link", { name: /open_in_analyzer/i })).toHaveAttribute("href", "/analyzer?currentUser=neo_user&gameId=99");
+    expect(screen.getByRole("link", { name: /open_in_analyzer/i })).toHaveAttribute("href", "/analyzer?currentUser=neo_user&game_id=99");
     expect(screen.getByText(/^SELECTED_GAME$/i)).toBeInTheDocument();
     expect(screen.getByText(/^APM TIMELINE$/i)).toBeInTheDocument();
     expect(screen.getAllByText(/^REDUNDANCY%$/i)).toHaveLength(2);
@@ -393,9 +393,9 @@ describe("vault page", () => {
     await user.click(within(techTree).getByRole("button", { name: /^neo_user TECH 2$/i }));
     expect(screen.getByTestId("vault-tech-tree-focus")).toHaveTextContent("neo_user • TECH");
 
-    await user.click(within(techMarkers).getByText(/Psionic Storm/i));
+    await user.click(within(techMarkers).getByRole("button", { name: /^neo_user Psionic Storm 180s$/i }));
     expect(within(techTree).getByRole("button", { name: /^neo_user TECH 2$/i })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByTestId("vault-tech-tree-focus")).toHaveTextContent("neo_user • TECH MARKER");
+    expect(screen.getByTestId("vault-tech-tree-focus")).toHaveTextContent("neo_user • Psionic Storm • 180s");
   });
 
   it("inserts the selected game detail as a row-adjacent table row under the clicked game", async () => {
@@ -493,7 +493,7 @@ describe("vault page", () => {
     expect(document.body).not.toHaveClass("viz-fullscreen-lock");
   });
 
-  it("builds the analyzer deep link from the selected game id", async () => {
+  it("builds the analyzer deep link using game_id query semantics", async () => {
     const model: VaultPageModel = {
       currentUser: "neo_user",
       games: [
@@ -521,7 +521,8 @@ describe("vault page", () => {
     await user.click(getGameIdCell(99));
     await waitFor(() => expect(screen.getByRole("link", { name: /open_in_analyzer/i })).toBeInTheDocument());
 
-    expect(screen.getByRole("link", { name: /open_in_analyzer/i })).toHaveAttribute("href", "/analyzer?currentUser=neo_user&gameId=99");
+    expect(screen.getByRole("link", { name: /open_in_analyzer/i })).toHaveAttribute("href", "/analyzer?currentUser=neo_user&game_id=99");
+    expect(screen.getByRole("link", { name: /open_in_analyzer/i }).getAttribute("href")).not.toContain("gameId=");
   });
 
   it("starts with no selected game and keeps the detail shell hidden until the user selects a row", () => {
@@ -850,35 +851,35 @@ describe("vault page", () => {
     await waitFor(() => expect(screen.getByTestId("vault-detail-shell")).toBeInTheDocument());
 
     await user.click(screen.getByRole("button", { name: /^Unit_Production$/i }));
-    const unitLedger = screen.getByTestId("vault-unit-production-ledger");
-    expect(unitLedger).toBeInTheDocument();
-    expect(unitLedger).toHaveTextContent(/PLAYER \/ TOTAL \/ WORKER \/ ARMY \/ TECH_UNIT/i);
-    expect(within(unitLedger).getByText("neo_user").parentElement).toHaveTextContent("TOTAL 24");
-    expect(unitLedger).toHaveTextContent("TECH_UNIT 6");
+    const unitProductionChart = screen.getByLabelText(/^Unit Production Chart$/i);
+    expect(unitProductionChart).toBeInTheDocument();
+    expect(screen.queryByText(/unit production ledger/i)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /^Resource_Spend$/i }));
-    const spendLedger = screen.getByTestId("vault-resource-spend-ledger");
-    expect(spendLedger).toBeInTheDocument();
-    expect(spendLedger).toHaveTextContent("TOTAL_SPEND 4,200");
-    expect(within(spendLedger).getByText("neo_user").parentElement).toHaveTextContent("4,200");
+    const resourceSpendChart = screen.getByLabelText(/^Resource Spend Timeline$/i);
+    expect(resourceSpendChart).toBeInTheDocument();
+    expect(screen.queryByText(/resource spend ledger/i)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /^Production$/i }));
-    const productionCadence = screen.getByTestId("vault-production-cadence");
-    expect(productionCadence).toBeInTheDocument();
-    expect(productionCadence).toHaveTextContent("OPENING 4");
-    expect(productionCadence).toHaveTextContent("LATE 16");
+    const productionTimeline = screen.getByLabelText(/^Build Order Timeline$/i);
+    expect(productionTimeline).toBeInTheDocument();
+    expect(within(productionTimeline).getAllByRole("button").map((button) => button.textContent?.trim())).toContain("BUILD 01");
+    expect(screen.queryByText(/production cadence/i)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /^Tech$/i }));
-    expect(screen.getByTestId("vault-tech-tree")).toBeInTheDocument();
-    expect(screen.getByTestId("vault-tech-tree-markers")).toBeInTheDocument();
+    const techChart = screen.getByLabelText(/^Tech Marker Chart$/i);
+    expect(techChart).toBeInTheDocument();
+    expect(within(techChart).getByRole("button", { name: /^neo_user Psionic Storm 180s$/i })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /^Battle$/i }));
-    expect(screen.getByTestId("vault-battle-pressure")).toBeInTheDocument();
-    expect(screen.getByText(/team_pressure/i)).toBeInTheDocument();
+    const battleChart = screen.getByLabelText(/^Battle Pressure Sparkline$/i);
+    expect(battleChart).toBeInTheDocument();
+    expect(battleChart.querySelector("path")).not.toBeNull();
 
     await user.click(screen.getByRole("button", { name: /^Actions$/i }));
-    expect(screen.getByTestId("vault-actions-mix")).toBeInTheDocument();
-    expect(screen.getByTestId("vault-actions-mix")).toHaveTextContent("MACRO 70.5");
+    const actionMixMatrix = screen.getByLabelText(/^Action Mix Matrix$/i);
+    expect(actionMixMatrix).toBeInTheDocument();
+    expect(within(actionMixMatrix).getAllByText(/DOMINANT TECH/i)).toHaveLength(2);
   });
 
   it("supports fullscreen toggle and Escape collapse behavior", async () => {

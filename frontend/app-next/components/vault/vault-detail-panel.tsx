@@ -235,6 +235,56 @@ function getSeriesSnapshot(series: VaultTimelinePoint[] | undefined, playerName:
   return { opening, mid, late };
 }
 
+type VaultChartPoint = {
+  x: number;
+  y: number;
+};
+
+function scaleSeriesPoints(values: number[], width: number, height: number, padding = 16): VaultChartPoint[] {
+  if (values.length === 0) {
+    return [];
+  }
+
+  const maxValue = Math.max(1, ...values);
+  const innerWidth = Math.max(1, width - padding * 2);
+  const innerHeight = Math.max(1, height - padding * 2);
+
+  return values.map((value, index) => ({
+    x: padding + (values.length === 1 ? innerWidth / 2 : (index / (values.length - 1)) * innerWidth),
+    y: padding + (1 - value / maxValue) * innerHeight
+  }));
+}
+
+function buildLinearPath(points: VaultChartPoint[]) {
+  if (points.length === 0) {
+    return "";
+  }
+
+  return points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(" ");
+}
+
+function buildSmoothPath(points: VaultChartPoint[]) {
+  if (points.length === 0) {
+    return "";
+  }
+
+  if (points.length === 1) {
+    const point = points[0];
+    return `M ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
+  }
+
+  let path = `M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`;
+
+  for (let index = 1; index < points.length; index += 1) {
+    const previous = points[index - 1];
+    const current = points[index];
+    const midX = ((previous.x + current.x) / 2).toFixed(2);
+    path += ` C ${midX} ${previous.y.toFixed(2)} ${midX} ${current.y.toFixed(2)} ${current.x.toFixed(2)} ${current.y.toFixed(2)}`;
+  }
+
+  return path;
+}
+
 function getBattlePressure(game: VaultGame) {
   const winnerTotal = game.winnerTeam.reduce(
     (sum, player) => sum + player.apm * 0.45 + player.eapm * 0.35 + player.effective * 0.2,
@@ -308,15 +358,27 @@ function getAllGamePlayers(game: VaultGame): VaultPlayer[] {
 }
 
 function buildAnalyzerHref(currentUser: string, gameId: number) {
-  return `/analyzer?currentUser=${encodeURIComponent(currentUser)}&gameId=${gameId}`;
+  return `/analyzer?currentUser=${encodeURIComponent(currentUser)}&game_id=${gameId}`;
 }
 
 function buildTechEventLabel(playerName: string, kind: "tech" | "upgrade") {
   return `${playerName} • ${kind.toUpperCase()}`;
 }
 
-function buildTechMarkerLabel(playerName: string, kind: "tech" | "upgrade") {
-  return `${playerName} • ${kind.toUpperCase()} MARKER`;
+function buildTechMarkerLabel(event: VaultTechEvent) {
+  return `${event.playerName} • ${event.name} • ${event.second}s`;
+}
+
+function getActionMixDominantLabel(mix: ReturnType<typeof getActionMix>) {
+  if (mix.macro >= mix.combat && mix.macro >= mix.tech) {
+    return "MACRO";
+  }
+
+  if (mix.combat >= mix.tech) {
+    return "COMBAT";
+  }
+
+  return "TECH";
 }
 
 function PlayerBoardCard({
@@ -490,9 +552,9 @@ export function VaultDetailPanel({
     onTechFocusChange(nextFocus);
   }
 
-  function handleTechMarkerClick(playerName: string, kind: "tech" | "upgrade") {
-    onHighlightedPlayerChange(playerName);
-    onTechEventInfoChange?.(buildTechMarkerLabel(playerName, kind));
+  function handleTechMarkerClick(event: VaultTechEvent) {
+    onHighlightedPlayerChange(event.playerName);
+    onTechEventInfoChange?.(buildTechMarkerLabel(event));
   }
 
   function renderChartArea() {
@@ -534,44 +596,138 @@ export function VaultDetailPanel({
     }
 
     if (activeVizTab === "unitprod") {
-      return (
-        <div data-testid="vault-unit-production-ledger" className="space-y-3 rounded-lg p-3 text-xs font-mono text-slate-300" style={INNER_PANEL_STYLE}>
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-[10px] uppercase tracking-widest text-slate-500">unit production ledger</p>
-            <span className="text-[10px] uppercase tracking-widest text-slate-500">PLAYER / TOTAL / WORKER / ARMY / TECH_UNIT</span>
-          </div>
-          <div className="space-y-2">
-            {unitProductionRows.map((row) => {
-              const isDimmed = highlightedPlayer != null && highlightedPlayer !== row.playerName;
+      const chartWidth = 640;
+      const chartHeight = 220;
+      const timeLabels = productionSeries.map((point) => point.time);
+      const maxValue = Math.max(
+        1,
+        ...productionSeries.flatMap((point) => allGamePlayers.map((player) => toNumber(point[player.name])))
+      );
 
-              return (
-                <div key={row.playerName} className="rounded border px-3 py-2" style={{ borderColor: "rgba(255,255,255,0.08)", opacity: isDimmed ? 0.5 : 1 }}>
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-slate-200">{row.playerName}</span>
-                    <span className="text-slate-500">TOTAL {row.total}</span>
-                  </div>
-                  <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] uppercase tracking-widest text-slate-500 sm:grid-cols-4">
-                    <span>WORKER {row.worker}</span>
-                    <span>ARMY {row.army}</span>
-                    <span>TECH_UNIT {row.techUnit}</span>
-                    <span>PROD {row.total}</span>
-                  </div>
-                </div>
-              );
-            })}
+      return (
+        <section aria-label="Unit Production Chart" className="space-y-3 rounded-lg p-3 text-xs font-mono text-slate-300" style={INNER_PANEL_STYLE}>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-[10px] uppercase tracking-widest text-slate-500">unit production chart</p>
+            <span className="text-[10px] uppercase tracking-widest text-slate-500">COUNT / TIME / PLAYER</span>
           </div>
-        </div>
+          <div className="space-y-3">
+            <svg aria-hidden="true" focusable="false" viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-56 w-full rounded-lg bg-slate-950/40" preserveAspectRatio="none">
+              <rect x="0" y="0" width={chartWidth} height={chartHeight} fill="#081428" rx="12" />
+              {timeLabels.map((time, index) => (
+                <line
+                  key={`grid-${time}-${index}`}
+                  x1={16 + (index / Math.max(1, timeLabels.length - 1)) * (chartWidth - 32)}
+                  y1="16"
+                  x2={16 + (index / Math.max(1, timeLabels.length - 1)) * (chartWidth - 32)}
+                  y2={chartHeight - 30}
+                  stroke="rgba(255,255,255,0.05)"
+                />
+              ))}
+              {allGamePlayers.map((player, playerIndex) => {
+                const values = productionSeries.map((point) => toNumber(point[player.name]));
+                const barWidth = (chartWidth - 32) / Math.max(1, values.length) - 10;
+
+                return values.map((value, index) => {
+                  const barHeight = ((value / maxValue) * (chartHeight - 60)) || 0;
+                  const x = 16 + index * ((chartWidth - 32) / Math.max(1, values.length)) + playerIndex * 5 - (playerIndex * 8);
+                  const y = chartHeight - 26 - barHeight;
+
+                  return (
+                    <rect
+                      key={`${player.name}-${index}`}
+                      x={x}
+                      y={y}
+                      width={Math.max(8, barWidth / Math.max(1, allGamePlayers.length))}
+                      height={Math.max(8, barHeight)}
+                      rx="4"
+                      fill={getPlayerColor(player.name)}
+                      opacity={highlightedPlayer && highlightedPlayer !== player.name ? 0.25 : 0.95}
+                    />
+                  );
+                });
+              })}
+              {timeLabels.map((time, index) => (
+                <text
+                  key={`time-${time}-${index}`}
+                  x={16 + (index / Math.max(1, timeLabels.length - 1)) * (chartWidth - 32)}
+                  y={chartHeight - 8}
+                  textAnchor="middle"
+                  fill="#64748b"
+                  fontSize="10"
+                >
+                  {time}
+                </text>
+              ))}
+            </svg>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {unitProductionRows.map((row) => {
+                const isDimmed = highlightedPlayer != null && highlightedPlayer !== row.playerName;
+
+                return (
+                  <div key={row.playerName} className="rounded border px-3 py-2" style={{ borderColor: "rgba(255,255,255,0.08)", opacity: isDimmed ? 0.5 : 1 }}>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-slate-200">{row.playerName}</span>
+                      <span className="text-slate-500">TOTAL {row.total}</span>
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] uppercase tracking-widest text-slate-500 sm:grid-cols-4">
+                      <span>WORKER {row.worker}</span>
+                      <span>ARMY {row.army}</span>
+                      <span>TECH_UNIT {row.techUnit}</span>
+                      <span>PROD {row.total}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
       );
     }
 
     if (activeVizTab === "spend") {
+      const chartWidth = 640;
+      const chartHeight = 220;
+      const innerWidth = chartWidth - 32;
+      const innerHeight = chartHeight - 32;
+      const chartMax = Math.max(1, ...spendSeries.flatMap((point) => allGamePlayers.map((player) => toNumber(point[player.name]))));
+      const chartLines = resourceSpendRows.map((row, index) => {
+        const values = spendSeries.map((point) => toNumber(point[row.playerName]));
+        const points = values.map((value, valueIndex) => ({
+          x: 16 + (values.length === 1 ? innerWidth / 2 : (valueIndex / (values.length - 1)) * innerWidth),
+          y: 16 + (1 - value / chartMax) * innerHeight
+        }));
+
+        return {
+          row,
+          path: buildSmoothPath(points)
+        };
+      });
+
       return (
-        <div data-testid="vault-resource-spend-ledger" className="space-y-3 rounded-lg p-3 text-xs font-mono text-slate-300" style={INNER_PANEL_STYLE}>
+        <section aria-label="Resource Spend Timeline" className="space-y-3 rounded-lg p-3 text-xs font-mono text-slate-300" style={INNER_PANEL_STYLE}>
           <div className="flex items-center justify-between gap-3">
-            <p className="text-[10px] uppercase tracking-widest text-slate-500">resource spend ledger</p>
-            <span className="text-[10px] uppercase tracking-widest text-slate-500">TOTAL_SPEND / EARLY / MID / LATE</span>
+            <p className="text-[10px] uppercase tracking-widest text-slate-500">resource spend timeline</p>
+            <span className="text-[10px] uppercase tracking-widest text-slate-500">SPEND / TIME</span>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-3">
+            <svg aria-hidden="true" focusable="false" viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-56 w-full rounded-lg bg-slate-950/40" preserveAspectRatio="none">
+              <rect x="0" y="0" width={chartWidth} height={chartHeight} fill="#081428" rx="12" />
+              {chartLines.map(({ row, path }) => (
+                <path key={row.playerName} d={path} fill="none" stroke={getPlayerColor(row.playerName)} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" opacity={highlightedPlayer && highlightedPlayer !== row.playerName ? 0.25 : 0.95} />
+              ))}
+              {spendSeries.map((point, index) => (
+                <text
+                  key={`spend-time-${point.time}-${index}`}
+                  x={16 + (index / Math.max(1, spendSeries.length - 1)) * innerWidth}
+                  y={chartHeight - 8}
+                  textAnchor="middle"
+                  fill="#64748b"
+                  fontSize="10"
+                >
+                  {point.time}
+                </text>
+              ))}
+            </svg>
             {resourceSpendRows.map((row) => {
               const isDimmed = highlightedPlayer != null && highlightedPlayer !== row.playerName;
               const snap = getSeriesSnapshot(spendSeries, row.playerName, row.totalSpend);
@@ -599,52 +755,62 @@ export function VaultDetailPanel({
               );
             })}
           </div>
-        </div>
+        </section>
       );
     }
 
     if (activeVizTab === "production") {
+      const buildEvents = productionSeries.map((point, index) => ({
+        second: Math.max(1, point.time * 60),
+        label: `BUILD ${String(index + 1).padStart(2, "0")}`
+      }));
+
       return (
-        <div data-testid="vault-production-cadence" className="space-y-3 rounded-lg p-3 text-xs font-mono text-slate-300" style={INNER_PANEL_STYLE}>
+        <section aria-label="Build Order Timeline" className="space-y-3 rounded-lg p-3 text-xs font-mono text-slate-300" style={INNER_PANEL_STYLE}>
           <div className="flex items-center justify-between gap-3">
-            <p className="text-[10px] uppercase tracking-widest text-slate-500">production cadence</p>
-            <span className="text-[10px] uppercase tracking-widest text-slate-500">OPENING / MID / LATE</span>
+            <p className="text-[10px] uppercase tracking-widest text-slate-500">build order timeline</p>
+            <span className="text-[10px] uppercase tracking-widest text-slate-500">EVENTS / PLAYER</span>
           </div>
           <div className="space-y-2">
             {unitProductionRows.map((row) => {
               const isDimmed = highlightedPlayer != null && highlightedPlayer !== row.playerName;
-              const snap = getSeriesSnapshot(productionSeries, row.playerName, row.total);
-              const totalSeries = Math.max(1, snap.opening + snap.mid + snap.late);
 
               return (
-                <div key={row.playerName} className="rounded border px-3 py-2" style={{ borderColor: "rgba(255,255,255,0.08)", opacity: isDimmed ? 0.5 : 1 }}>
+                <div key={row.playerName} className="rounded border px-3 py-3" style={{ borderColor: "rgba(255,255,255,0.08)", opacity: isDimmed ? 0.5 : 1 }}>
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-slate-200">{row.playerName}</span>
-                    <span className="text-slate-500">PRODUCTION {row.total}</span>
+                    <span className="text-slate-500">BUILD EVENTS {buildEvents.length}</span>
                   </div>
-                  <div className="mt-2 grid grid-cols-3 gap-2 text-[10px] uppercase tracking-widest text-slate-500">
-                    <span>OPENING {snap.opening.toLocaleString()}</span>
-                    <span>MID {snap.mid.toLocaleString()}</span>
-                    <span>LATE {snap.late.toLocaleString()}</span>
-                  </div>
-                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-800">
-                    <div className="flex h-full">
-                      <span className="bg-emerald-500/60" style={{ width: `${Math.max(8, (snap.opening / totalSeries) * 100)}%` }} />
-                      <span className="bg-emerald-400/40" style={{ width: `${Math.max(8, (snap.mid / totalSeries) * 100)}%` }} />
-                      <span className="bg-emerald-300/30" style={{ width: `${Math.max(8, (snap.late / totalSeries) * 100)}%` }} />
-                    </div>
+                  <ol className="mt-2 flex flex-wrap gap-2" aria-label={`${row.playerName} build order events`}>
+                    {buildEvents.map((event) => (
+                      <li key={`${row.playerName}-${event.label}`}>
+                        <button
+                          type="button"
+                          aria-label={`${row.playerName} ${event.label} ${event.second}s`}
+                          className="rounded border px-2 py-1 text-[10px] uppercase tracking-widest transition-all"
+                          style={{ borderColor: "rgba(255,255,255,0.12)", color: "#cbd5e1", backgroundColor: "rgba(255,255,255,0.04)" }}
+                        >
+                          {event.label}
+                        </button>
+                      </li>
+                    ))}
+                  </ol>
+                  <div className="mt-2 text-[10px] uppercase tracking-widest text-slate-500">
+                    OPENING {getSeriesSnapshot(productionSeries, row.playerName, row.total).opening} MID {getSeriesSnapshot(productionSeries, row.playerName, row.total).mid} LATE {getSeriesSnapshot(productionSeries, row.playerName, row.total).late}
                   </div>
                 </div>
               );
             })}
           </div>
-        </div>
+        </section>
       );
     }
 
     if (activeVizTab === "tech") {
+      const chartMaxSecond = Math.max(1, ...techEvents.map((event) => event.second));
+
       return (
-        <div data-testid="vault-tech-tree" className="space-y-3 rounded-lg p-3 text-xs font-mono text-slate-300" style={INNER_PANEL_STYLE}>
+        <section aria-label="Tech Marker Chart" data-testid="vault-tech-tree" className="space-y-3 rounded-lg p-3 text-xs font-mono text-slate-300" style={INNER_PANEL_STYLE}>
           <div className="flex items-center justify-between gap-3">
             <p className="text-[10px] uppercase tracking-widest text-slate-500">tech tree summary</p>
             <span className="text-[10px] uppercase tracking-widest text-slate-500">TECH / UPG / BUILD</span>
@@ -697,85 +863,114 @@ export function VaultDetailPanel({
           </div>
           <div data-testid="vault-tech-tree-markers" className="rounded border px-3 py-2" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
             <div className="flex items-center justify-between gap-3">
-              <span className="text-slate-200">MARKERS</span>
-              <span className="text-slate-500">click an event to update techEventInfo</span>
+              <span className="text-slate-200">PLAYER AXIS MARKERS</span>
+              <span className="text-slate-500">click a marker to update techEventInfo</span>
             </div>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {techEvents.length > 0 ? (
-                techEvents.map((event) => (
-                  <button
-                    key={`${event.playerName}-${event.second}-${event.name}`}
-                    type="button"
-                    aria-label={`${event.playerName} ${event.kind} marker`}
-                    onClick={() => handleTechMarkerClick(event.playerName, event.kind === "upgrade" ? "upgrade" : "tech")}
-                    className="rounded border px-2 py-1 text-[10px] uppercase tracking-widest transition-all"
-                    style={{ borderColor: "rgba(255,255,255,0.12)", color: "#cbd5e1", backgroundColor: "rgba(255,255,255,0.04)" }}
-                  >
-                    {event.second}s {event.name}
-                  </button>
-                ))
-              ) : (
-                <span className="text-slate-500">NO TECH EVENTS</span>
-              )}
+            <div className="mt-2 space-y-2">
+              {allGamePlayers.map((player) => {
+                const playerEvents = techEvents.filter((event) => event.playerName === player.name);
+
+                return (
+                  <div key={player.name} className="grid grid-cols-[110px_1fr] items-center gap-3">
+                    <span className="text-slate-300">{player.name}</span>
+                    <div className="relative h-10 rounded bg-slate-950/30">
+                      <div className="absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-slate-700/70" />
+                      {playerEvents.length > 0 ? (
+                        playerEvents.map((event) => (
+                          <button
+                            key={`${event.playerName}-${event.second}-${event.name}`}
+                            type="button"
+                            aria-label={`${event.playerName} ${event.name} ${event.second}s`}
+                            onClick={() => handleTechMarkerClick(event)}
+                            className="absolute -top-1 rounded-full border px-2 py-1 text-[10px] uppercase tracking-widest transition-all"
+                            style={{
+                              left: `calc(${(event.second / chartMaxSecond) * 100}% - 28px)`,
+                              borderColor: "rgba(255,255,255,0.12)",
+                              color: "#cbd5e1",
+                              backgroundColor: "rgba(255,255,255,0.04)"
+                            }}
+                          >
+                            {event.second}s {event.name}
+                          </button>
+                        ))
+                      ) : (
+                        <span className="absolute left-2 top-2 text-[10px] uppercase tracking-widest text-slate-500">NO EVENTS</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
-        </div>
+        </section>
       );
     }
 
     if (activeVizTab === "battle") {
+      const chartWidth = 640;
+      const chartHeight = 180;
+      const battleValues = [
+        Math.max(1, battlePressure.loserAverage * 0.7),
+        Math.max(1, battlePressure.loserAverage),
+        Math.max(1, (battlePressure.winnerAverage + battlePressure.loserAverage) / 2),
+        Math.max(1, battlePressure.winnerAverage),
+        Math.max(1, battlePressure.winnerAverage * 1.05)
+      ];
+      const points = scaleSeriesPoints(battleValues, chartWidth, chartHeight, 18);
+
       return (
-        <div data-testid="vault-battle-pressure" className="space-y-3 rounded-lg p-3 text-xs font-mono text-slate-300" style={INNER_PANEL_STYLE}>
+        <section aria-label="Battle Pressure Sparkline" data-testid="vault-battle-pressure" className="space-y-3 rounded-lg p-3 text-xs font-mono text-slate-300" style={INNER_PANEL_STYLE}>
           <div className="flex items-center justify-between gap-3">
-            <p className="text-[10px] uppercase tracking-widest text-slate-500">team_pressure</p>
-            <span className="text-[10px] uppercase tracking-widest text-slate-500">WINNER / LOSER / SWING</span>
-          </div>
-          <div className="grid gap-2 sm:grid-cols-2">
-            <div className="rounded border px-3 py-2" style={{ borderColor: "rgba(34,211,238,0.18)" }}>
-              <div className="text-slate-200">WINNER SIDE</div>
-              <div className="mt-1 text-slate-500">AVG PRESSURE {battlePressure.winnerAverage.toFixed(1)}</div>
-            </div>
-            <div className="rounded border px-3 py-2" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
-              <div className="text-slate-200">LOSER SIDE</div>
-              <div className="mt-1 text-slate-500">AVG PRESSURE {battlePressure.loserAverage.toFixed(1)}</div>
-            </div>
+            <p className="text-[10px] uppercase tracking-widest text-slate-500">battle pressure sparkline</p>
+            <span className="text-[10px] uppercase tracking-widest text-slate-500">single line graph</span>
           </div>
           <div className="rounded border px-3 py-2" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-slate-300">SWING</span>
-              <span className="text-slate-500">{battlePressure.swing.toFixed(1)}</span>
-            </div>
-            <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-800">
-              <div className="h-full bg-red-400/40" style={{ width: `${Math.min(100, Math.abs(battlePressure.swing) * 1.2)}%` }} />
+            <svg aria-hidden="true" focusable="false" viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-44 w-full" preserveAspectRatio="none">
+              <rect x="0" y="0" width={chartWidth} height={chartHeight} rx="12" fill="#081428" />
+              <path d={buildSmoothPath(points)} fill="none" stroke="#22d3ee" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+              <line x1="18" y1={chartHeight - 24} x2={chartWidth - 18} y2={chartHeight - 24} stroke="rgba(255,255,255,0.08)" />
+              {points.map((point, index) => (
+                <circle key={`battle-point-${index}`} cx={point.x} cy={point.y} r="3.5" fill="#22d3ee" />
+              ))}
+            </svg>
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <span className="text-slate-300">WINNER {battlePressure.winnerAverage.toFixed(1)} / LOSER {battlePressure.loserAverage.toFixed(1)}</span>
+              <span className="text-slate-500">SWING {battlePressure.swing.toFixed(1)}</span>
             </div>
           </div>
-        </div>
+        </section>
       );
     }
 
     if (activeVizTab === "actions") {
       return (
-        <div data-testid="vault-actions-mix" className="space-y-3 rounded-lg p-3 text-xs font-mono text-slate-300" style={INNER_PANEL_STYLE}>
+        <section aria-label="Action Mix Matrix" data-testid="vault-actions-mix" className="space-y-3 rounded-lg p-3 text-xs font-mono text-slate-300" style={INNER_PANEL_STYLE}>
           <div className="flex items-center justify-between gap-3">
-            <p className="text-[10px] uppercase tracking-widest text-slate-500">action mix profile</p>
-            <span className="text-[10px] uppercase tracking-widest text-slate-500">MACRO / COMBAT / TECH</span>
+            <p className="text-[10px] uppercase tracking-widest text-slate-500">action mix matrix</p>
+            <span className="text-[10px] uppercase tracking-widest text-slate-500">macro / combat / tech</span>
           </div>
           <div className="space-y-2">
             {allGamePlayers.map((player) => {
               const mix = getActionMix(player);
+              const dominant = getActionMixDominantLabel(mix);
               const isDimmed = highlightedPlayer != null && highlightedPlayer !== player.name;
+              const bars = [
+                { key: "macro", value: mix.macro, color: "bg-cyan-500/60" },
+                { key: "combat", value: mix.combat, color: "bg-emerald-400/40" },
+                { key: "tech", value: mix.tech, color: "bg-amber-400/40" }
+              ];
 
               return (
                 <div key={player.name} className="rounded border px-3 py-2" style={{ borderColor: "rgba(255,255,255,0.08)", opacity: isDimmed ? 0.5 : 1 }}>
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-slate-200">{player.name}</span>
-                    <span className="text-slate-500">TOTAL {mix.total.toFixed(1)}</span>
+                    <span className="text-slate-500">DOMINANT {dominant}</span>
                   </div>
-                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-800">
-                    <div className="flex h-full">
-                      <span className="bg-cyan-500/60" style={{ width: `${(mix.macro / mix.total) * 100}%` }} />
-                      <span className="bg-emerald-400/40" style={{ width: `${(mix.combat / mix.total) * 100}%` }} />
-                      <span className="bg-amber-400/40" style={{ width: `${(mix.tech / mix.total) * 100}%` }} />
+                  <div className="mt-2 h-3 overflow-hidden rounded-full bg-slate-800">
+                    <div className="flex h-full w-full">
+                      {bars.map((bar) => (
+                        <span key={`${player.name}-${bar.key}`} className={bar.color} style={{ width: `${(bar.value / mix.total) * 100}%` }} />
+                      ))}
                     </div>
                   </div>
                   <div className="mt-2 grid grid-cols-3 gap-2 text-[10px] uppercase tracking-widest text-slate-500">
@@ -787,7 +982,7 @@ export function VaultDetailPanel({
               );
             })}
           </div>
-        </div>
+        </section>
       );
     }
 
