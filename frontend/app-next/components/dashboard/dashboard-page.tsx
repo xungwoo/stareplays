@@ -380,13 +380,19 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
   const [systemLogs, setSystemLogs] = useState<string[]>(model.currentUser.trim() ? ["READY"] : ["READY", RECENT_GAMES_LOGIN_REQUIRED]);
   const suggestionTimerRef = useRef<number | null>(null);
   const suggestionRequestRef = useRef(0);
+  const queryRequestRef = useRef(0);
+  const recentGamesRequestRef = useRef(0);
 
   const selectedFile = selectedFiles[0] ?? null;
   const record = `${playerStats.wins}-${playerStats.losses}-${playerStats.draws}`;
+  const currentUserNormalized = currentUser.trim();
   const selectablePlayers = previewSummary
     ? previewSummary.commonPlayers
     : [...new Set([selectedPlayer, ...model.uploadCandidates].filter(Boolean))];
-  const uploadReady = pendingFiles.length > 0;
+  const uploadReady =
+    pendingFiles.length > 0 &&
+    Boolean(currentUserNormalized) &&
+    pendingCommonPlayers.some((player) => player.trim().toLowerCase() === currentUserNormalized.toLowerCase());
   const selectedGame = selectedGameId != null ? recentGames.find((game) => game.id === selectedGameId) ?? null : null;
   const selectedGameDetail = selectedGameId != null ? gameDetailById[selectedGameId] ?? null : null;
   const selectedGameDetailState = selectedGameId != null ? gameDetailStateById[selectedGameId] ?? "idle" : "idle";
@@ -410,6 +416,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
       return;
     }
 
+    const requestId = ++recentGamesRequestRef.current;
     setGamesState("submitting");
     setGamesError(null);
     appendSystemLog(`${trigger}: ${normalized}`);
@@ -419,6 +426,9 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
       const response = await fetchBrowserApiJson<ApiGamesListResponse>(
         `/api/v1/games?limit=${RECENT_GAMES_PAGE_SIZE}&offset=${offset}&user_name=${encodeURIComponent(normalized)}`
       );
+      if (recentGamesRequestRef.current !== requestId) {
+        return;
+      }
       const games = createVaultPageModel({ currentUser: normalized, gamesResponse: response }).games;
       setRecentGames(games);
       setRecentGamesTotal(toNumber(response.total, games.length));
@@ -428,6 +438,9 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
       setSelectedGameId((current) => (current != null && !games.some((game) => game.id === current) ? null : current));
       appendSystemLog(`LOAD_GAMES_OK: ${games.length} for ${normalized}`);
     } catch (error) {
+      if (recentGamesRequestRef.current !== requestId) {
+        return;
+      }
       const message = error instanceof Error ? error.message : "failed to load recent games";
       setRecentGames([]);
       setRecentGamesTotal(0);
@@ -579,6 +592,15 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const nextFiles = Array.from(event.target.files ?? []);
     setSelectedFiles(nextFiles);
+    setPreviewState("idle");
+    setPreviewSummary(null);
+    setPendingFiles([]);
+    setPendingCommonPlayers([]);
+    setUploadState("idle");
+    setUploadErrorMessage(null);
+    setUploadSummary(null);
+    setUploadStatusMessage("READY");
+    setSelectedPlayer("");
   }
 
   function handlePlayerSelection(nextPlayer: string) {
@@ -744,6 +766,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
       return;
     }
 
+    const requestId = ++queryRequestRef.current;
     setQueryState("submitting");
     setQueryError(null);
     appendSystemLog(`QUERY_PLAYER: ${normalized}`);
@@ -754,10 +777,16 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
       const result = await fetchBrowserApiJson<ApiPlayerStatsResponse>(
         `/api/v1/players/${encodeURIComponent(normalized)}/stats`
       );
+      if (queryRequestRef.current !== requestId) {
+        return;
+      }
       setPlayerStats(createPlayerStatsModel(result, model.playerStats, normalized));
       setQueryState("success");
       appendSystemLog(`QUERY_OK: ${normalized}`);
     } catch (error) {
+      if (queryRequestRef.current !== requestId) {
+        return;
+      }
       setQueryState("error");
       setQueryError(error instanceof Error ? error.message : "query failed");
       appendSystemLog(`QUERY_FAIL: ${error instanceof Error ? error.message : "query failed"}`);

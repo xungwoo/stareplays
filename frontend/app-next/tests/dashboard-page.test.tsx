@@ -623,19 +623,23 @@ describe("dashboard page", () => {
 
     expect(screen.getByText(/^CURRENT_USER:$/i).nextElementSibling).toHaveTextContent("legacy_bad_user");
     expect(screen.getByLabelText(/플레이어 선택/i)).toHaveValue("");
+    expect(screen.getByRole("button", { name: /upload_with_selected_user/i })).toBeDisabled();
+    expect(submitReplayUploadMock).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText(/플레이어 선택/i), { target: { value: "3x3_GG" } });
+
+    expect(screen.getByText(/^CURRENT_USER:$/i).nextElementSibling).toHaveTextContent("3x3_GG");
+    expect(screen.getByLabelText(/플레이어 선택/i)).toHaveValue("3x3_GG");
     expect(screen.getByRole("button", { name: /upload_with_selected_user/i })).toBeEnabled();
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /upload_with_selected_user/i }));
     });
 
-    expect(
-      await screen.findByText(/UPLOAD_FAIL: 'legacy_bad_user' is not a common participant in current analyzed files/i)
-    ).toBeInTheDocument();
-    expect(submitReplayUploadMock).not.toHaveBeenCalled();
+    expect(submitReplayUploadMock).toHaveBeenCalledWith([expect.objectContaining({ name: "mismatch.rep" })], "3x3_GG", expect.any(Object));
   });
 
-  it("keeps the prior pending state visible when a later preview fails", async () => {
+  it("invalidates pending upload analysis when the replay file changes", async () => {
     render(<DashboardPage model={DASHBOARD_FIXTURE} />);
 
     previewReplayUploadMock
@@ -676,15 +680,12 @@ describe("dashboard page", () => {
       }
     });
 
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /analyze_replay/i }));
-    });
-
-    expect((await screen.findAllByText(/ANALYZE_FAIL: broken preview/i)).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/common players: 3x3_GG/i)).not.toHaveLength(0);
-    expect(within(screen.getByTestId("dashboard-preview-summary")).getByText("first.rep")).toBeInTheDocument();
-    expect(within(screen.getByTestId("dashboard-preview-summary")).getByText("Circuit Breaker")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /upload_with_selected_user/i })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /upload_with_selected_user/i })).toBeDisabled();
+    expect(within(screen.getByTestId("dashboard-preview-summary")).getByText("NO_PREVIEW")).toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-upload-result")).toHaveTextContent("READY");
+    expect(screen.queryByText(/common players: 3x3_GG/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("first.rep")).not.toBeInTheDocument();
+    expect(submitReplayUploadMock).not.toHaveBeenCalled();
   });
 
   it("updates the upload module when a replay file is selected and analyzed", async () => {
@@ -885,6 +886,270 @@ describe("dashboard page", () => {
     expect(document.cookie).toContain("current_user=3x3_smwoo");
     expect(globalThis.__TEST_ROUTER__.replace).toHaveBeenCalledWith("/?currentUser=3x3_smwoo");
     expect(globalThis.__TEST_ROUTER__.refresh).toHaveBeenCalled();
+  });
+
+  it("ignores stale player stats responses when an earlier query resolves after a newer one", async () => {
+    const deferredStats: Record<string, { resolve: (value: Response) => void }> = {};
+
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+
+      if (url.includes("/api/v1/players/3x3_old/stats")) {
+        return new Promise<Response>((resolve) => {
+          deferredStats.old = { resolve };
+        });
+      }
+
+      if (url.includes("/api/v1/players/3x3_new/stats")) {
+        return new Promise<Response>((resolve) => {
+          deferredStats.new = { resolve };
+        });
+      }
+
+      if (url.includes("/api/v1/games?")) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ total: 0, games: [] }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" }
+          })
+        );
+      }
+
+      if (url.includes("/api/v1/users/suggest")) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ users: [] }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" }
+          })
+        );
+      }
+
+      return Promise.resolve(
+        new Response(JSON.stringify({ error: "not found" }), {
+          status: 404,
+          headers: { "Content-Type": "application/json" }
+        })
+      );
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <DashboardPage
+        model={{
+          ...DASHBOARD_FIXTURE,
+          currentUser: "",
+          playerStats: {
+            ...DASHBOARD_FIXTURE.playerStats,
+            name: ""
+          }
+        }}
+      />
+    );
+
+    const queryInput = screen.getByLabelText(/플레이어 이름 입력/i);
+
+    fireEvent.change(queryInput, { target: { value: "3x3_old" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^QUERY$/i }));
+    });
+
+    fireEvent.change(queryInput, { target: { value: "3x3_new" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^QUERY$/i }));
+    });
+
+    await act(async () => {
+      deferredStats.new?.resolve(
+        new Response(
+          JSON.stringify({
+            player_name: "3x3_new",
+            total_games: 42,
+            wins: 31,
+            losses: 11,
+            draws: 0,
+            win_rate: 73.8,
+            average_apm: 244.4,
+            average_eapm: 188.2,
+            favorite_race: "T",
+            race_stats: {},
+            matchup_stats: {},
+            map_stats: {}
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" }
+          }
+        )
+      );
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText("3x3_new", { selector: "span.font-mono.text-xl" })).toBeInTheDocument();
+    expect(screen.getByText("73.8%", { selector: "span" })).toBeInTheDocument();
+
+    await act(async () => {
+      deferredStats.old?.resolve(
+        new Response(
+          JSON.stringify({
+            player_name: "3x3_old",
+            total_games: 7,
+            wins: 2,
+            losses: 5,
+            draws: 0,
+            win_rate: 28.6,
+            average_apm: 111.1,
+            average_eapm: 90.9,
+            favorite_race: "Z",
+            race_stats: {},
+            matchup_stats: {},
+            map_stats: {}
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" }
+          }
+        )
+      );
+      await Promise.resolve();
+    });
+
+    expect(screen.queryByText("3x3_old", { selector: "span.font-mono.text-xl" })).not.toBeInTheDocument();
+    expect(screen.getByText("3x3_new", { selector: "span.font-mono.text-xl" })).toBeInTheDocument();
+    expect(screen.getByText("73.8%", { selector: "span" })).toBeInTheDocument();
+  });
+
+  it("ignores stale recent-games responses when an earlier load resolves after a newer one", async () => {
+    const deferredGames: Record<string, { resolve: (value: Response) => void }> = {};
+
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+
+      if (url.includes("/api/v1/games?") && url.includes("user_name=3x3_old")) {
+        return new Promise<Response>((resolve) => {
+          deferredGames.old = { resolve };
+        });
+      }
+
+      if (url.includes("/api/v1/games?") && url.includes("user_name=3x3_new")) {
+        return new Promise<Response>((resolve) => {
+          deferredGames.new = { resolve };
+        });
+      }
+
+      if (url.includes("/api/v1/players/")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              player_name: "3x3_new",
+              total_games: 1,
+              wins: 1,
+              losses: 0,
+              draws: 0,
+              win_rate: 100,
+              average_apm: 200,
+              average_eapm: 180,
+              favorite_race: "P",
+              race_stats: {},
+              matchup_stats: {},
+              map_stats: {}
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" }
+            }
+          )
+        );
+      }
+
+      if (url.includes("/api/v1/users/suggest")) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ users: [] }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" }
+          })
+        );
+      }
+
+      return Promise.resolve(
+        new Response(JSON.stringify({ total: 0, games: [] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        })
+      );
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <DashboardPage
+        model={{
+          ...DASHBOARD_FIXTURE,
+          currentUser: "",
+          playerStats: {
+            ...DASHBOARD_FIXTURE.playerStats,
+            name: ""
+          }
+        }}
+      />
+    );
+
+    const queryInput = screen.getByLabelText(/플레이어 이름 입력/i);
+
+    fireEvent.change(queryInput, { target: { value: "3x3_old" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^QUERY$/i }));
+    });
+
+    fireEvent.change(queryInput, { target: { value: "3x3_new" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^QUERY$/i }));
+    });
+
+    await act(async () => {
+      deferredGames.new?.resolve(
+        new Response(JSON.stringify(createGamesListResponse()), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        })
+      );
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText(/#48/i)).toBeInTheDocument();
+
+    await act(async () => {
+      deferredGames.old?.resolve(
+        new Response(
+          JSON.stringify({
+            total: 1,
+            analysis_statuses: { "901": "succeeded" },
+            games: [
+              {
+                id: 901,
+                map_name: "Old Map",
+                game_length: 600,
+                winner_team: 1,
+                start_time: "2026-03-22T00:05:48Z",
+                edges: {
+                  players: [
+                    { name: "3x3_old", race: "P", team: 1, start_location_x: 100, start_location_y: 100, apm: 120, eapm: 110, cmd_count: 100, effective_cmd_count: 90, redundancy: 10 }
+                  ]
+                }
+              }
+            ]
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" }
+          }
+        )
+      );
+      await Promise.resolve();
+    });
+
+    expect(screen.queryByTestId("dashboard-game-row-901")).not.toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-game-row-48")).toBeInTheDocument();
   });
 
   it("ignores stale suggestion responses when newer input finishes later", async () => {
