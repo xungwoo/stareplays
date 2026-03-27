@@ -49,6 +49,7 @@ export function VaultPage({ model }: { model: VaultPageModel }) {
   const [activeVizTab, setActiveVizTab] = useState<VaultVizTab>("apm");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [techFocus, setTechFocus] = useState<VaultTechFocus>(null);
+  const [techEventInfo, setTechEventInfo] = useState<string | null>(null);
   const [highlightedPlayer, setHighlightedPlayer] = useState<string | null>(null);
   const pageSize = 5;
   const totalPages = Math.max(1, Math.ceil(model.games.length / pageSize));
@@ -132,6 +133,7 @@ export function VaultPage({ model }: { model: VaultPageModel }) {
         setActiveVizTab("apm");
         setIsFullscreen(false);
         setTechFocus(null);
+        setTechEventInfo(null);
         setHighlightedPlayer(null);
         setDetailErrorByGameId((previous) => ({
           ...previous,
@@ -215,12 +217,17 @@ export function VaultPage({ model }: { model: VaultPageModel }) {
                           activeVizTab={activeVizTab}
                           isFullscreen={isFullscreen}
                           techFocus={techFocus}
+                          techEventInfo={techEventInfo}
                           highlightedPlayer={highlightedPlayer}
                           onActiveVizTabChange={setActiveVizTab}
                           onFullscreenToggle={() => setIsFullscreen((current) => !current)}
                           onTechFocusChange={(focus) => {
                             setTechFocus(focus);
                             setHighlightedPlayer(focus?.playerName ?? null);
+                            setTechEventInfo(focus ? `${focus.playerName} • ${focus.kind.toUpperCase()}` : null);
+                          }}
+                          onHighlightedPlayerChange={(playerName) => {
+                            setHighlightedPlayer(playerName);
                           }}
                         />
                       )}

@@ -1,9 +1,10 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { vi } from "vitest";
 
 import VaultPage from "@/app/vault/page";
-import { VaultDetailPanel } from "@/components/vault/vault-detail-panel";
+import { VaultDetailPanel, type VaultTechFocus, type VaultVizTab } from "@/components/vault/vault-detail-panel";
 import { VaultGameRow } from "@/components/vault/vault-game-row";
 import { VaultPage as VaultPageComponent } from "@/components/vault/vault-page";
 import type { VaultGame, VaultPageModel } from "@/types/vault";
@@ -213,7 +214,7 @@ describe("vault page", () => {
     expect(screen.getByTestId("vault-inline-detail-row")).toHaveStyle({
       borderColor: "rgba(34, 211, 238, 0.12)"
     });
-    expect(screen.getByRole("button", { name: /^APM$/i }).parentElement?.nextElementSibling).toHaveStyle({
+    expect(screen.getByText(/^analysis notice$/i).parentElement).toHaveStyle({
       backgroundColor: "#0a1428",
       border: "1px solid rgba(255,255,255,0.05)"
     });
@@ -254,9 +255,11 @@ describe("vault page", () => {
           isFullscreen={false}
           highlightedPlayer={null}
           techFocus={null}
+          techEventInfo={null}
           onActiveVizTabChange={() => {}}
           onFullscreenToggle={() => {}}
           onTechFocusChange={() => {}}
+          onHighlightedPlayerChange={() => {}}
           hydratedDetail={{
             reliability: "25%",
             reliabilityMOfN: "1/4",
@@ -278,8 +281,77 @@ describe("vault page", () => {
     expect(screen.getByRole("link", { name: /game analyzer/i })).toHaveAttribute("href", "/analyzer?currentUser=neo_user&gameId=99");
     expect(screen.getByText(/^SELECTED_GAME$/i)).toBeInTheDocument();
     expect(screen.getByText(/^APM TIMELINE$/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/^REDUNDANCY%$/i)).toHaveLength(2);
+    expect(screen.getByText(/^analysis notice$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^viz tabs$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^chart area$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^legend row$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^chart hint$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^tech event info$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^summary area$/i)).toBeInTheDocument();
     expect(screen.getByTestId("vault-start-grid-left")).toBeInTheDocument();
     expect(screen.getByTestId("vault-start-grid-right")).toBeInTheDocument();
+  });
+
+  it("toggles APM highlighted player from the legend and updates tech focus from summary controls", async () => {
+    const user = userEvent.setup();
+
+    function Harness() {
+      const [activeVizTab, setActiveVizTab] = useState<VaultVizTab>("apm");
+      const [isFullscreen, setIsFullscreen] = useState(false);
+      const [highlightedPlayer, setHighlightedPlayer] = useState<string | null>(null);
+      const [techFocus, setTechFocus] = useState<VaultTechFocus>(null);
+      const [techEventInfo, setTechEventInfo] = useState<string | null>(null);
+
+      return (
+        <VaultDetailPanel
+          game={createSingleGameModel().games[0]}
+          currentUser="neo_user"
+          activeVizTab={activeVizTab}
+          isFullscreen={isFullscreen}
+          highlightedPlayer={highlightedPlayer}
+          techFocus={techFocus}
+          techEventInfo={techEventInfo}
+          onActiveVizTabChange={setActiveVizTab}
+          onFullscreenToggle={() => setIsFullscreen((current) => !current)}
+          onHighlightedPlayerChange={setHighlightedPlayer}
+          onTechFocusChange={(focus) => {
+            setTechFocus(focus);
+            setHighlightedPlayer(focus?.playerName ?? null);
+            setTechEventInfo(focus ? `${focus.playerName} • ${focus.kind.toUpperCase()}` : null);
+          }}
+          hydratedDetail={{
+            reliability: "25%",
+            reliabilityMOfN: "1/4",
+            replayFileCount: 2,
+            analysisMessage: "detail ready",
+            apmSeries: [
+              {
+                time: 1,
+                neo_user: 120,
+                opponent: 90
+              }
+            ]
+          }}
+        />
+      );
+    }
+
+    render(<Harness />);
+
+    expect(screen.getByText(/^analysis notice$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^chart area$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^legend row$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^chart hint$/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^neo_user$/i }));
+    expect(screen.getByRole("button", { name: /^neo_user$/i })).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(screen.getByRole("button", { name: /^Tech \/ Upgrade$/i }));
+    const techTree = screen.getByTestId("vault-tech-tree");
+    await user.click(within(techTree).getByRole("button", { name: /neo_user TECH/i }));
+
+    expect(screen.getByTestId("vault-tech-tree-focus")).toHaveTextContent("neo_user • TECH");
   });
 
   it("inserts the selected game detail as a row-adjacent table row under the clicked game", async () => {
@@ -347,6 +419,10 @@ describe("vault page", () => {
     expect(screen.getByRole("button", { name: /^Battle Intensity$/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Action Mix$/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^크게 보기$/i })).toBeInTheDocument();
+    expect(screen.getByText(/^analysis notice$/i).parentElement).toHaveStyle({
+      backgroundColor: "rgb(10, 20, 40)",
+      border: "1px solid rgba(255, 255, 255, 0.05)"
+    });
   });
 
   it("switches the fullscreen label and exits fullscreen with Escape", async () => {
@@ -680,13 +756,13 @@ describe("vault page", () => {
 
     await user.click(screen.getByRole("button", { name: /^Tech \/ Upgrade$/i }));
     const techTree = screen.getByTestId("vault-tech-tree");
-    await user.click(within(techTree).getByRole("button", { name: /neo_user/i }));
-    expect(screen.getByTestId("vault-tech-tree-focus")).toHaveTextContent("neo_user");
+    await user.click(within(techTree).getByRole("button", { name: /neo_user TECH/i }));
+    expect(screen.getByTestId("vault-tech-tree-focus")).toHaveTextContent("neo_user • TECH");
 
     await user.click(getGameIdCell(100));
     expect(screen.getByRole("button", { name: /^APM$/i })).toHaveAttribute("aria-pressed", "true");
 
     await user.click(screen.getByRole("button", { name: /^Tech \/ Upgrade$/i }));
-    expect(screen.getByTestId("vault-tech-tree-focus")).toHaveTextContent("FOCUS: NONE");
+    expect(screen.getByTestId("vault-tech-tree-focus")).toHaveTextContent("NO TECH EVENT SELECTED");
   });
 });

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { ExternalLink } from "lucide-react";
-import { Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { generateApmSeries } from "@/lib/fixtures/analyzer";
 import { CYAN_PANEL_STYLE, INNER_PANEL_STYLE } from "@/lib/constants/ui-styles";
@@ -152,6 +152,9 @@ function PlayerBoardCard({
         <span>
           PROD <span className="text-slate-200">{player.production}</span>
         </span>
+        <span>
+          REDUNDANCY% <span className="text-slate-200">{player.redundancy}%</span>
+        </span>
       </div>
     </div>
   );
@@ -174,10 +177,12 @@ export function VaultDetailPanel({
   activeVizTab,
   isFullscreen,
   techFocus,
+  techEventInfo,
   highlightedPlayer,
   onActiveVizTabChange,
   onFullscreenToggle,
-  onTechFocusChange
+  onTechFocusChange,
+  onHighlightedPlayerChange
 }: {
   game: VaultGame;
   currentUser: string;
@@ -187,24 +192,53 @@ export function VaultDetailPanel({
   activeVizTab: VaultVizTab;
   isFullscreen: boolean;
   techFocus: VaultTechFocus;
+  techEventInfo: string | null;
   highlightedPlayer: string | null;
   onActiveVizTabChange: (tab: VaultVizTab) => void;
   onFullscreenToggle: () => void;
   onTechFocusChange: (focus: VaultTechFocus) => void;
+  onHighlightedPlayerChange: (playerName: string | null) => void;
 }) {
   const apmData = useMemo(() => getApmData(game, hydratedDetail), [game, hydratedDetail]);
   const allPlayers = getAllGamePlayers(game).map((player) => player.name);
+  const allGamePlayers = getAllGamePlayers(game);
   const board = useMemo(() => getStartGridBoard(game), [game]);
   const insightMessage = hydratedDetail?.analysisMessage || game.matchStory;
   const reliabilityLabel = hydratedDetail?.reliabilityMOfN
     ? `${hydratedDetail.reliabilityMOfN}${hydratedDetail.reliability ? ` • ${hydratedDetail.reliability}` : ""}`
     : hydratedDetail?.reliability || "UNAVAILABLE";
 
-  const renderVizPanel = () => {
+  function getTechMetric(playerName: string, kind: "tech" | "upgrade") {
+    const player = allGamePlayers.find((entry) => entry.name === playerName);
+    if (!player) {
+      return 0;
+    }
+
+    return kind === "tech" ? Math.max(1, Math.round(player.production / 50)) : Math.max(1, Math.round(player.redundancy / 3));
+  }
+
+  function getTechEventLabel(playerName: string, kind: "tech" | "upgrade") {
+    return `${playerName} • ${kind.toUpperCase()} ${getTechMetric(playerName, kind)}`;
+  }
+
+  function handleLegendPlayerClick(playerName: string) {
+    onHighlightedPlayerChange(highlightedPlayer === playerName ? null : playerName);
+
+    if (activeVizTab === "tech") {
+      onTechFocusChange(null);
+    }
+  }
+
+  function handleTechSummaryClick(playerName: string, kind: "tech" | "upgrade") {
+    const nextFocus = techFocus?.playerName === playerName && techFocus.kind === kind ? null : { playerName, kind };
+    onTechFocusChange(nextFocus);
+  }
+
+  function renderChartArea() {
     if (activeVizTab === "apm") {
       return (
-        <div>
-          <p className="mb-3 text-[10px] font-mono tracking-widest text-slate-500">APM TIMELINE</p>
+        <div className="space-y-3">
+          <p className="text-[10px] font-mono tracking-widest text-slate-500">APM TIMELINE</p>
           <div className="rounded-lg p-3" style={INNER_PANEL_STYLE}>
             <ResponsiveContainer width="100%" height={280}>
               <LineChart data={apmData} margin={{ top: 5, right: 5, bottom: 5, left: -15 }}>
@@ -221,9 +255,16 @@ export function VaultDetailPanel({
                   labelStyle={{ color: "#94a3b8" }}
                 />
                 {allPlayers.map((name) => (
-                  <Line key={name} type="monotone" dataKey={name} stroke={getPlayerColor(name)} dot={false} strokeWidth={1.5} />
+                  <Line
+                    key={name}
+                    type="monotone"
+                    dataKey={name}
+                    stroke={getPlayerColor(name)}
+                    dot={false}
+                    strokeWidth={highlightedPlayer && highlightedPlayer !== name ? 1 : 1.8}
+                    opacity={highlightedPlayer && highlightedPlayer !== name ? 0.25 : 1}
+                  />
                 ))}
-                <Legend wrapperStyle={{ fontSize: 10, fontFamily: "JetBrains Mono", paddingTop: 8 }} formatter={(value) => <span style={{ color: getPlayerColor(String(value)) }}>{String(value)}</span>} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -231,94 +272,129 @@ export function VaultDetailPanel({
       );
     }
 
+    return (
+      <div className="rounded-lg p-3 text-xs font-mono text-slate-400" style={INNER_PANEL_STYLE}>
+        <div className="mb-2 text-[10px] uppercase tracking-widest text-slate-500">{activeVizTab.toUpperCase()}</div>
+        <div className="space-y-1">
+          {allGamePlayers.map((player) => (
+            <div key={player.name} className="flex items-center justify-between gap-3">
+              <span className="text-slate-300">{player.name}</span>
+              <span className="text-slate-500">
+                APM {player.apm} / EAPM {player.eapm}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  function renderLegendRow() {
+    return (
+      <div className="flex flex-wrap gap-2">
+        {allPlayers.map((name) => {
+          const isActive = highlightedPlayer === name;
+
+          return (
+            <button
+              key={name}
+              type="button"
+              aria-pressed={isActive}
+              onClick={() => handleLegendPlayerClick(name)}
+              className="rounded border px-3 py-1 text-[10px] font-mono uppercase tracking-widest transition-all"
+              style={{
+                backgroundColor: isActive ? "rgba(34,211,238,0.12)" : "rgba(255,255,255,0.04)",
+                borderColor: isActive ? "rgba(34,211,238,0.35)" : "rgba(255,255,255,0.1)",
+                color: isActive ? "#22d3ee" : "#94a3b8"
+              }}
+            >
+              {name}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
+  function renderChartHint() {
     if (activeVizTab === "tech") {
+      return "click summary buttons to set tech focus";
+    }
+
+    return "click legend items to emphasize a player";
+  }
+
+  function renderTechEventInfo() {
+    return techEventInfo ?? (techFocus ? getTechEventLabel(techFocus.playerName, techFocus.kind) : "NO TECH EVENT SELECTED");
+  }
+
+  function renderSummaryArea() {
+    if (activeVizTab !== "tech") {
       return (
-        <div data-testid="vault-tech-tree" className="space-y-3">
-          <div className="flex flex-wrap gap-2">
-            {getAllGamePlayers(game).map((player) => {
-              const isActive = techFocus?.playerName === player.name;
-
-              return (
-                <button
-                  key={player.name}
-                  type="button"
-                  aria-pressed={isActive}
-                  onClick={() =>
-                    onTechFocusChange(
-                      techFocus?.playerName === player.name ? null : { playerName: player.name, kind: techFocus?.kind ?? "tech" }
-                    )
-                  }
-                  className="rounded border px-3 py-1 text-xs font-mono transition-all"
-                  style={{
-                    backgroundColor: isActive ? "rgba(34,211,238,0.12)" : "rgba(255,255,255,0.04)",
-                    borderColor: isActive ? "rgba(34,211,238,0.35)" : "rgba(255,255,255,0.1)",
-                    color: isActive ? "#22d3ee" : "#cbd5e1"
-                  }}
-                >
-                  {player.name}
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {(["tech", "upgrade"] as const).map((kind) => {
-              const isActive = techFocus?.kind === kind;
-
-              return (
-                <button
-                  key={kind}
-                  type="button"
-                  aria-pressed={isActive}
-                  onClick={() => {
-                    if (!techFocus) {
-                      const firstPlayer = getAllGamePlayers(game)[0];
-                      if (firstPlayer) {
-                        onTechFocusChange({ playerName: firstPlayer.name, kind });
-                      }
-                      return;
-                    }
-
-                    onTechFocusChange(techFocus.kind === kind ? null : { ...techFocus, kind });
-                  }}
-                  className="rounded border px-3 py-1 text-[10px] font-mono uppercase tracking-widest transition-all"
-                  style={{
-                    backgroundColor: isActive ? "rgba(34,211,238,0.12)" : "rgba(255,255,255,0.04)",
-                    borderColor: isActive ? "rgba(34,211,238,0.35)" : "rgba(255,255,255,0.1)",
-                    color: isActive ? "#22d3ee" : "#94a3b8"
-                  }}
-                >
-                  {kind}
-                </button>
-              );
-            })}
-          </div>
-
-          <div data-testid="vault-tech-tree-focus" className="rounded-lg p-3 text-xs font-mono" style={INNER_PANEL_STYLE}>
-            {techFocus ? `FOCUS: ${techFocus.playerName} • ${techFocus.kind}` : "FOCUS: NONE"}
-          </div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {allGamePlayers.map((player) => (
+            <div key={player.name} className="rounded border p-2 text-xs font-mono" style={INNER_PANEL_STYLE}>
+              <div className="text-slate-300">{player.name}</div>
+              <div className="mt-1 text-slate-500">
+                APM {player.apm} EAPM {player.eapm}
+              </div>
+            </div>
+          ))}
         </div>
       );
     }
 
-    if (activeVizTab === "unitprod") {
-      return <div className="text-xs font-mono text-slate-400">UNITPROD VIEW</div>;
-    }
+    return (
+      <div data-testid={activeVizTab === "tech" ? "vault-tech-tree" : undefined} className="space-y-3">
+        <div className="grid gap-2 sm:grid-cols-2">
+          {allGamePlayers.map((player) => {
+            const techCount = getTechMetric(player.name, "tech");
+            const upgradeCount = getTechMetric(player.name, "upgrade");
+            const isFocused = techFocus?.playerName === player.name;
 
-    if (activeVizTab === "spend") {
-      return <div className="text-xs font-mono text-slate-400">SPEND VIEW</div>;
-    }
-
-    if (activeVizTab === "production") {
-      return <div className="text-xs font-mono text-slate-400">PRODUCTION VIEW</div>;
-    }
-
-    if (activeVizTab === "battle") {
-      return <div className="text-xs font-mono text-slate-400">BATTLE VIEW</div>;
-    }
-
-    return <div className="text-xs font-mono text-slate-400">ACTIONS VIEW</div>;
-  };
+            return (
+              <div key={player.name} className="rounded-lg p-3 text-xs font-mono" style={INNER_PANEL_STYLE}>
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <span className="text-slate-200">{player.name}</span>
+                  <span className="text-slate-500">{isFocused ? "FOCUSED" : "IDLE"}</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    aria-pressed={techFocus?.playerName === player.name && techFocus.kind === "tech"}
+                    aria-label={`${player.name} TECH ${techCount}`}
+                    onClick={() => handleTechSummaryClick(player.name, "tech")}
+                    className="rounded border px-3 py-1 transition-all"
+                    style={{
+                      backgroundColor: techFocus?.playerName === player.name && techFocus.kind === "tech" ? "rgba(34,211,238,0.12)" : "rgba(255,255,255,0.04)",
+                      borderColor: techFocus?.playerName === player.name && techFocus.kind === "tech" ? "rgba(34,211,238,0.35)" : "rgba(255,255,255,0.1)",
+                      color: techFocus?.playerName === player.name && techFocus.kind === "tech" ? "#22d3ee" : "#cbd5e1"
+                    }}
+                  >
+                    TECH {techCount}
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={techFocus?.playerName === player.name && techFocus.kind === "upgrade"}
+                    aria-label={`${player.name} UPG ${upgradeCount}`}
+                    onClick={() => handleTechSummaryClick(player.name, "upgrade")}
+                    className="rounded border px-3 py-1 transition-all"
+                    style={{
+                      backgroundColor: techFocus?.playerName === player.name && techFocus.kind === "upgrade" ? "rgba(34,211,238,0.12)" : "rgba(255,255,255,0.04)",
+                      borderColor: techFocus?.playerName === player.name && techFocus.kind === "upgrade" ? "rgba(34,211,238,0.35)" : "rgba(255,255,255,0.1)",
+                      color: techFocus?.playerName === player.name && techFocus.kind === "upgrade" ? "#22d3ee" : "#cbd5e1"
+                    }}
+                  >
+                    UPG {upgradeCount}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div data-testid="vault-detail-shell" data-fullscreen={isFullscreen ? "true" : "false"} className="rounded-xl p-5" style={{ backgroundColor: "#080e1f", border: "1px solid rgba(34,211,238,0.12)" }}>
@@ -421,27 +497,56 @@ export function VaultDetailPanel({
 
         <div>
           <p className="mb-3 text-[10px] font-mono tracking-widest text-slate-500">Game_Detail_Visualization</p>
-          <div className="mb-3 flex flex-wrap gap-2">
-            {VIZ_TABS.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                aria-pressed={activeVizTab === tab.id}
-                onClick={() => onActiveVizTabChange(tab.id)}
-                className="rounded border px-3 py-1 text-xs font-mono uppercase tracking-widest transition-all"
-                style={{
-                  backgroundColor: activeVizTab === tab.id ? "rgba(34,211,238,0.15)" : "rgba(255,255,255,0.04)",
-                  color: activeVizTab === tab.id ? "#22d3ee" : "#94a3b8",
-                  borderColor: activeVizTab === tab.id ? "rgba(34,211,238,0.35)" : "rgba(255,255,255,0.1)"
-                }}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          <div className="space-y-3">
+            <div className="rounded-lg px-3 py-2 text-xs font-mono text-slate-300" style={INNER_PANEL_STYLE}>
+              <p className="text-[10px] uppercase tracking-widest text-slate-500">analysis notice</p>
+              <p className="mt-1">{insightMessage || "analysis pending"}</p>
+            </div>
 
-          <div className="rounded-lg p-3" style={INNER_PANEL_STYLE}>
-            {renderVizPanel()}
+            <div className="flex flex-wrap gap-2">
+              <p className="mr-2 self-center text-[10px] font-mono uppercase tracking-widest text-slate-500">viz tabs</p>
+              {VIZ_TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  aria-pressed={activeVizTab === tab.id}
+                  onClick={() => onActiveVizTabChange(tab.id)}
+                  className="rounded border px-3 py-1 text-xs font-mono uppercase tracking-widest transition-all"
+                  style={{
+                    backgroundColor: activeVizTab === tab.id ? "rgba(34,211,238,0.15)" : "rgba(255,255,255,0.04)",
+                    color: activeVizTab === tab.id ? "#22d3ee" : "#94a3b8",
+                    borderColor: activeVizTab === tab.id ? "rgba(34,211,238,0.35)" : "rgba(255,255,255,0.1)"
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-[10px] font-mono uppercase tracking-widest text-slate-500">chart area</p>
+              {renderChartArea()}
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-[10px] font-mono uppercase tracking-widest text-slate-500">legend row</p>
+              {renderLegendRow()}
+            </div>
+
+            <div className="rounded-lg px-3 py-2 text-xs font-mono text-slate-400" style={INNER_PANEL_STYLE}>
+              <p className="text-[10px] uppercase tracking-widest text-slate-500">chart hint</p>
+              <p className="mt-1">{renderChartHint()}</p>
+            </div>
+
+            <div className="rounded-lg px-3 py-2 text-xs font-mono text-slate-300" style={INNER_PANEL_STYLE}>
+              <p className="text-[10px] uppercase tracking-widest text-slate-500">tech event info</p>
+              <p data-testid="vault-tech-tree-focus" className="mt-1">{renderTechEventInfo()}</p>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-[10px] font-mono uppercase tracking-widest text-slate-500">summary area</p>
+              {renderSummaryArea()}
+            </div>
           </div>
         </div>
       </div>
