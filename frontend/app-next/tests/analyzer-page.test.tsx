@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { vi } from "vitest";
 
+import { AnalyzerSummaryStrip } from "@/components/analyzer/analyzer-summary-strip";
 import { AnalyzerPage as AnalyzerPageComponent } from "@/components/analyzer/analyzer-page";
 import { reanalyzeAnalyzerGame } from "@/lib/api/actions";
 import { getAnalyzerPageModel } from "@/lib/adapters/analyzer";
@@ -880,6 +881,29 @@ describe("analyzer page", () => {
     };
 
     render(<AnalyzerPageComponent model={model} />);
+
+    const leftColumn = screen.getByTestId("analyzer-start-grid-left");
+    const rightColumn = screen.getByTestId("analyzer-start-grid-right");
+
+    expect(within(leftColumn).getAllByTestId("start-grid-player-name").map((node) => node.textContent)).toEqual(["3x3_Kiyong", "3x3_syntax", "3x3_mh"]);
+    expect(within(rightColumn).getAllByTestId("start-grid-player-name").map((node) => node.textContent)).toEqual(["3x3_GG", "3x3_smwoo", "3x3_pil"]);
+  });
+
+  it("renders the extracted summary strip with the same start-grid layout and metadata", () => {
+    const model = getAnalyzerPageModel(48);
+
+    render(<AnalyzerSummaryStrip game={model.selectedGame} />);
+
+    expect(screen.getByText(/^GAME SUMMARY STRIP$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^MAP:$/i).parentElement).toHaveStyle({
+      backgroundColor: "#0d1833"
+    });
+    expect(screen.getByText(/^PLAY TIME:$/i).parentElement).toHaveStyle({
+      backgroundColor: "#0d1833"
+    });
+    expect(screen.getByText(/^START:$/i).parentElement).toHaveStyle({
+      backgroundColor: "#0d1833"
+    });
 
     const leftColumn = screen.getByTestId("analyzer-start-grid-left");
     const rightColumn = screen.getByTestId("analyzer-start-grid-right");
