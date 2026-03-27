@@ -1,4 +1,4 @@
-import type { CSSProperties, HTMLAttributes, PropsWithChildren } from "react";
+import type { CSSProperties, ElementType, HTMLAttributes, PropsWithChildren } from "react";
 
 import { CYAN_PANEL_STYLE, INNER_PANEL_STRONG_STYLE, INNER_PANEL_STYLE } from "@/lib/constants/ui-styles";
 
@@ -11,12 +11,13 @@ const panelStyles = {
 export type PanelVariant = keyof typeof panelStyles;
 
 interface PanelProps extends HTMLAttributes<HTMLDivElement> {
+  as?: ElementType;
   variant: PanelVariant;
 }
 
-export function Panel({ variant, className, style, children, ...props }: PropsWithChildren<PanelProps>) {
+export function Panel({ as: Component = "div", variant, className, style, children, ...props }: PropsWithChildren<PanelProps>) {
   return (
-    <div
+    <Component
       {...props}
       className={className}
       style={{
@@ -25,6 +26,6 @@ export function Panel({ variant, className, style, children, ...props }: PropsWi
       }}
     >
       {children}
-    </div>
+    </Component>
   );
 }

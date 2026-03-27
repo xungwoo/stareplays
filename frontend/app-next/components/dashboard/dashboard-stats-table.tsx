@@ -1,4 +1,4 @@
-import { CYAN_PANEL_STYLE } from "@/lib/constants/ui-styles";
+import { Panel } from "@/components/shared/panel";
 
 export type DashboardStatsTableRow = {
   label: string;
@@ -16,7 +16,7 @@ export function DashboardStatsTable({
   rows: DashboardStatsTableRow[];
 }) {
   return (
-    <section className="rounded-xl p-5" style={CYAN_PANEL_STYLE}>
+    <Panel as="section" variant="cyan" className="rounded-xl p-5">
       <p className="mb-3 text-[10px] font-mono font-semibold uppercase tracking-widest text-slate-500">{title}</p>
       <table className="w-full text-xs font-mono">
         <thead>
@@ -38,6 +38,6 @@ export function DashboardStatsTable({
           ))}
         </tbody>
       </table>
-    </section>
+    </Panel>
   );
 }

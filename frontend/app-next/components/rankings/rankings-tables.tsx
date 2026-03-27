@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { RefreshCw, TrendingUp, Users } from "lucide-react";
 
+import { Panel } from "@/components/shared/panel";
 import { RaceBadge, RaceGroup } from "@/components/shared/race-badge";
+import { SectionAccent } from "@/components/shared/section-accent";
 import { CYAN_PANEL_STYLE, CYAN_SECTION_DIVIDER_STYLE, INNER_PANEL_STYLE } from "@/lib/constants/ui-styles";
 import type { RankingRow, RaceCompositionRow, RankingsPageModel } from "@/types/rankings";
 
@@ -114,7 +116,7 @@ export function RankingsTable({
     <div>
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="h-5 w-1.5 rounded-sm" style={{ backgroundColor: "#22d3ee" }} />
+          <SectionAccent />
           <h2 className="text-sm font-mono font-bold uppercase tracking-widest text-slate-200">Rankings_3v3</h2>
           <span className="text-[10px] font-mono text-slate-600">TEAM_SIZE: 3V3 | QUALIFIED_GAMES: 43 | ROWS: {sortedRankings.length}</span>
           <span className="rounded px-2 py-1 text-[10px] font-mono font-bold" style={{ backgroundColor: "rgba(34,211,238,0.08)", color: "#22d3ee", border: "1px solid rgba(34,211,238,0.18)" }}>
@@ -226,7 +228,7 @@ export function RankingsTable({
           { label: "Highest APM", value: "214.7", icon: TrendingUp, color: "#f59e0b" },
           { label: "Top Win Rate", value: "55.8%", icon: TrendingUp, color: "#34d399" }
         ].map(({ label, value, icon: Icon, color }) => (
-          <div key={label} className="rounded-xl p-4" style={CARD_STYLE}>
+          <Panel key={label} variant="cyan" className="rounded-xl p-4">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-[10px] font-mono tracking-widest text-slate-500">{label}</span>
               <Icon className="h-4 w-4" style={{ color }} />
@@ -234,7 +236,7 @@ export function RankingsTable({
             <span className="text-xl font-mono font-bold" style={{ color }}>
               {value}
             </span>
-          </div>
+          </Panel>
         ))}
       </div>
     </div>
@@ -262,7 +264,7 @@ export function RaceCompositionTable({
     <div>
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="h-5 w-1.5 rounded-sm" style={{ backgroundColor: "#22d3ee" }} />
+          <SectionAccent />
           <h2 className="text-sm font-mono font-bold uppercase tracking-widest text-slate-200">Race_Composition_WinRate (3v3)</h2>
           <span className="text-[10px] font-mono text-slate-600">{raceMeta}</span>
         </div>
