@@ -62,17 +62,17 @@ describe("dashboard page", () => {
   it("renders the figma dashboard upload and stats workspace", async () => {
     const { container } = render(<DashboardPage model={DASHBOARD_FIXTURE} />);
 
-    expect(screen.getByText(/^Replay Upload$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Replay_Upload$/i)).toBeInTheDocument();
     expect(screen.getByText(/플레이어 선택 \(Simple Login\)/i)).toBeInTheDocument();
     expect(screen.getByText(/select_player_from_parsed_replay/i)).toBeInTheDocument();
     expect(screen.getByText(/^HOW TO USE$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^Player Stats Query$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Player_Stats_Query$/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^QUERY$/i })).toHaveClass("transition-all");
     expect(screen.getByText(/^Win Rate Progress$/i)).toBeInTheDocument();
     expect(screen.getByText(DASHBOARD_FIXTURE.playerStats.favoriteRaceLabel)).toHaveClass("text-amber-400");
     expect(screen.getByText(/^CURRENT_USER:$/i).nextElementSibling).toHaveTextContent(DASHBOARD_FIXTURE.currentUser);
-    expect(screen.getByText(/^Player Stats Query$/i).parentElement).toHaveClass("p-5");
-    expect(screen.getByText(/^Player Stats Query$/i).parentElement).toHaveStyle({
+    expect(screen.getByText(/^Player_Stats_Query$/i).parentElement).toHaveClass("p-5");
+    expect(screen.getByText(/^Player_Stats_Query$/i).parentElement).toHaveStyle({
       backgroundColor: "#0d1833",
       border: "1px solid rgba(34,211,238,0.1)"
     });
@@ -134,6 +134,26 @@ describe("dashboard page", () => {
     expect(screen.getByText("56.4%")).toHaveStyle({
       color: "#34d399"
     });
+  });
+
+  it("matches the legacy dashboard section order and hidden inline detail shell", () => {
+    const { container } = render(<DashboardPage model={DASHBOARD_FIXTURE} />);
+
+    const uploadSection = screen.getByText("Replay_Upload");
+    const querySection = screen.getByText("Player_Stats_Query");
+    const recentGamesSection = screen.getByText("Recent_Games");
+    const inlineDetailSection = container.querySelector<HTMLElement>('[data-testid="dashboard-inline-game-detail"]');
+    const systemLogsSection = screen.getByText("System_Logs");
+
+    expect(uploadSection.compareDocumentPosition(querySection) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(querySection.compareDocumentPosition(recentGamesSection) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(inlineDetailSection).not.toBeNull();
+    const inlineDetail = inlineDetailSection as HTMLElement;
+    expect(recentGamesSection.compareDocumentPosition(inlineDetail) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(inlineDetailSection).toHaveAttribute("hidden");
+    expect(inlineDetailSection?.textContent).toContain("Selected_Game");
+    expect(inlineDetailSection?.textContent).toContain("Game_Detail_Visualization");
+    expect(inlineDetail.compareDocumentPosition(systemLogsSection) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("renders extracted dashboard stat cards with the same visual contract", () => {

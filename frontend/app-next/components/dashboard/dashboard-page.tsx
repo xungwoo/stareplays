@@ -240,6 +240,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
     [...new Set([model.playerStats.name, ...model.uploadCandidates])].filter(Boolean)
   );
   const [playerStats, setPlayerStats] = useState(model.playerStats);
+  const [selectedGameId] = useState<number | null>(null);
   const suggestionTimerRef = useRef<number | null>(null);
   const suggestionRequestRef = useRef(0);
 
@@ -458,10 +459,10 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
 
   return (
     <div className="mx-auto max-w-[1400px] p-6">
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        <div className="lg:col-span-2 flex flex-col gap-4" aria-label="Replay Upload Workspace">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        <div className="flex flex-col gap-4 lg:col-span-5" aria-label="Replay Upload Workspace">
           <div className="rounded-xl p-5" style={CYAN_PANEL_STYLE}>
-            <p className={SECTION_LABEL}>Replay Upload</p>
+            <p className={SECTION_LABEL}>Replay_Upload</p>
 
             <label
               htmlFor="replay-file"
@@ -666,9 +667,9 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
           </div>
         </div>
 
-        <div className="lg:col-span-3 flex flex-col gap-4" aria-label="Player Statistics Workspace">
+        <div className="flex flex-col gap-4 lg:col-span-7" aria-label="Player Statistics Workspace">
           <div className="rounded-xl p-5" style={CYAN_PANEL_STYLE}>
-            <p className={SECTION_LABEL}>Player Stats Query</p>
+            <p className={SECTION_LABEL}>Player_Stats_Query</p>
             <div className="flex gap-2">
               <input
                 value={queryName}
@@ -780,6 +781,69 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
             </>
           )}
         </div>
+      </div>
+
+      <div className="mt-6 space-y-6">
+        <section className="rounded-xl p-5" style={CYAN_PANEL_STYLE} aria-label="Recent Games Workspace">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <span className="h-5 w-1.5 rounded-sm" style={{ backgroundColor: "#22d3ee" }} aria-hidden="true" />
+              <p className={SECTION_LABEL}>Recent_Games</p>
+            </div>
+            <button
+              type="button"
+              className="rounded border px-3 py-1.5 text-[11px] font-mono font-bold uppercase tracking-widest text-slate-400"
+              style={{ borderColor: "rgba(255,255,255,0.1)", backgroundColor: "rgba(255,255,255,0.02)" }}
+            >
+              Refresh_Games
+            </button>
+          </div>
+
+          <div className="mt-4 rounded-lg px-4 py-3 text-xs font-mono text-slate-500" style={INNER_PANEL_STYLE}>
+            Recent games will appear here for the active current user.
+          </div>
+        </section>
+
+        <section
+          hidden={selectedGameId == null}
+          data-testid="dashboard-inline-game-detail"
+          className="rounded-xl p-5"
+          style={CYAN_PANEL_STYLE}
+          aria-label="Selected Game Detail Workspace"
+        >
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="rounded-lg px-4 py-3" style={INNER_PANEL_STYLE}>
+              <div className="flex items-center justify-between gap-3">
+                <p className={SECTION_LABEL}>Selected_Game</p>
+                <button
+                  type="button"
+                  className="rounded border px-3 py-1.5 text-[11px] font-mono font-bold uppercase tracking-widest text-slate-400"
+                  style={{ borderColor: "rgba(255,255,255,0.1)", backgroundColor: "rgba(255,255,255,0.02)" }}
+                >
+                  Open_In_Analyzer
+                </button>
+              </div>
+              <div className="mt-3 rounded-lg px-4 py-3 text-xs font-mono text-slate-500" style={INNER_PANEL_STRONG_STYLE}>
+                Selected game detail is hidden until a row is chosen.
+              </div>
+            </div>
+
+            <div className="rounded-lg px-4 py-3" style={INNER_PANEL_STYLE}>
+              <p className={SECTION_LABEL}>Game_Detail_Visualization</p>
+              <div className="mt-3 rounded-lg px-4 py-3 text-xs font-mono text-slate-500" style={INNER_PANEL_STRONG_STYLE}>
+                Visualization details render here after selection.
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-xl p-5" style={CYAN_PANEL_STYLE} aria-label="System Logs Workspace">
+          <p className={SECTION_LABEL}>System_Logs</p>
+          <div className="rounded-lg px-4 py-3 text-[11px] font-mono text-slate-400" style={INNER_PANEL_STYLE}>
+            <p>READY: dashboard shell mounted</p>
+            <p>READY: query and upload actions available</p>
+          </div>
+        </section>
       </div>
     </div>
   );
