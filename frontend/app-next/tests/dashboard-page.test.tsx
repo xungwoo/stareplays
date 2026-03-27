@@ -313,6 +313,152 @@ describe("dashboard page", () => {
     expect(screen.getByTestId("dashboard-system-logs")).toHaveTextContent("REFRESH_GAMES");
   });
 
+  it("replaces fallback recent games with the initial loader data for logged-in users", async () => {
+    const loaderResponse = createGamesListResponse();
+    loaderResponse.total = 1;
+    loaderResponse.games = [
+      {
+        ...loaderResponse.games[0],
+        id: 501,
+        map_name: "Neo Sylphid"
+      }
+    ];
+
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+
+      if (url.includes("/api/v1/games?")) {
+        return new Response(JSON.stringify(loaderResponse), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+
+      if (url.includes("/api/v1/users/suggest")) {
+        return new Response(JSON.stringify({ users: [] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+
+      return new Response(JSON.stringify({ error: "not found" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" }
+      });
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<DashboardPage model={DASHBOARD_FIXTURE} />);
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining("/api/v1/games?limit=12&offset=0&user_name=3x3_GG"),
+        expect.any(Object)
+      );
+    });
+    expect(await screen.findByText("#501")).toBeInTheDocument();
+    expect(screen.queryByText("#48")).not.toBeInTheDocument();
+  });
+
+  it("paginates recent games and resets to page 1 when the current user changes", async () => {
+    const currentUserGames = createGamesListResponse();
+    currentUserGames.total = 11;
+    currentUserGames.games = Array.from({ length: 11 }, (_, index) => ({
+      ...currentUserGames.games[index % currentUserGames.games.length],
+      id: 200 + index,
+      map_name: `Legacy Map ${index + 1}`
+    }));
+
+    const nextUserGames = createGamesListResponse();
+    nextUserGames.total = 11;
+    nextUserGames.games = Array.from({ length: 11 }, (_, index) => ({
+      ...nextUserGames.games[index % nextUserGames.games.length],
+      id: 300 + index,
+      map_name: `Next User Map ${index + 1}`
+    }));
+
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+
+      if (url.includes("/api/v1/games?") && url.includes("user_name=3x3_GG")) {
+        return new Response(JSON.stringify(currentUserGames), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+
+      if (url.includes("/api/v1/games?") && url.includes("user_name=3x3_smwoo")) {
+        return new Response(JSON.stringify(nextUserGames), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+
+      if (url.includes("/api/v1/players/3x3_smwoo/stats")) {
+        return new Response(
+          JSON.stringify({
+            player_name: "3x3_smwoo",
+            total_games: 27,
+            wins: 19,
+            losses: 8,
+            draws: 0,
+            win_rate: 70.4,
+            average_apm: 211.7,
+            average_eapm: 166.2,
+            favorite_race: "T",
+            race_stats: {
+              Terran: { wins: 19, losses: 8, total: 27, win_rate: 70.4 }
+            },
+            matchup_stats: {},
+            map_stats: {}
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" }
+          }
+        );
+      }
+
+      if (url.includes("/api/v1/users/suggest")) {
+        return new Response(JSON.stringify({ users: [] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+
+      return new Response(JSON.stringify({ error: "not found" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" }
+      });
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<DashboardPage model={DASHBOARD_FIXTURE} />);
+
+    expect(await screen.findByText("Page 1/2")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Prev$/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /^Next$/i })).toBeEnabled();
+    expect(screen.queryByText("#210")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Next$/i }));
+
+    expect(await screen.findByText("Page 2/2")).toBeInTheDocument();
+    expect(screen.getByText("#210")).toBeInTheDocument();
+    expect(screen.queryByText("#200")).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/플레이어 이름 입력/i), { target: { value: "3x3_smwoo" } });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^QUERY$/i }));
+    });
+
+    expect(await screen.findByText("Page 1/2")).toBeInTheDocument();
+    expect(screen.getByText("#300")).toBeInTheDocument();
+    expect(screen.queryByText("#310")).not.toBeInTheDocument();
+  });
+
   it("renders inline selected-game detail directly below the clicked recent game row and collapses on re-click", async () => {
     const fetchMock = createDefaultFetchMock();
     vi.stubGlobal("fetch", fetchMock);
@@ -623,7 +769,8 @@ describe("dashboard page", () => {
     expect(globalThis.__TEST_ROUTER__.refresh).toHaveBeenCalled();
   });
 
-  it("queries live player stats and suggestions from the api", async () => {
+  it("debounces player suggestions for 280ms and triggers query on Enter", async () => {
+    vi.useFakeTimers();
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = typeof input === "string" ? input : input.toString();
 
@@ -667,24 +814,41 @@ describe("dashboard page", () => {
 
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<DashboardPage model={DASHBOARD_FIXTURE} />);
+    render(
+      <DashboardPage
+        model={{
+          ...DASHBOARD_FIXTURE,
+          currentUser: "",
+          playerStats: {
+            ...DASHBOARD_FIXTURE.playerStats,
+            name: ""
+          }
+        }}
+      />
+    );
 
     const queryInput = screen.getByLabelText(/플레이어 이름 입력/i);
     fireEvent.change(queryInput, { target: { value: "3x3_smwoo" } });
 
     await act(async () => {
-      await new Promise((resolve) => {
-        window.setTimeout(resolve, 220);
-      });
+      vi.advanceTimersByTime(279);
     });
 
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/api/v1/users/suggest?q=3x3_smwoo"), expect.any(Object));
+    expect(fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/v1/users/suggest?q=3x3_smwoo"))).toHaveLength(0);
+
+    await act(async () => {
+      vi.advanceTimersByTime(1);
+      await Promise.resolve();
     });
+
+    expect(fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/v1/users/suggest?q=3x3_smwoo")).length).toBeGreaterThan(0);
+
+    vi.useRealTimers();
+
     expect(await screen.findByRole("option", { name: "3x3_smwoo" })).toBeInTheDocument();
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /^QUERY$/i }));
+      fireEvent.keyDown(queryInput, { key: "Enter", code: "Enter", charCode: 13 });
     });
 
     expect(await screen.findAllByText("3x3_smwoo")).not.toHaveLength(0);
@@ -732,12 +896,12 @@ describe("dashboard page", () => {
 
     fireEvent.change(queryInput, { target: { value: "3x" } });
     await act(async () => {
-      vi.advanceTimersByTime(200);
+      vi.advanceTimersByTime(280);
     });
 
     fireEvent.change(queryInput, { target: { value: "3x3_sm" } });
     await act(async () => {
-      vi.advanceTimersByTime(200);
+      vi.advanceTimersByTime(280);
     });
 
     await act(async () => {
@@ -795,7 +959,7 @@ describe("dashboard page", () => {
 
     fireEvent.change(queryInput, { target: { value: "3x3" } });
     await act(async () => {
-      vi.advanceTimersByTime(200);
+      vi.advanceTimersByTime(280);
     });
 
     fireEvent.change(queryInput, { target: { value: "" } });

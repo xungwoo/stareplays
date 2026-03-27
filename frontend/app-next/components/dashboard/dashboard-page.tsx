@@ -41,6 +41,7 @@ import type { VaultGame, VaultPlayer } from "@/types/vault";
 
 const SECTION_LABEL = "text-[10px] font-mono font-semibold tracking-widest text-slate-500 uppercase mb-3";
 const RECENT_GAMES_LOGIN_REQUIRED = "LOGIN_REQUIRED: SIMPLE_LOGIN 후 Recent_Games 조회 가능";
+const RECENT_GAMES_PAGE_SIZE = 10;
 const VIZ_TABS = [
   { id: "apm", label: "APM" },
   { id: "unitprod", label: "Unit_Production" },
@@ -367,6 +368,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
   );
   const [gamesState, setGamesState] = useState<DashboardActionStatus>(model.currentUser.trim() ? "success" : "idle");
   const [gamesError, setGamesError] = useState<string | null>(model.currentUser.trim() ? null : RECENT_GAMES_LOGIN_REQUIRED);
+  const [recentGamesPage, setRecentGamesPage] = useState(1);
   const [selectedGameId, setSelectedGameId] = useState<number | null>(null);
   const [gameDetailById, setGameDetailById] = useState<Record<number, DashboardGameDetailModel>>({});
   const [gameDetailStateById, setGameDetailStateById] = useState<Record<number, DashboardActionStatus>>({});
@@ -374,7 +376,6 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
   const [systemLogs, setSystemLogs] = useState<string[]>(model.currentUser.trim() ? ["READY"] : ["READY", RECENT_GAMES_LOGIN_REQUIRED]);
   const suggestionTimerRef = useRef<number | null>(null);
   const suggestionRequestRef = useRef(0);
-  const hasMountedRecentGamesRef = useRef(false);
 
   const selectedFile = selectedFiles[0] ?? null;
   const record = `${playerStats.wins}-${playerStats.losses}-${playerStats.draws}`;
@@ -386,6 +387,11 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
   const selectedGameDetail = selectedGameId != null ? gameDetailById[selectedGameId] ?? null : null;
   const selectedGameDetailState = selectedGameId != null ? gameDetailStateById[selectedGameId] ?? "idle" : "idle";
   const selectedGameBoard = selectedGame ? getStartGridBoard(selectedGame) : null;
+  const recentGamesPageCount = Math.max(1, Math.ceil(recentGames.length / RECENT_GAMES_PAGE_SIZE));
+  const visibleRecentGames = recentGames.slice(
+    (recentGamesPage - 1) * RECENT_GAMES_PAGE_SIZE,
+    recentGamesPage * RECENT_GAMES_PAGE_SIZE
+  );
 
   function appendSystemLog(entry: string) {
     setSystemLogs((previous) => [...previous, entry].slice(-24));
@@ -397,6 +403,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
       setRecentGames([]);
       setGamesState("idle");
       setGamesError(RECENT_GAMES_LOGIN_REQUIRED);
+      setRecentGamesPage(1);
       setSelectedGameId(null);
       appendSystemLog(RECENT_GAMES_LOGIN_REQUIRED);
       return;
@@ -428,6 +435,13 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
 
   function persistCurrentUser(nextUser: string, options?: { refresh?: boolean }) {
     const normalized = nextUser.trim();
+    const currentNormalized = currentUser.trim();
+
+    if (normalized !== currentNormalized) {
+      setRecentGamesPage(1);
+      setSelectedGameId(null);
+    }
+
     setCurrentUser(normalized);
     if (typeof window !== "undefined") {
       if (normalized) {
@@ -466,15 +480,11 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
   }, [currentUser]);
 
   useEffect(() => {
-    if (!hasMountedRecentGamesRef.current) {
-      hasMountedRecentGamesRef.current = true;
-      return;
-    }
-
     if (!currentUser.trim()) {
       setRecentGames([]);
       setGamesState("idle");
       setGamesError(RECENT_GAMES_LOGIN_REQUIRED);
+      setRecentGamesPage(1);
       setSelectedGameId(null);
       setSystemLogs((previous) =>
         previous.includes(RECENT_GAMES_LOGIN_REQUIRED) ? previous : [...previous, RECENT_GAMES_LOGIN_REQUIRED].slice(-24)
@@ -483,9 +493,16 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
     }
 
     setRecentGames(buildFallbackRecentGames(currentUser));
+    setRecentGamesPage(1);
     setSelectedGameId(null);
     void loadRecentGames(currentUser, "LOAD_GAMES");
   }, [currentUser]);
+
+  useEffect(() => {
+    if (recentGamesPage > recentGamesPageCount) {
+      setRecentGamesPage(recentGamesPageCount);
+    }
+  }, [recentGamesPage, recentGamesPageCount]);
 
   useEffect(() => {
     if (selectedGameId == null || gameDetailById[selectedGameId]) {
@@ -682,7 +699,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
         setQuerySuggestions((previous) => (previous.includes(normalized) ? previous : [normalized, ...previous].slice(0, 5)));
         appendSystemLog(`SUGGEST_FAIL: ${normalized}`);
       }
-    }, 180);
+    }, 280);
   }
 
   async function handleQuery() {
@@ -946,6 +963,14 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
                 onChange={(event) => {
                   void handleQueryNameChange(event.target.value);
                 }}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter") {
+                    return;
+                  }
+
+                  event.preventDefault();
+                  void handleQuery();
+                }}
                 list="dashboard-player-suggestions"
                 className="flex-1 rounded-lg px-4 py-2.5 text-sm font-mono focus:outline-none transition-all"
                 style={{ backgroundColor: "#0a1428", border: "1px solid rgba(255,255,255,0.1)", color: "#e2e8f0" }}
@@ -1060,14 +1085,35 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
               <span className="h-5 w-1.5 rounded-sm" style={{ backgroundColor: "#22d3ee" }} aria-hidden="true" />
               <p className={SECTION_LABEL}>Recent_Games</p>
             </div>
-            <button
-              type="button"
-              onClick={handleRefreshGames}
-              className="rounded border px-3 py-1.5 text-[11px] font-mono font-bold uppercase tracking-widest text-slate-400"
-              style={{ borderColor: "rgba(255,255,255,0.1)", backgroundColor: "rgba(255,255,255,0.02)" }}
-            >
-              Refresh_Games
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setRecentGamesPage((previous) => Math.max(1, previous - 1))}
+                disabled={recentGamesPage <= 1 || recentGames.length === 0}
+                className="rounded border px-3 py-1.5 text-[11px] font-mono font-bold uppercase tracking-widest text-slate-400 disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ borderColor: "rgba(255,255,255,0.1)", backgroundColor: "rgba(255,255,255,0.02)" }}
+              >
+                Prev
+              </button>
+              <span className="text-[11px] font-mono text-slate-500">{`Page ${recentGamesPage}/${recentGamesPageCount}`}</span>
+              <button
+                type="button"
+                onClick={() => setRecentGamesPage((previous) => Math.min(recentGamesPageCount, previous + 1))}
+                disabled={recentGamesPage >= recentGamesPageCount || recentGames.length === 0}
+                className="rounded border px-3 py-1.5 text-[11px] font-mono font-bold uppercase tracking-widest text-slate-400 disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ borderColor: "rgba(255,255,255,0.1)", backgroundColor: "rgba(255,255,255,0.02)" }}
+              >
+                Next
+              </button>
+              <button
+                type="button"
+                onClick={handleRefreshGames}
+                className="rounded border px-3 py-1.5 text-[11px] font-mono font-bold uppercase tracking-widest text-slate-400"
+                style={{ borderColor: "rgba(255,255,255,0.1)", backgroundColor: "rgba(255,255,255,0.02)" }}
+              >
+                Refresh_Games
+              </button>
+            </div>
           </div>
 
           {!currentUser.trim() ? (
@@ -1094,7 +1140,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {recentGames.map((game) => {
+                  {visibleRecentGames.map((game) => {
                     const { ourTeam, enemyTeam, ourResult, enemyResult } = getRecentGameTeams(game);
                     const isSelected = selectedGameId === game.id;
 
