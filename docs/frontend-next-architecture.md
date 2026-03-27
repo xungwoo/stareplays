@@ -43,6 +43,12 @@
 - `components/vault/*`
 - `components/analyzer/*`
 - `components/rankings/*`
+- page container와 extracted presentation component를 함께 둔다
+- 현재 extracted components 예시:
+  - analyzer: `analyzer-summary-strip.tsx`, `analyzer-tabs.tsx`, `analyzer-player-deep-dive.tsx`
+  - vault: `vault-detail-panel.tsx`, `vault-game-row.tsx`
+  - dashboard: `dashboard-stat-card.tsx`, `dashboard-stats-table.tsx`
+  - rankings: `rankings-tables.tsx`
 
 4. Route entry
 - `app/*/page.tsx`
@@ -249,7 +255,8 @@ parity 작업 중에는 아래 수준까지만 리팩토링했다.
 
 - 반복 panel/card/border style 상수를 [ui-styles.ts](/Users/seongwoo/StarProjects/stareplays/frontend/app-next/lib/constants/ui-styles.ts)로 승격
 - player color fallback 규칙을 [player-colors.ts](/Users/seongwoo/StarProjects/stareplays/frontend/app-next/lib/utils/player-colors.ts)로 단일화
-- page container/state ownership은 그대로 유지
+- [panel.tsx](/Users/seongwoo/StarProjects/stareplays/frontend/app-next/components/shared/panel.tsx), [section-accent.tsx](/Users/seongwoo/StarProjects/stareplays/frontend/app-next/components/shared/section-accent.tsx) 같은 shared primitive를 추가하고 extracted view에 실제 적용
+- page container/state ownership은 그대로 유지하면서 page-level presentation extraction 수행
 
 아래는 의도적으로 미뤘다.
 

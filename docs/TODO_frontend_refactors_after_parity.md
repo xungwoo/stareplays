@@ -25,8 +25,8 @@
 
 ## 4. Analyzer 대형 파일 분해
 
-- [ ] `match-flow`, `apm`, `economy`, `production`, `tech`, `combat`, `player panel`을 파일 단위로 분리
-- [ ] page-level container는 orchestration만 맡도록 축소
+- [x] `match-flow`, `apm`, `economy`, `production`, `tech`, `combat`, `player panel`을 파일 단위로 분리
+- [x] page-level container는 orchestration만 맡도록 축소
 - [ ] shared chart primitives와 analyzer-specific view를 분리
 
 대상:
@@ -36,8 +36,8 @@
 
 ## 5. Dashboard / Vault 구조 재편
 
-- [ ] 업로드 워크플로우, player query, recent games를 독립 feature slice로 분리
-- [ ] Vault의 inline detail / viz / board / list를 각각 파일 책임으로 나누기
+- [x] 업로드 워크플로우, player query, recent games를 독립 feature slice로 분리
+- [x] Vault의 inline detail / viz / board / list를 각각 파일 책임으로 나누기
 
 대상:
 
@@ -57,7 +57,7 @@
 
 ## 8. visual system cleanup
 
-- [ ] source exact-port 과정에서 남은 inline style을 공통 primitive 기반으로 줄이기
+- [x] source exact-port 과정에서 남은 inline style을 공통 primitive 기반으로 줄이기
 - [ ] typography hierarchy, icon sizing, badge spacing, row density를 토큰화
 
 ## 9. 테스트 전략 재편
@@ -71,3 +71,7 @@
 - [ ] architecture 문서와 parity spec, implementation plan, refactor TODO를 정리
 - [ ] “legacy parity 완료” 이후 유지보수 기준을 새 문서로 고정
 
+## 상태 메모
+
+- 2026-03-27 기준으로 `Analyzer`, `Vault`, `Dashboard`, `Rankings`의 page-level presentation extraction은 완료되었다.
+- 이후 남은 refactor는 tokenization, state-model simplification, accessibility hardening, URL/persistence simplification처럼 더 큰 구조 정리다.

@@ -65,6 +65,7 @@ Next.js App Router frontend for StaReplays. The existing Fiber backend stays in 
 - `lib/adapters/*` - raw Fiber response to UI page-model conversion
 - `types/*` - raw API and page-model types
 - `lib/constants/*` - safe-now shared visual constants extracted without changing behavior
+- `components/analyzer/*`, `components/vault/*`, `components/dashboard/*`, `components/rankings/*` - page container plus extracted presentation views
 
 ## Verification
 
@@ -78,3 +79,11 @@ Parity-sensitive checks cover:
 - Vault row select, re-click collapse, detail, analyzer deep-link
 - Analyzer tab switching, manual refresh, reanalyze, no-polling behavior
 - Rankings sort, tie-break, empty/error behavior
+
+Recent refactor milestones:
+
+- analyzer summary strip / tabs / deep dive extraction
+- vault detail panel / game row extraction
+- dashboard stat card / stats table extraction
+- rankings table view extraction
+- shared `Panel` / `SectionAccent` primitive adoption
