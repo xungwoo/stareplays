@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { vi } from "vitest";
 
 import { DashboardStatCard } from "@/components/dashboard/dashboard-stat-card";
@@ -15,6 +15,123 @@ vi.mock("@/lib/api/actions", () => ({
 const previewReplayUploadMock = vi.mocked(previewReplayUpload);
 const submitReplayUploadMock = vi.mocked(submitReplayUpload);
 
+function createGamesListResponse() {
+  return {
+    total: 2,
+    analysis_statuses: {
+      "48": "succeeded",
+      "47": "succeeded"
+    },
+    games: [
+      {
+        id: 48,
+        map_name: "OP3060 CLAN 6슈빨무",
+        game_length: 835,
+        winner_team: 1,
+        start_time: "2026-03-22T00:05:48Z",
+        edges: {
+          players: [
+            { name: "3x3_GG", race: "P", team: 1, start_location_x: 4000, start_location_y: 100, apm: 148, eapm: 126, cmd_count: 2050, effective_cmd_count: 1746, redundancy: 15 },
+            { name: "3x3_mh", race: "P", team: 1, start_location_x: 100, start_location_y: 900, apm: 148, eapm: 136, cmd_count: 2054, effective_cmd_count: 1884, redundancy: 8 },
+            { name: "3x3_smwoo", race: "P", team: 1, start_location_x: 4000, start_location_y: 500, apm: 182, eapm: 161, cmd_count: 2500, effective_cmd_count: 2208, redundancy: 12 },
+            { name: "3x3_Kiyong", race: "P", team: 2, start_location_x: 100, start_location_y: 100, apm: 171, eapm: 161, cmd_count: 2354, effective_cmd_count: 2216, redundancy: 6 },
+            { name: "3x3_pil", race: "Z", team: 2, start_location_x: 4000, start_location_y: 900, apm: 145, eapm: 121, cmd_count: 2015, effective_cmd_count: 1671, redundancy: 17 },
+            { name: "3x3_syntax", race: "P", team: 2, start_location_x: 100, start_location_y: 500, apm: 142, eapm: 120, cmd_count: 1965, effective_cmd_count: 1666, redundancy: 15 }
+          ]
+        }
+      },
+      {
+        id: 47,
+        map_name: "Circuit Breaker",
+        game_length: 1127,
+        winner_team: 1,
+        start_time: "2026-03-21T23:45:50Z",
+        edges: {
+          players: [
+            { name: "3x3_GG", race: "P", team: 1, start_location_x: 4000, start_location_y: 100, apm: 138, eapm: 122, cmd_count: 1900, effective_cmd_count: 1680, redundancy: 12 },
+            { name: "3x3_smwoo", race: "P", team: 1, start_location_x: 4000, start_location_y: 500, apm: 166, eapm: 148, cmd_count: 2280, effective_cmd_count: 2034, redundancy: 11 },
+            { name: "3x3_mh", race: "T", team: 1, start_location_x: 100, start_location_y: 900, apm: 163, eapm: 152, cmd_count: 2241, effective_cmd_count: 2088, redundancy: 7 },
+            { name: "3x3_Kiyong", race: "P", team: 2, start_location_x: 100, start_location_y: 100, apm: 157, eapm: 149, cmd_count: 2156, effective_cmd_count: 2046, redundancy: 5 },
+            { name: "3x3_pil", race: "Z", team: 2, start_location_x: 4000, start_location_y: 900, apm: 131, eapm: 118, cmd_count: 1800, effective_cmd_count: 1621, redundancy: 10 },
+            { name: "3x3_syntax", race: "P", team: 2, start_location_x: 100, start_location_y: 500, apm: 141, eapm: 121, cmd_count: 1937, effective_cmd_count: 1662, redundancy: 14 }
+          ]
+        }
+      }
+    ]
+  };
+}
+
+function createDefaultFetchMock() {
+  return vi.fn(async (input: RequestInfo | URL) => {
+    const url = typeof input === "string" ? input : input.toString();
+
+    if (url.includes("/api/v1/games/48/detail")) {
+      return new Response(
+        JSON.stringify({
+          analysis_status: {
+            status: "done",
+            user_message: "Winner side held map control and converted its production edge."
+          }
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    if (url.includes("/api/v1/games/48")) {
+      return new Response(
+        JSON.stringify({
+          reliability: "stable",
+          reliability_m_of_n: "5/6",
+          game: { id: 48, edges: { replay_files: [{ id: 1, filename: "game-48.rep" }] } }
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    if (url.includes("/api/v1/games/47/detail")) {
+      return new Response(
+        JSON.stringify({
+          analysis_status: {
+            status: "done",
+            user_message: "Terran macro timing decided the mid game."
+          }
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    if (url.includes("/api/v1/games/47")) {
+      return new Response(
+        JSON.stringify({
+          reliability: "stable",
+          reliability_m_of_n: "6/6",
+          game: { id: 47, edges: { replay_files: [{ id: 2, filename: "game-47.rep" }] } }
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    if (url.includes("/api/v1/games?")) {
+      return new Response(JSON.stringify(createGamesListResponse()), {
+        status: 200,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+
+    if (url.includes("/api/v1/users/suggest")) {
+      return new Response(JSON.stringify({ users: [] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+
+    return new Response(JSON.stringify({ error: "not found" }), {
+      status: 404,
+      headers: { "Content-Type": "application/json" }
+    });
+  });
+}
+
 describe("dashboard page", () => {
   beforeEach(() => {
     previewReplayUploadMock.mockReset();
@@ -25,13 +142,14 @@ describe("dashboard page", () => {
     globalThis.__TEST_ROUTER__.refresh.mockReset();
     document.cookie = "current_user=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
     window.localStorage.clear();
+    vi.stubGlobal("fetch", createDefaultFetchMock());
   });
 
   it("starts with the legacy no-preview terminal state", () => {
     render(<DashboardPage model={DASHBOARD_FIXTURE} />);
 
     expect(screen.getByText("NO_PREVIEW")).toBeInTheDocument();
-    expect(screen.getByText("READY")).toBeInTheDocument();
+    expect(within(screen.getByTestId("dashboard-upload-result")).getByText("READY")).toBeInTheDocument();
   });
 
   it("restores the legacy current user from localStorage on mount", async () => {
@@ -94,7 +212,7 @@ describe("dashboard page", () => {
       backgroundColor: "rgba(255,255,255,0.02)"
     });
     expect(container.querySelector('label[for="replay-file"] svg')).toHaveClass("text-cyan-400");
-    expect(screen.getByText(/^READY$/i).parentElement).toHaveStyle({
+    expect(within(screen.getByTestId("dashboard-upload-result")).getByText(/^READY$/i).parentElement).toHaveStyle({
       backgroundColor: "#0a1428",
       border: "1px solid rgba(255,255,255,0.05)"
     });
@@ -136,24 +254,95 @@ describe("dashboard page", () => {
     });
   });
 
-  it("matches the legacy dashboard section order and hidden inline detail shell", () => {
+  it("orders the upload module blocks like the legacy dashboard flow", () => {
     const { container } = render(<DashboardPage model={DASHBOARD_FIXTURE} />);
 
-    const uploadSection = screen.getByText("Replay_Upload");
-    const querySection = screen.getByText("Player_Stats_Query");
-    const recentGamesSection = screen.getByText("Recent_Games");
-    const inlineDetailSection = container.querySelector<HTMLElement>('[data-testid="dashboard-inline-game-detail"]');
-    const systemLogsSection = screen.getByText("System_Logs");
+    const uploadLabel = screen.getByText("Replay_Upload");
+    const fileInputLabel = container.querySelector('label[for="replay-file"]');
+    const analyzeButton = screen.getByRole("button", { name: /analyze_replay/i });
+    const selectedUserBlock = container.querySelector('[data-testid="dashboard-upload-user-block"]');
+    const uploadButton = screen.getByRole("button", { name: /upload_with_selected_user/i });
+    const previewSummary = container.querySelector('[data-testid="dashboard-preview-summary"]');
+    const uploadResult = container.querySelector('[data-testid="dashboard-upload-result"]');
 
-    expect(uploadSection.compareDocumentPosition(querySection) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(querySection.compareDocumentPosition(recentGamesSection) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(inlineDetailSection).not.toBeNull();
-    const inlineDetail = inlineDetailSection as HTMLElement;
-    expect(recentGamesSection.compareDocumentPosition(inlineDetail) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(inlineDetailSection).toHaveAttribute("hidden");
-    expect(inlineDetailSection?.textContent).toContain("Selected_Game");
-    expect(inlineDetailSection?.textContent).toContain("Game_Detail_Visualization");
-    expect(inlineDetail.compareDocumentPosition(systemLogsSection) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(uploadLabel.compareDocumentPosition(fileInputLabel as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect((fileInputLabel as Node).compareDocumentPosition(analyzeButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(analyzeButton.compareDocumentPosition(selectedUserBlock as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect((selectedUserBlock as Node).compareDocumentPosition(uploadButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(uploadButton.compareDocumentPosition(previewSummary as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect((previewSummary as Node).compareDocumentPosition(uploadResult as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("shows login-required recent games state when no current user is set", async () => {
+    render(
+      <DashboardPage
+        model={{
+          ...DASHBOARD_FIXTURE,
+          currentUser: "",
+          playerStats: {
+            ...DASHBOARD_FIXTURE.playerStats,
+            name: ""
+          }
+        }}
+      />
+    );
+
+    expect(
+      within(screen.getByRole("region", { name: /Recent Games Workspace/i })).getByText(
+        /LOGIN_REQUIRED: SIMPLE_LOGIN 후 Recent_Games 조회 가능/i
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("dashboard-inline-game-detail-row")).not.toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-system-logs")).toHaveTextContent("LOGIN_REQUIRED");
+  });
+
+  it("loads recent games, refreshes them, and appends system logs", async () => {
+    const fetchMock = createDefaultFetchMock();
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<DashboardPage model={DASHBOARD_FIXTURE} />);
+
+    expect(screen.getByText(/#48/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /refresh_games/i }));
+
+    await waitFor(() => {
+      expect(fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/v1/games?")).length).toBeGreaterThanOrEqual(1);
+    });
+    expect(screen.getByTestId("dashboard-system-logs")).toHaveTextContent("LOAD_GAMES_OK");
+    expect(screen.getByTestId("dashboard-system-logs")).toHaveTextContent("REFRESH_GAMES");
+  });
+
+  it("renders inline selected-game detail directly below the clicked recent game row and collapses on re-click", async () => {
+    const fetchMock = createDefaultFetchMock();
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<DashboardPage model={DASHBOARD_FIXTURE} />);
+
+    const gameRow = await screen.findByTestId("dashboard-game-row-48");
+    const nextGameRow = await screen.findByTestId("dashboard-game-row-47");
+
+    fireEvent.click(within(gameRow).getByRole("button", { name: /open recent game 48/i }));
+
+    const inlineRow = await screen.findByTestId("dashboard-inline-game-detail-row");
+    expect(gameRow.compareDocumentPosition(inlineRow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(inlineRow.compareDocumentPosition(nextGameRow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(inlineRow).getByText("Selected_Game")).toBeInTheDocument();
+    expect(within(inlineRow).getByText("Game_Detail_Visualization")).toBeInTheDocument();
+    expect(within(inlineRow).getByText(/#48 OP3060 CLAN 6슈빨무/i)).toBeInTheDocument();
+    expect(within(inlineRow).getByRole("link", { name: /open_in_analyzer/i })).toHaveAttribute(
+      "href",
+      "/analyzer?currentUser=3x3_GG&gameId=48"
+    );
+    expect(within(inlineRow).getByText(/Winner side held map control/i)).toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-system-logs")).toHaveTextContent("SELECT_GAME: #48");
+
+    fireEvent.click(within(gameRow).getByRole("button", { name: /open recent game 48/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("dashboard-inline-game-detail-row")).not.toBeInTheDocument();
+    });
+    expect(screen.getByTestId("dashboard-system-logs")).toHaveTextContent("COLLAPSE_GAME: #48");
   });
 
   it("renders extracted dashboard stat cards with the same visual contract", () => {
@@ -213,7 +402,7 @@ describe("dashboard page", () => {
       fireEvent.click(screen.getByRole("button", { name: /analyze_replay/i }));
     });
 
-    expect(await screen.findByText(/ANALYZE_OK: 1\/1 files/i)).toBeInTheDocument();
+    expect((await screen.findAllByText(/ANALYZE_OK: 1\/1 files/i)).length).toBeGreaterThan(0);
     expect(screen.getByText(/Analysis Completed/i)).toBeInTheDocument();
     expect(screen.getAllByText(/common players: 3x3_GG/i)).not.toHaveLength(0);
     expect(screen.getAllByText("ladder.rep")).not.toHaveLength(0);
@@ -320,7 +509,7 @@ describe("dashboard page", () => {
       fireEvent.click(screen.getByRole("button", { name: /analyze_replay/i }));
     });
 
-    expect(await screen.findByText(/ANALYZE_FAIL: broken preview/i)).toBeInTheDocument();
+    expect((await screen.findAllByText(/ANALYZE_FAIL: broken preview/i)).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/common players: 3x3_GG/i)).not.toHaveLength(0);
     expect(screen.getByText(/OK first\.rep - map: Circuit Breaker/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /upload_with_selected_user/i })).toBeEnabled();
@@ -334,7 +523,7 @@ describe("dashboard page", () => {
 
     expect(analyzeButton).toBeDisabled();
     expect(analyzeButton).toHaveClass("transition-all", "duration-200");
-    expect(screen.getByText(/^READY$/i)).toBeInTheDocument();
+    expect(within(screen.getByTestId("dashboard-upload-result")).getByText(/^READY$/i)).toBeInTheDocument();
 
     previewReplayUploadMock.mockResolvedValue({
       success_count: 1,

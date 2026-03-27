@@ -1,22 +1,29 @@
 "use client";
 
 import Link from "next/link";
-import { type ChangeEvent, useEffect, useRef, useState } from "react";
+import { Fragment, type ChangeEvent, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { CheckCircle, ChevronDown, LoaderCircle, Upload } from "lucide-react";
 
 import { ErrorState } from "@/components/shared/error-state";
 import { LoadingState } from "@/components/shared/loading-state";
 import { RaceBadge } from "@/components/shared/race-badge";
+import { ResultBadge, StatusBadge } from "@/components/shared/status-badge";
 import { CURRENT_USER_CHANGE_EVENT } from "@/components/shell/current-user-chip";
 import { DashboardStatCard } from "@/components/dashboard/dashboard-stat-card";
 import { DashboardStatsTable } from "@/components/dashboard/dashboard-stats-table";
+import { createVaultPageModel } from "@/lib/adapters/vault";
 import { previewReplayUpload, submitReplayUpload } from "@/lib/api/actions";
+import { VAULT_GAMES_FIXTURE } from "@/lib/fixtures/vault";
 import { CYAN_PANEL_STYLE, INNER_PANEL_STRONG_STYLE, INNER_PANEL_STYLE } from "@/lib/constants/ui-styles";
 import { buildApiUrl } from "@/lib/api/url";
 import { buildCurrentUserSessionDocumentCookie } from "@/lib/utils/current-user-session";
+import { getStartGridBoard } from "@/lib/utils/start-grid-board";
 import { formatStartTime } from "@/lib/utils/format";
 import type {
+  ApiGameDetailResponse,
+  ApiGamesListResponse,
+  ApiGetGameResponse,
   ApiPlayerRecord,
   ApiPlayerStatsResponse,
   ApiReplayPreviewResponse,
@@ -30,8 +37,27 @@ import type {
   DashboardPreviewSummary,
   DashboardUploadSummary
 } from "@/types/dashboard";
+import type { VaultGame, VaultPlayer } from "@/types/vault";
 
 const SECTION_LABEL = "text-[10px] font-mono font-semibold tracking-widest text-slate-500 uppercase mb-3";
+const RECENT_GAMES_LOGIN_REQUIRED = "LOGIN_REQUIRED: SIMPLE_LOGIN 후 Recent_Games 조회 가능";
+const VIZ_TABS = [
+  { id: "apm", label: "APM" },
+  { id: "unitprod", label: "Unit_Production" },
+  { id: "spend", label: "Resource_Spend" },
+  { id: "production", label: "Production" },
+  { id: "tech", label: "Tech" },
+  { id: "battle", label: "Battle" },
+  { id: "actions", label: "Actions" }
+] as const;
+
+type DashboardVizTab = (typeof VIZ_TABS)[number]["id"];
+
+interface DashboardGameDetailModel {
+  analysisMessage: string | null;
+  reliabilityLabel: string;
+  replayFileCount: number;
+}
 
 function toNumber(value: unknown, fallback = 0): number {
   const candidate = Number(value);
@@ -160,6 +186,102 @@ function formatPreviewTerminal(summary: DashboardPreviewSummary | null, statusMe
   ].join("\n");
 }
 
+function clonePlayerForCurrentUser(player: VaultPlayer, currentUser: string): VaultPlayer {
+  return {
+    ...player,
+    isCurrentUser: player.name.trim().toLowerCase() === currentUser.trim().toLowerCase()
+  };
+}
+
+function buildFallbackRecentGames(currentUser: string): VaultGame[] {
+  const normalized = currentUser.trim().toLowerCase();
+  if (!normalized) {
+    return [];
+  }
+
+  return VAULT_GAMES_FIXTURE.map((game) => ({
+    ...game,
+    winnerTeam: game.winnerTeam.map((player) => clonePlayerForCurrentUser(player, currentUser)),
+    loserTeam: game.loserTeam.map((player) => clonePlayerForCurrentUser(player, currentUser))
+  })).filter((game) => {
+    return [...game.winnerTeam, ...game.loserTeam].some((player) => player.name.trim().toLowerCase() === normalized);
+  });
+}
+
+function buildGameDetailModel(gameResponse: ApiGetGameResponse, detailResponse: ApiGameDetailResponse): DashboardGameDetailModel {
+  return {
+    analysisMessage: detailResponse.analysis_status?.user_message?.trim() || null,
+    reliabilityLabel: [
+      gameResponse.reliability_m_of_n?.trim(),
+      gameResponse.reliability?.trim()
+    ]
+      .filter(Boolean)
+      .join(" | ") || "UNAVAILABLE",
+    replayFileCount: gameResponse.game?.edges?.replay_files?.length ?? 0
+  };
+}
+
+function getRecentGameTeams(game: VaultGame) {
+  const currentUserWinner = game.winnerTeam.some((player) => player.isCurrentUser);
+  const currentUserLoser = game.loserTeam.some((player) => player.isCurrentUser);
+
+  if (currentUserWinner) {
+    return {
+      ourTeam: game.winnerTeam,
+      enemyTeam: game.loserTeam,
+      ourResult: "WINNER" as const,
+      enemyResult: "LOSER" as const
+    };
+  }
+
+  if (currentUserLoser) {
+    return {
+      ourTeam: game.loserTeam,
+      enemyTeam: game.winnerTeam,
+      ourResult: "LOSER" as const,
+      enemyResult: "WINNER" as const
+    };
+  }
+
+  return {
+    ourTeam: game.winnerTeam,
+    enemyTeam: game.loserTeam,
+    ourResult: "WINNER" as const,
+    enemyResult: "LOSER" as const
+  };
+}
+
+function formatRaceComposition(team: VaultPlayer[]): string {
+  return team.map((player) => player.race).join("");
+}
+
+function getVizPanelSummary(game: VaultGame, detail: DashboardGameDetailModel | null, activeVizTab: DashboardVizTab): string {
+  const allPlayers = [...game.winnerTeam, ...game.loserTeam];
+  const topApmPlayer = allPlayers.slice().sort((left, right) => right.apm - left.apm)[0];
+  const topProductionPlayer = allPlayers.slice().sort((left, right) => right.production - left.production)[0];
+  const totalWinnerApm = game.winnerTeam.reduce((sum, player) => sum + player.apm, 0);
+  const totalLoserApm = game.loserTeam.reduce((sum, player) => sum + player.apm, 0);
+
+  switch (activeVizTab) {
+    case "apm":
+      return `Top APM: ${topApmPlayer?.name ?? "-"} (${topApmPlayer?.apm ?? 0})`;
+    case "unitprod":
+      return `Production leader: ${topProductionPlayer?.name ?? "-"} (${topProductionPlayer?.production ?? 0})`;
+    case "spend":
+      return `Team pressure: WIN ${totalWinnerApm} / LOSS ${totalLoserApm}`;
+    case "production":
+      return `Replay files: ${detail?.replayFileCount ?? 0}`;
+    case "tech":
+      return `Reliability: ${detail?.reliabilityLabel ?? "UNAVAILABLE"}`;
+    case "battle":
+      return detail?.analysisMessage || game.matchStory;
+    case "actions":
+      return `Analyzer: ${game.analyzerStatus} | Key: ${game.keyPlayer ?? "-"}`;
+    default:
+      return game.matchStory;
+  }
+}
+
 function extractUploadedGame(result: ApiReplayUploadResponse): { id: number | null; mapName: string | null } {
   if (result.game?.id) {
     return {
@@ -240,9 +362,19 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
     [...new Set([model.playerStats.name, ...model.uploadCandidates])].filter(Boolean)
   );
   const [playerStats, setPlayerStats] = useState(model.playerStats);
-  const [selectedGameId] = useState<number | null>(null);
+  const [recentGames, setRecentGames] = useState<VaultGame[]>(() =>
+    model.currentUser.trim() ? buildFallbackRecentGames(model.currentUser) : []
+  );
+  const [gamesState, setGamesState] = useState<DashboardActionStatus>(model.currentUser.trim() ? "success" : "idle");
+  const [gamesError, setGamesError] = useState<string | null>(model.currentUser.trim() ? null : RECENT_GAMES_LOGIN_REQUIRED);
+  const [selectedGameId, setSelectedGameId] = useState<number | null>(null);
+  const [gameDetailById, setGameDetailById] = useState<Record<number, DashboardGameDetailModel>>({});
+  const [gameDetailStateById, setGameDetailStateById] = useState<Record<number, DashboardActionStatus>>({});
+  const [activeVizTab, setActiveVizTab] = useState<DashboardVizTab>("apm");
+  const [systemLogs, setSystemLogs] = useState<string[]>(model.currentUser.trim() ? ["READY"] : ["READY", RECENT_GAMES_LOGIN_REQUIRED]);
   const suggestionTimerRef = useRef<number | null>(null);
   const suggestionRequestRef = useRef(0);
+  const hasMountedRecentGamesRef = useRef(false);
 
   const selectedFile = selectedFiles[0] ?? null;
   const record = `${playerStats.wins}-${playerStats.losses}-${playerStats.draws}`;
@@ -250,6 +382,49 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
     ? previewSummary.commonPlayers
     : [...new Set([selectedPlayer, ...model.uploadCandidates].filter(Boolean))];
   const uploadReady = pendingFiles.length > 0;
+  const selectedGame = selectedGameId != null ? recentGames.find((game) => game.id === selectedGameId) ?? null : null;
+  const selectedGameDetail = selectedGameId != null ? gameDetailById[selectedGameId] ?? null : null;
+  const selectedGameDetailState = selectedGameId != null ? gameDetailStateById[selectedGameId] ?? "idle" : "idle";
+  const selectedGameBoard = selectedGame ? getStartGridBoard(selectedGame) : null;
+
+  function appendSystemLog(entry: string) {
+    setSystemLogs((previous) => [...previous, entry].slice(-24));
+  }
+
+  async function loadRecentGames(nextUser: string, trigger: string) {
+    const normalized = nextUser.trim();
+    if (!normalized) {
+      setRecentGames([]);
+      setGamesState("idle");
+      setGamesError(RECENT_GAMES_LOGIN_REQUIRED);
+      setSelectedGameId(null);
+      appendSystemLog(RECENT_GAMES_LOGIN_REQUIRED);
+      return;
+    }
+
+    setGamesState("submitting");
+    setGamesError(null);
+    appendSystemLog(`${trigger}: ${normalized}`);
+
+    try {
+      const response = await fetchBrowserApiJson<ApiGamesListResponse>(
+        `/api/v1/games?limit=12&offset=0&user_name=${encodeURIComponent(normalized)}`
+      );
+      const games = createVaultPageModel({ currentUser: normalized, gamesResponse: response }).games;
+      setRecentGames(games);
+      setGamesState("success");
+      setGamesError(null);
+      setSelectedGameId((current) => (current != null && !games.some((game) => game.id === current) ? null : current));
+      appendSystemLog(`LOAD_GAMES_OK: ${games.length} for ${normalized}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "failed to load recent games";
+      setRecentGames([]);
+      setGamesState("error");
+      setGamesError(`LOAD_GAMES_FAIL: ${message}`);
+      setSelectedGameId(null);
+      appendSystemLog(`LOAD_GAMES_FAIL: ${message}`);
+    }
+  }
 
   function persistCurrentUser(nextUser: string, options?: { refresh?: boolean }) {
     const normalized = nextUser.trim();
@@ -290,6 +465,65 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
     persistCurrentUser(restoredUser, { refresh: true });
   }, [currentUser]);
 
+  useEffect(() => {
+    if (!hasMountedRecentGamesRef.current) {
+      hasMountedRecentGamesRef.current = true;
+      return;
+    }
+
+    if (!currentUser.trim()) {
+      setRecentGames([]);
+      setGamesState("idle");
+      setGamesError(RECENT_GAMES_LOGIN_REQUIRED);
+      setSelectedGameId(null);
+      setSystemLogs((previous) =>
+        previous.includes(RECENT_GAMES_LOGIN_REQUIRED) ? previous : [...previous, RECENT_GAMES_LOGIN_REQUIRED].slice(-24)
+      );
+      return;
+    }
+
+    setRecentGames(buildFallbackRecentGames(currentUser));
+    setSelectedGameId(null);
+    void loadRecentGames(currentUser, "LOAD_GAMES");
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (selectedGameId == null || gameDetailById[selectedGameId]) {
+      return;
+    }
+
+    let cancelled = false;
+    setGameDetailStateById((previous) => ({ ...previous, [selectedGameId]: "submitting" }));
+    appendSystemLog(`FETCHING_GAME: #${selectedGameId}`);
+
+    void Promise.all([
+      fetchBrowserApiJson<ApiGetGameResponse>(`/api/v1/games/${selectedGameId}`),
+      fetchBrowserApiJson<ApiGameDetailResponse>(`/api/v1/games/${selectedGameId}/detail`)
+    ])
+      .then(([gameResponse, detailResponse]) => {
+        if (cancelled) {
+          return;
+        }
+        setGameDetailById((previous) => ({
+          ...previous,
+          [selectedGameId]: buildGameDetailModel(gameResponse, detailResponse)
+        }));
+        setGameDetailStateById((previous) => ({ ...previous, [selectedGameId]: "success" }));
+        appendSystemLog(`FETCH_GAME_OK: #${selectedGameId}`);
+      })
+      .catch((error) => {
+        if (cancelled) {
+          return;
+        }
+        setGameDetailStateById((previous) => ({ ...previous, [selectedGameId]: "error" }));
+        appendSystemLog(`FETCH_GAME_FAIL: #${selectedGameId} - ${error instanceof Error ? error.message : "unknown error"}`);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedGameId, gameDetailById]);
+
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const nextFiles = Array.from(event.target.files ?? []);
     setSelectedFiles(nextFiles);
@@ -298,6 +532,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
   function handlePlayerSelection(nextPlayer: string) {
     setSelectedPlayer(nextPlayer);
     if (nextPlayer.trim()) {
+      appendSystemLog(`SELECT_USER: ${nextPlayer}`);
       persistCurrentUser(nextPlayer);
     }
   }
@@ -312,6 +547,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
     setUploadErrorMessage(null);
     setUploadSummary(null);
     setUploadStatusMessage(`ANALYZING ${selectedFiles.length} FILE(S)...`);
+    appendSystemLog(`ANALYZE_REPLAY: ${selectedFiles.length} file(s)`);
 
     try {
       const result = (await previewReplayUpload(selectedFiles, { fetchImpl: fetch })) as ApiReplayPreviewResponse;
@@ -321,6 +557,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
       setPendingFiles(selectedFiles);
       setPendingCommonPlayers(summary.commonPlayers);
       setUploadStatusMessage(`ANALYZE_OK: ${summary.successCount}/${summary.totalFiles} files`);
+      appendSystemLog(`ANALYZE_OK: ${summary.successCount}/${summary.totalFiles} files`);
 
       const normalizedCurrentUser = currentUser.trim().toLowerCase();
       const matchedCurrentUser = normalizedCurrentUser
@@ -340,6 +577,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
       const message = error instanceof Error ? error.message : "preview failed";
       setPreviewState("error");
       setUploadStatusMessage(`ANALYZE_FAIL: ${message}`);
+      appendSystemLog(`ANALYZE_FAIL: ${message}`);
     }
   }
 
@@ -350,6 +588,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
       setUploadState("error");
       setUploadErrorMessage("select user first (simple login)");
       setUploadStatusMessage("UPLOAD_FAIL: select user first (simple login)");
+      appendSystemLog("UPLOAD_FAIL: select user first (simple login)");
       return;
     }
 
@@ -357,6 +596,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
       setUploadState("error");
       setUploadErrorMessage("analyze replay first");
       setUploadStatusMessage("UPLOAD_FAIL: analyze replay first");
+      appendSystemLog("UPLOAD_FAIL: analyze replay first");
       return;
     }
 
@@ -364,6 +604,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
       setUploadState("error");
       setUploadErrorMessage("no common participant across analyzed files");
       setUploadStatusMessage("UPLOAD_FAIL: no common participant across analyzed files");
+      appendSystemLog("UPLOAD_FAIL: no common participant across analyzed files");
       return;
     }
 
@@ -375,6 +616,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
       setUploadState("error");
       setUploadErrorMessage(`'${normalizedCurrentUser}' is not a common participant in current analyzed files`);
       setUploadStatusMessage(`UPLOAD_FAIL: '${normalizedCurrentUser}' is not a common participant in current analyzed files`);
+      appendSystemLog(`UPLOAD_FAIL: '${normalizedCurrentUser}' is not a common participant in current analyzed files`);
       return;
     }
 
@@ -382,19 +624,27 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
     setUploadErrorMessage(null);
     setUploadSummary(null);
     setUploadStatusMessage(`UPLOADING ${pendingFiles.length} FILE(S) AS ${normalizedCurrentUser}...`);
+    appendSystemLog(`UPLOAD_START: ${normalizedCurrentUser}`);
 
     try {
       const result = (await submitReplayUpload(pendingFiles, normalizedCurrentUser, { fetchImpl: fetch })) as ApiReplayUploadResponse;
-      setUploadSummary(createUploadSummary(result, normalizedCurrentUser));
+      const summary = createUploadSummary(result, normalizedCurrentUser);
+      setUploadSummary(summary);
       setUploadState("success");
       setUploadErrorMessage(null);
       setUploadStatusMessage("UPLOAD_DONE: check terminal log");
+      appendSystemLog("UPLOAD_DONE: check terminal log");
       persistCurrentUser(normalizedCurrentUser, { refresh: true });
+      if (summary.uploadedGameId != null) {
+        setSelectedGameId(summary.uploadedGameId);
+      }
+      void loadRecentGames(normalizedCurrentUser, "UPLOAD_REFRESH");
     } catch (error) {
       const message = error instanceof Error ? error.message : "upload failed";
       setUploadState("error");
       setUploadErrorMessage(message);
       setUploadStatusMessage(`UPLOAD_FAIL: ${message}`);
+      appendSystemLog(`UPLOAD_FAIL: ${message}`);
     }
   }
 
@@ -430,6 +680,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
           return;
         }
         setQuerySuggestions((previous) => (previous.includes(normalized) ? previous : [normalized, ...previous].slice(0, 5)));
+        appendSystemLog(`SUGGEST_FAIL: ${normalized}`);
       }
     }, 180);
   }
@@ -442,6 +693,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
 
     setQueryState("submitting");
     setQueryError(null);
+    appendSystemLog(`QUERY_PLAYER: ${normalized}`);
     persistCurrentUser(normalized, { refresh: true });
     setSelectedPlayer(normalized);
 
@@ -451,10 +703,28 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
       );
       setPlayerStats(createPlayerStatsModel(result, model.playerStats, normalized));
       setQueryState("success");
+      appendSystemLog(`QUERY_OK: ${normalized}`);
     } catch (error) {
       setQueryState("error");
       setQueryError(error instanceof Error ? error.message : "query failed");
+      appendSystemLog(`QUERY_FAIL: ${error instanceof Error ? error.message : "query failed"}`);
     }
+  }
+
+  function handleRefreshGames() {
+    void loadRecentGames(currentUser, "REFRESH_GAMES");
+  }
+
+  function handleToggleSelectedGame(gameId: number) {
+    if (selectedGameId === gameId) {
+      setSelectedGameId(null);
+      appendSystemLog(`COLLAPSE_GAME: #${gameId}`);
+      return;
+    }
+
+    setSelectedGameId(gameId);
+    setActiveVizTab("apm");
+    appendSystemLog(`SELECT_GAME: #${gameId}`);
   }
 
   return (
@@ -493,8 +763,23 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
               <input id="replay-file" type="file" accept=".rep" multiple className="hidden" onChange={handleFileChange} />
             </label>
 
-            <div className="mt-4">
-              <p className={SECTION_LABEL}>플레이어 선택 (Simple Login)</p>
+            <button
+              type="button"
+              onClick={handlePreview}
+              disabled={selectedFiles.length === 0 || previewState === "submitting"}
+              className="mt-4 w-full py-3 rounded-lg text-sm font-mono font-bold tracking-widest transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{
+                background: selectedFiles.length > 0 ? "linear-gradient(90deg, #0891b2, #1d4ed8)" : "#1e293b",
+                color: selectedFiles.length > 0 ? "#e0f7ff" : "#475569",
+                border: selectedFiles.length > 0 ? "1px solid rgba(34,211,238,0.3)" : "1px solid rgba(255,255,255,0.05)"
+              }}
+            >
+              {previewState === "submitting" ? "ANALYZING..." : "ANALYZE_REPLAY"}
+            </button>
+
+            <div className="mt-4" data-testid="dashboard-upload-user-block">
+              <p className={SECTION_LABEL}>Selected_User (Simple_Login)</p>
+              <p className="mb-3 text-[10px] font-mono text-slate-600">플레이어 선택 (Simple Login)</p>
               <div className="relative">
                 <select
                   value={selectedPlayer}
@@ -525,19 +810,20 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
 
             <button
               type="button"
-              onClick={handlePreview}
-              disabled={selectedFiles.length === 0 || previewState === "submitting"}
-              className="mt-4 w-full py-3 rounded-lg text-sm font-mono font-bold tracking-widest transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+              onClick={handleUpload}
+              disabled={!uploadReady || uploadState === "submitting"}
+              className="mt-3 w-full py-3 rounded-lg text-sm font-mono font-bold tracking-widest transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
               style={{
-                background: selectedFiles.length > 0 ? "linear-gradient(90deg, #0891b2, #1d4ed8)" : "#1e293b",
-                color: selectedFiles.length > 0 ? "#e0f7ff" : "#475569",
-                border: selectedFiles.length > 0 ? "1px solid rgba(34,211,238,0.3)" : "1px solid rgba(255,255,255,0.05)"
+                background: uploadReady ? "linear-gradient(90deg, #0f766e, #0e7490)" : "#1e293b",
+                color: uploadReady ? "#ecfeff" : "#475569",
+                border: uploadReady ? "1px solid rgba(45,212,191,0.3)" : "1px solid rgba(255,255,255,0.05)"
               }}
             >
-              {previewState === "submitting" ? "ANALYZING..." : "ANALYZE_REPLAY"}
+              {uploadState === "submitting" ? "UPLOADING..." : "UPLOAD_WITH_SELECTED_USER"}
             </button>
 
             <div
+              data-testid="dashboard-preview-summary"
               className="mt-3 rounded-lg px-4 py-3"
               style={INNER_PANEL_STYLE}
             >
@@ -590,65 +876,49 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
               )}
             </div>
 
-            <pre
-              className="mt-3 overflow-auto rounded-lg px-4 py-3 text-[11px] font-mono whitespace-pre-wrap"
-              style={INNER_PANEL_STYLE}
+            <div
+              data-testid="dashboard-upload-result"
+              className="mt-3 rounded-lg px-4 py-3"
+              style={
+                uploadSummary
+                  ? { backgroundColor: "#0a1428", border: "1px solid rgba(16,185,129,0.18)" }
+                  : INNER_PANEL_STYLE
+              }
             >
-              <span>{formatPreviewTerminal(previewSummary, uploadStatusMessage)}</span>
-            </pre>
-
-            {previewSummary ? (
-              <button
-                type="button"
-                onClick={handleUpload}
-                disabled={!uploadReady || uploadState === "submitting"}
-                className="mt-3 w-full py-3 rounded-lg text-sm font-mono font-bold tracking-widest transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{
-                  background: uploadReady ? "linear-gradient(90deg, #0f766e, #0e7490)" : "#1e293b",
-                  color: uploadReady ? "#ecfeff" : "#475569",
-                  border: uploadReady ? "1px solid rgba(45,212,191,0.3)" : "1px solid rgba(255,255,255,0.05)"
-                }}
-              >
-                {uploadState === "submitting" ? "UPLOADING..." : "UPLOAD_WITH_SELECTED_USER"}
-              </button>
-            ) : null}
-
-            {uploadState === "error" && uploadErrorMessage ? (
-              <p className="mt-2 text-[11px] font-mono text-red-300">{uploadErrorMessage}</p>
-            ) : null}
-
-            {uploadSummary ? (
-              <div
-                className="mt-3 rounded-lg px-4 py-3"
-                style={{ backgroundColor: "#0a1428", border: "1px solid rgba(16,185,129,0.18)" }}
-              >
-                <div className="flex items-center gap-2 text-xs font-mono text-emerald-300">
-                  <CheckCircle className="h-4 w-4 text-emerald-400" aria-hidden="true" />
-                  <span>UPLOAD COMPLETE</span>
-                </div>
-                <p className="mt-2 text-[11px] font-mono text-slate-400">
-                  {uploadSummary.uploadedGameId
-                    ? `game #${uploadSummary.uploadedGameId}${uploadSummary.uploadedMapName ? ` • ${uploadSummary.uploadedMapName}` : ""}`
-                    : "Batch upload completed"}
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Link
-                    href={uploadSummary.vaultHref}
-                    className="rounded border px-3 py-2 text-[11px] font-mono font-bold text-cyan-200"
-                    style={{ borderColor: "rgba(34,211,238,0.24)", backgroundColor: "rgba(34,211,238,0.06)" }}
-                  >
-                    Open Replay Vault
-                  </Link>
-                  <Link
-                    href={uploadSummary.analyzerHref}
-                    className="rounded border px-3 py-2 text-[11px] font-mono font-bold text-cyan-200"
-                    style={{ borderColor: "rgba(34,211,238,0.24)", backgroundColor: "rgba(34,211,238,0.06)" }}
-                  >
-                    Open Analyzer
-                  </Link>
-                </div>
-              </div>
-            ) : null}
+              {uploadSummary ? (
+                <>
+                  <div className="flex items-center gap-2 text-xs font-mono text-emerald-300">
+                    <CheckCircle className="h-4 w-4 text-emerald-400" aria-hidden="true" />
+                    <span>UPLOAD COMPLETE</span>
+                  </div>
+                  <p className="mt-2 text-[11px] font-mono text-slate-400">
+                    {uploadSummary.uploadedGameId
+                      ? `game #${uploadSummary.uploadedGameId}${uploadSummary.uploadedMapName ? ` • ${uploadSummary.uploadedMapName}` : ""}`
+                      : "Batch upload completed"}
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Link
+                      href={uploadSummary.vaultHref}
+                      className="rounded border px-3 py-2 text-[11px] font-mono font-bold text-cyan-200"
+                      style={{ borderColor: "rgba(34,211,238,0.24)", backgroundColor: "rgba(34,211,238,0.06)" }}
+                    >
+                      Open Replay Vault
+                    </Link>
+                    <Link
+                      href={uploadSummary.analyzerHref}
+                      className="rounded border px-3 py-2 text-[11px] font-mono font-bold text-cyan-200"
+                      style={{ borderColor: "rgba(34,211,238,0.24)", backgroundColor: "rgba(34,211,238,0.06)" }}
+                    >
+                      Open Analyzer
+                    </Link>
+                  </div>
+                </>
+              ) : (
+                <pre className="overflow-auto whitespace-pre-wrap text-[11px] font-mono text-slate-300">
+                  {formatPreviewTerminal(previewSummary, uploadErrorMessage ?? uploadStatusMessage)}
+                </pre>
+              )}
+            </div>
           </div>
 
           <div
@@ -792,6 +1062,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
             </div>
             <button
               type="button"
+              onClick={handleRefreshGames}
               className="rounded border px-3 py-1.5 text-[11px] font-mono font-bold uppercase tracking-widest text-slate-400"
               style={{ borderColor: "rgba(255,255,255,0.1)", backgroundColor: "rgba(255,255,255,0.02)" }}
             >
@@ -799,50 +1070,229 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
             </button>
           </div>
 
-          <div className="mt-4 rounded-lg px-4 py-3 text-xs font-mono text-slate-500" style={INNER_PANEL_STYLE}>
-            Recent games will appear here for the active current user.
-          </div>
-        </section>
-
-        <section
-          hidden={selectedGameId == null}
-          data-testid="dashboard-inline-game-detail"
-          className="rounded-xl p-5"
-          style={CYAN_PANEL_STYLE}
-          aria-label="Selected Game Detail Workspace"
-        >
-          <div className="grid gap-4 lg:grid-cols-2">
-            <div className="rounded-lg px-4 py-3" style={INNER_PANEL_STYLE}>
-              <div className="flex items-center justify-between gap-3">
-                <p className={SECTION_LABEL}>Selected_Game</p>
-                <button
-                  type="button"
-                  className="rounded border px-3 py-1.5 text-[11px] font-mono font-bold uppercase tracking-widest text-slate-400"
-                  style={{ borderColor: "rgba(255,255,255,0.1)", backgroundColor: "rgba(255,255,255,0.02)" }}
-                >
-                  Open_In_Analyzer
-                </button>
-              </div>
-              <div className="mt-3 rounded-lg px-4 py-3 text-xs font-mono text-slate-500" style={INNER_PANEL_STRONG_STYLE}>
-                Selected game detail is hidden until a row is chosen.
-              </div>
+          {!currentUser.trim() ? (
+            <div className="mt-4 rounded-lg px-4 py-3 text-xs font-mono text-yellow-300" style={INNER_PANEL_STYLE}>
+              {RECENT_GAMES_LOGIN_REQUIRED}
             </div>
-
-            <div className="rounded-lg px-4 py-3" style={INNER_PANEL_STYLE}>
-              <p className={SECTION_LABEL}>Game_Detail_Visualization</p>
-              <div className="mt-3 rounded-lg px-4 py-3 text-xs font-mono text-slate-500" style={INNER_PANEL_STRONG_STYLE}>
-                Visualization details render here after selection.
-              </div>
+          ) : recentGames.length === 0 ? (
+            <div className="mt-4 rounded-lg px-4 py-3 text-xs font-mono text-slate-400" style={INNER_PANEL_STYLE}>
+              {gamesState === "submitting" ? "LOADING_GAMES..." : gamesError ?? "NO_RECENT_GAMES"}
             </div>
-          </div>
+          ) : (
+            <div className="mt-4 overflow-hidden rounded-lg border" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+              <table className="w-full table-fixed text-xs font-mono text-slate-300">
+                <thead style={{ backgroundColor: "#081428" }}>
+                  <tr className="text-[10px] uppercase tracking-widest text-slate-600">
+                    <th className="px-3 py-2 text-left">#ID</th>
+                    <th className="px-3 py-2 text-left">MAP_NAME</th>
+                    <th className="px-3 py-2 text-left">MATCHUP</th>
+                    <th className="px-3 py-2 text-left">OUR_TEAM</th>
+                    <th className="px-3 py-2 text-left">ENEMY_TEAM</th>
+                    <th className="px-3 py-2 text-left">ANALYZER</th>
+                    <th className="px-3 py-2 text-left">PLAY_TIME</th>
+                    <th className="px-3 py-2 text-left">START_TIME</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentGames.map((game) => {
+                    const { ourTeam, enemyTeam, ourResult, enemyResult } = getRecentGameTeams(game);
+                    const isSelected = selectedGameId === game.id;
+
+                    return (
+                      <Fragment key={game.id}>
+                        <tr
+                          data-testid={`dashboard-game-row-${game.id}`}
+                          className="border-t"
+                          style={{
+                            borderColor: "rgba(255,255,255,0.05)",
+                            backgroundColor: isSelected ? "rgba(34,211,238,0.07)" : "transparent"
+                          }}
+                          onClick={() => handleToggleSelectedGame(game.id)}
+                        >
+                          <td className="px-3 py-3 align-top text-slate-500">
+                            <button type="button" className="text-left" aria-label={`Open recent game ${game.id}`}>
+                              #{game.id}
+                            </button>
+                          </td>
+                          <td className="px-3 py-3 align-top">{game.map}</td>
+                          <td className="px-3 py-3 align-top text-slate-400">{game.matchup}</td>
+                          <td className="px-3 py-3 align-top">
+                            <div className="flex flex-col gap-1">
+                              <ResultBadge result={ourResult} />
+                              {ourTeam.map((player) => (
+                                <div key={`${game.id}-our-${player.name}`} className="flex items-center gap-1 text-[11px]">
+                                  <RaceBadge race={player.race} />
+                                  <span className={player.isCurrentUser ? "text-cyan-300" : "text-slate-300"}>{player.name}</span>
+                                  {player.isCurrentUser ? <span className="text-[9px] text-cyan-500">YOU</span> : null}
+                                  <span className="ml-auto text-slate-600">A:{player.apm} E:{player.eapm}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="px-3 py-3 align-top">
+                            <div className="flex flex-col gap-1">
+                              <ResultBadge result={enemyResult} />
+                              {enemyTeam.map((player) => (
+                                <div key={`${game.id}-enemy-${player.name}`} className="flex items-center gap-1 text-[11px]">
+                                  <RaceBadge race={player.race} />
+                                  <span className="text-slate-300">{player.name}</span>
+                                  <span className="ml-auto text-slate-600">A:{player.apm} E:{player.eapm}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="px-3 py-3 align-top">
+                            <StatusBadge status={game.analyzerStatus} />
+                          </td>
+                          <td className="px-3 py-3 align-top text-slate-400">{game.playTime}</td>
+                          <td className="px-3 py-3 align-top text-slate-500">{game.startTime}</td>
+                        </tr>
+
+                        {isSelected && selectedGame ? (
+                          <tr data-testid="dashboard-inline-game-detail-row" className="border-t" style={{ borderColor: "rgba(34,211,238,0.12)" }}>
+                            <td colSpan={8} className="p-4">
+                              <div className="grid gap-4 lg:grid-cols-2">
+                                <div className="rounded-lg px-4 py-3" style={INNER_PANEL_STYLE}>
+                                  <div className="flex items-center justify-between gap-3">
+                                    <p className={SECTION_LABEL}>Selected_Game</p>
+                                    <Link
+                                      href={`/analyzer?currentUser=${encodeURIComponent(currentUser)}&gameId=${selectedGame.id}`}
+                                      className="rounded border px-3 py-1.5 text-[11px] font-mono font-bold text-slate-300"
+                                      style={{ borderColor: "rgba(255,255,255,0.1)", backgroundColor: "rgba(255,255,255,0.02)" }}
+                                    >
+                                      Open_In_Analyzer
+                                    </Link>
+                                  </div>
+                                  <div className="flex items-center justify-between gap-4 text-[11px] font-mono text-slate-400">
+                                    <span>{`#${selectedGame.id} ${selectedGame.map}`}</span>
+                                    <span>{selectedGame.startTime}</span>
+                                  </div>
+                                  <div className="mt-3 grid grid-cols-3 gap-3">
+                                    {Array.from({ length: 3 }, (_, rowIndex) => {
+                                      const leftEntry = selectedGameBoard?.leftColumn[rowIndex];
+                                      const rightEntry = selectedGameBoard?.rightColumn[rowIndex];
+
+                                      return (
+                                        <Fragment key={`board-row-${rowIndex}`}>
+                                          <div className="rounded-lg px-3 py-2" style={INNER_PANEL_STRONG_STYLE}>
+                                            {leftEntry ? (
+                                              <>
+                                                <div className="flex items-center justify-between gap-2">
+                                                  <div className="flex items-center gap-1.5">
+                                                    <RaceBadge race={leftEntry.player.race} />
+                                                    <span className="text-[11px] font-mono text-slate-200">{leftEntry.player.name}</span>
+                                                  </div>
+                                                  <ResultBadge result={leftEntry.result} />
+                                                </div>
+                                                <p className="mt-2 text-[10px] font-mono text-slate-400">
+                                                  APM {leftEntry.player.apm} / EAPM {leftEntry.player.eapm}
+                                                </p>
+                                                <p className="text-[10px] font-mono text-slate-500">
+                                                  CMD {leftEntry.player.cmd} / ECMD {leftEntry.player.ecmd}
+                                                </p>
+                                                <p className="text-[10px] font-mono text-slate-500">
+                                                  EFFECTIVE {leftEntry.player.effective.toFixed(1)}% / PROD {leftEntry.player.production}
+                                                </p>
+                                              </>
+                                            ) : null}
+                                          </div>
+                                          <div className="rounded-lg px-3 py-2 text-center" style={INNER_PANEL_STRONG_STYLE}>
+                                            {rowIndex === 1 ? (
+                                              <>
+                                                <p className="text-xs font-mono text-cyan-300">{selectedGame.matchup}</p>
+                                                <p className="mt-1 text-[10px] font-mono text-slate-500">
+                                                  {formatRaceComposition(selectedGame.winnerTeam)} vs {formatRaceComposition(selectedGame.loserTeam)}
+                                                </p>
+                                                <p className="mt-2 text-[10px] font-mono text-slate-400">PLAY TIME {selectedGame.playTime}</p>
+                                              </>
+                                            ) : null}
+                                          </div>
+                                          <div className="rounded-lg px-3 py-2" style={INNER_PANEL_STRONG_STYLE}>
+                                            {rightEntry ? (
+                                              <>
+                                                <div className="flex items-center justify-between gap-2">
+                                                  <div className="flex items-center gap-1.5">
+                                                    <RaceBadge race={rightEntry.player.race} />
+                                                    <span className="text-[11px] font-mono text-slate-200">{rightEntry.player.name}</span>
+                                                  </div>
+                                                  <ResultBadge result={rightEntry.result} />
+                                                </div>
+                                                <p className="mt-2 text-[10px] font-mono text-slate-400">
+                                                  APM {rightEntry.player.apm} / EAPM {rightEntry.player.eapm}
+                                                </p>
+                                                <p className="text-[10px] font-mono text-slate-500">
+                                                  CMD {rightEntry.player.cmd} / ECMD {rightEntry.player.ecmd}
+                                                </p>
+                                                <p className="text-[10px] font-mono text-slate-500">
+                                                  EFFECTIVE {rightEntry.player.effective.toFixed(1)}% / PROD {rightEntry.player.production}
+                                                </p>
+                                              </>
+                                            ) : null}
+                                          </div>
+                                        </Fragment>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+
+                                <div className="rounded-lg px-4 py-3" style={INNER_PANEL_STYLE}>
+                                  <div className="flex items-center justify-between gap-3">
+                                    <p className={SECTION_LABEL}>Game_Detail_Visualization</p>
+                                    <StatusBadge status={selectedGame.analyzerStatus} />
+                                  </div>
+                                  <div className="rounded-lg px-3 py-3 text-[11px] font-mono text-slate-300" style={INNER_PANEL_STRONG_STYLE}>
+                                    <p>
+                                      {selectedGameDetailState === "submitting"
+                                        ? "FETCHING_GAME..."
+                                        : selectedGameDetail?.analysisMessage || selectedGame.matchStory}
+                                    </p>
+                                    <p className="mt-2 text-slate-500">
+                                      {selectedGameDetail ? selectedGameDetail.reliabilityLabel : "DETAIL_PENDING"}
+                                    </p>
+                                  </div>
+                                  <div className="mt-3 flex flex-wrap gap-2">
+                                    {VIZ_TABS.map((tab) => (
+                                      <button
+                                        key={tab.id}
+                                        type="button"
+                                        onClick={() => setActiveVizTab(tab.id)}
+                                        className="rounded border px-2.5 py-1 text-[10px] font-mono font-bold uppercase tracking-widest"
+                                        style={{
+                                          borderColor: activeVizTab === tab.id ? "rgba(34,211,238,0.3)" : "rgba(255,255,255,0.08)",
+                                          backgroundColor: activeVizTab === tab.id ? "rgba(34,211,238,0.12)" : "rgba(255,255,255,0.02)",
+                                          color: activeVizTab === tab.id ? "#67e8f9" : "#94a3b8"
+                                        }}
+                                      >
+                                        {tab.label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                  <div className="mt-3 rounded-lg px-3 py-3 text-[11px] font-mono text-slate-300" style={INNER_PANEL_STRONG_STYLE}>
+                                    {getVizPanelSummary(selectedGame, selectedGameDetail, activeVizTab)}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : null}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
 
         <section className="rounded-xl p-5" style={CYAN_PANEL_STYLE} aria-label="System Logs Workspace">
           <p className={SECTION_LABEL}>System_Logs</p>
-          <div className="rounded-lg px-4 py-3 text-[11px] font-mono text-slate-400" style={INNER_PANEL_STYLE}>
-            <p>READY: dashboard shell mounted</p>
-            <p>READY: query and upload actions available</p>
-          </div>
+          <pre
+            data-testid="dashboard-system-logs"
+            className="overflow-auto rounded-lg px-4 py-3 text-[11px] font-mono whitespace-pre-wrap text-slate-400"
+            style={INNER_PANEL_STYLE}
+          >
+            {systemLogs.join("\n")}
+          </pre>
         </section>
       </div>
     </div>
