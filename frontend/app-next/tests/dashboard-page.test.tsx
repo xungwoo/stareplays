@@ -997,7 +997,7 @@ describe("dashboard page", () => {
     vi.useRealTimers();
   });
 
-  it("does not restore stale suggestions after the query input is cleared", async () => {
+  it("clears the datalist when the query input is emptied", async () => {
     vi.useFakeTimers();
     let resolvePending: ((value: Response) => void) | null = null;
 
@@ -1042,7 +1042,7 @@ describe("dashboard page", () => {
     });
 
     expect(screen.queryByRole("option", { name: "3x3_legacy" })).not.toBeInTheDocument();
-    expect(screen.getByRole("option", { name: DASHBOARD_FIXTURE.playerStats.name })).toBeInTheDocument();
+    expect(document.querySelectorAll("#dashboard-player-suggestions option")).toHaveLength(0);
     vi.useRealTimers();
   });
 });

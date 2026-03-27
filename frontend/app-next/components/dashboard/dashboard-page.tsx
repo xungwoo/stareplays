@@ -683,7 +683,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
 
     if (!normalized) {
       suggestionRequestRef.current += 1;
-      setQuerySuggestions([...new Set([model.playerStats.name, ...model.uploadCandidates])].filter(Boolean));
+      setQuerySuggestions([]);
       return;
     }
 
