@@ -62,6 +62,36 @@ describe("vault page", () => {
               },
               detail: {
                 apm_timeline: []
+              },
+              tech_tree: {
+                events: [
+                  { player_name: "neo_user", second: 180, kind: "tech", name: "Psionic Storm" },
+                  { player_name: "opponent", second: 240, kind: "upgrade", name: "Carapace" }
+                ],
+                summary: [
+                  { player_name: "neo_user", tech_count: 2, upgrade_count: 3, prereq_build_count: 1 },
+                  { player_name: "opponent", tech_count: 1, upgrade_count: 2, prereq_build_count: 0 }
+                ]
+              },
+              resource_spend: {
+                summaries: [
+                  { player_name: "neo_user", total_spend: 4200 },
+                  { player_name: "opponent", total_spend: 3100 }
+                ],
+                timelines: [
+                  { player_name: "neo_user", data_points: [{ second: 10, total: 250 }, { second: 20, total: 600 }, { second: 30, total: 1200 }] },
+                  { player_name: "opponent", data_points: [{ second: 10, total: 180 }, { second: 20, total: 350 }, { second: 30, total: 700 }] }
+                ]
+              },
+              unit_production: {
+                summaries: [
+                  { player_name: "neo_user", total: 24, worker: 10, army: 8, tech_unit: 6 },
+                  { player_name: "opponent", total: 18, worker: 9, army: 7, tech_unit: 2 }
+                ],
+                timelines: [
+                  { player_name: "neo_user", data_points: [{ second: 10, count: 4 }, { second: 20, count: 10 }, { second: 30, count: 16 }] },
+                  { player_name: "opponent", data_points: [{ second: 10, count: 3 }, { second: 20, count: 7 }, { second: 30, count: 11 }] }
+                ]
               }
             }),
             {
@@ -333,6 +363,14 @@ describe("vault page", () => {
                 neo_user: 120,
                 opponent: 90
               }
+            ],
+            techTreeSummaries: [
+              { playerName: "neo_user", techCount: 2, upgradeCount: 3, prereqBuildCount: 1 },
+              { playerName: "opponent", techCount: 1, upgradeCount: 2, prereqBuildCount: 0 }
+            ],
+            techTreeEvents: [
+              { playerName: "neo_user", second: 180, kind: "tech", name: "Psionic Storm" },
+              { playerName: "opponent", second: 240, kind: "upgrade", name: "Carapace" }
             ]
           }}
         />
@@ -352,10 +390,11 @@ describe("vault page", () => {
     await user.click(screen.getByRole("button", { name: /^Tech$/i }));
     const techTree = screen.getByTestId("vault-tech-tree");
     const techMarkers = screen.getByTestId("vault-tech-tree-markers");
-    await user.click(within(techTree).getByRole("button", { name: /neo_user TECH/i }));
+    await user.click(within(techTree).getByRole("button", { name: /^neo_user TECH 2$/i }));
     expect(screen.getByTestId("vault-tech-tree-focus")).toHaveTextContent("neo_user • TECH");
 
-    await user.click(within(techMarkers).getByRole("button", { name: /neo_user tech marker/i }));
+    await user.click(within(techMarkers).getByText(/Psionic Storm/i));
+    expect(within(techTree).getByRole("button", { name: /^neo_user TECH 2$/i })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByTestId("vault-tech-tree-focus")).toHaveTextContent("neo_user • TECH MARKER");
   });
 
@@ -722,7 +761,88 @@ describe("vault page", () => {
     expect(screen.queryByRole("button", { name: /^Action Mix$/i })).not.toBeInTheDocument();
   });
 
-  it("renders distinct legacy-like content for the non-APM visualization tabs", async () => {
+  it("renders distinct hydrated content for the non-APM visualization tabs", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+
+      if (url.endsWith("/api/v1/games/99")) {
+        return new Response(
+          JSON.stringify({
+            reliability: "42%",
+            reliability_m_of_n: "2/5",
+            game: {
+              id: 99,
+              edges: {
+                replay_files: [{ id: 1 }, { id: 2 }, { id: 3 }]
+              }
+            }
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" }
+          }
+        );
+      }
+
+      if (url.includes("/api/v1/games/99/detail")) {
+        return new Response(
+          JSON.stringify({
+            analysis_status: {
+              status: "ready",
+              user_message: "detail ready"
+            },
+            detail: {
+              apm_timeline: [
+                { player_name: "neo_user", data_points: [{ frame: 24, apm: 120 }, { frame: 48, apm: 160 }] },
+                { player_name: "opponent", data_points: [{ frame: 24, apm: 90 }, { frame: 48, apm: 110 }] }
+              ]
+            },
+            tech_tree: {
+              events: [
+                { player_name: "neo_user", second: 180, kind: "tech", name: "Psionic Storm" },
+                { player_name: "neo_user", second: 210, kind: "upgrade", name: "Singularity Charge" },
+                { player_name: "opponent", second: 240, kind: "tech", name: "Lurker Aspect" }
+              ],
+              summary: [
+                { player_name: "neo_user", tech_count: 2, upgrade_count: 3, prereq_build_count: 1 },
+                { player_name: "opponent", tech_count: 1, upgrade_count: 1, prereq_build_count: 0 }
+              ]
+            },
+            resource_spend: {
+              summaries: [
+                { player_name: "neo_user", total_spend: 4200 },
+                { player_name: "opponent", total_spend: 3100 }
+              ],
+              timelines: [
+                { player_name: "neo_user", data_points: [{ second: 10, total: 250 }, { second: 20, total: 600 }, { second: 30, total: 1200 }] },
+                { player_name: "opponent", data_points: [{ second: 10, total: 180 }, { second: 20, total: 350 }, { second: 30, total: 700 }] }
+              ]
+            },
+            unit_production: {
+              summaries: [
+                { player_name: "neo_user", total: 24, worker: 10, army: 8, tech_unit: 6 },
+                { player_name: "opponent", total: 18, worker: 9, army: 7, tech_unit: 2 }
+              ],
+              timelines: [
+                { player_name: "neo_user", data_points: [{ second: 10, count: 4 }, { second: 20, count: 10 }, { second: 30, count: 16 }] },
+                { player_name: "opponent", data_points: [{ second: 10, count: 3 }, { second: 20, count: 7 }, { second: 30, count: 11 }] }
+              ]
+            }
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" }
+          }
+        );
+      }
+
+      return new Response(JSON.stringify({ error: "not found" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" }
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
     const user = userEvent.setup();
 
     render(<VaultPageComponent model={createSingleGameModel()} />);
@@ -730,22 +850,35 @@ describe("vault page", () => {
     await waitFor(() => expect(screen.getByTestId("vault-detail-shell")).toBeInTheDocument());
 
     await user.click(screen.getByRole("button", { name: /^Unit_Production$/i }));
-    expect(screen.getByText(/^production profile$/i)).toBeInTheDocument();
+    const unitLedger = screen.getByTestId("vault-unit-production-ledger");
+    expect(unitLedger).toBeInTheDocument();
+    expect(unitLedger).toHaveTextContent(/PLAYER \/ TOTAL \/ WORKER \/ ARMY \/ TECH_UNIT/i);
+    expect(within(unitLedger).getByText("neo_user").parentElement).toHaveTextContent("TOTAL 24");
+    expect(unitLedger).toHaveTextContent("TECH_UNIT 6");
 
     await user.click(screen.getByRole("button", { name: /^Resource_Spend$/i }));
-    expect(screen.getByText(/^resource spend overview$/i)).toBeInTheDocument();
+    const spendLedger = screen.getByTestId("vault-resource-spend-ledger");
+    expect(spendLedger).toBeInTheDocument();
+    expect(spendLedger).toHaveTextContent("TOTAL_SPEND 4,200");
+    expect(within(spendLedger).getByText("neo_user").parentElement).toHaveTextContent("4,200");
 
     await user.click(screen.getByRole("button", { name: /^Production$/i }));
-    expect(screen.getByText(/build order events/i)).toBeInTheDocument();
+    const productionCadence = screen.getByTestId("vault-production-cadence");
+    expect(productionCadence).toBeInTheDocument();
+    expect(productionCadence).toHaveTextContent("OPENING 4");
+    expect(productionCadence).toHaveTextContent("LATE 16");
 
     await user.click(screen.getByRole("button", { name: /^Tech$/i }));
-    expect(screen.getByText(/tech tree/i)).toBeInTheDocument();
+    expect(screen.getByTestId("vault-tech-tree")).toBeInTheDocument();
+    expect(screen.getByTestId("vault-tech-tree-markers")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /^Battle$/i }));
-    expect(screen.getByText(/combat snapshot/i)).toBeInTheDocument();
+    expect(screen.getByTestId("vault-battle-pressure")).toBeInTheDocument();
+    expect(screen.getByText(/team_pressure/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /^Actions$/i }));
-    expect(screen.getByText(/^actions summary$/i)).toBeInTheDocument();
+    expect(screen.getByTestId("vault-actions-mix")).toBeInTheDocument();
+    expect(screen.getByTestId("vault-actions-mix")).toHaveTextContent("MACRO 70.5");
   });
 
   it("supports fullscreen toggle and Escape collapse behavior", async () => {
@@ -795,7 +928,7 @@ describe("vault page", () => {
 
     await user.click(screen.getByRole("button", { name: /^Tech$/i }));
     const techTree = screen.getByTestId("vault-tech-tree");
-    await user.click(within(techTree).getByRole("button", { name: /neo_user TECH/i }));
+    await user.click(within(techTree).getByRole("button", { name: /^neo_user TECH 2$/i }));
     expect(screen.getByTestId("vault-tech-tree-focus")).toHaveTextContent("neo_user • TECH");
 
     await user.click(getGameIdCell(100));
@@ -880,6 +1013,8 @@ describe("vault page", () => {
     await user.click(getGameIdCell(99));
 
     await waitFor(() => expect(screen.getByText(/^DETAIL_STATUS$/i).nextElementSibling).toHaveTextContent("DETAIL_FALLBACK"));
+    expect(screen.getByTestId("vault-detail-error")).toBeInTheDocument();
+    expect(screen.getByText(/unable to load selected game detail/i)).toBeInTheDocument();
     expect(screen.getByText(/^RELIABILITY$/i).nextElementSibling).toHaveTextContent("UNAVAILABLE");
     expect(screen.queryByText("1/4 • 25%")).not.toBeInTheDocument();
     expect(screen.queryByText("live detail")).not.toBeInTheDocument();
