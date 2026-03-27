@@ -920,6 +920,124 @@ describe("dashboard page", () => {
     expect(screen.getByRole("button", { name: /upload_with_selected_user/i })).toBeEnabled();
   });
 
+  it("ignores stale upload results when currentUser changes while upload is in flight", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+
+      if (url.includes("/api/v1/players/3x3_new/stats")) {
+        return new Response(
+          JSON.stringify({
+            player_name: "3x3_new",
+            total_games: 42,
+            wins: 31,
+            losses: 11,
+            draws: 0,
+            win_rate: 73.8,
+            average_apm: 244.4,
+            average_eapm: 188.2,
+            favorite_race: "T",
+            race_stats: {},
+            matchup_stats: {},
+            map_stats: {}
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" }
+          }
+        );
+      }
+
+      if (url.includes("/api/v1/games?")) {
+        return new Response(JSON.stringify({ total: 0, games: [] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+
+      if (url.includes("/api/v1/users/suggest")) {
+        return new Response(JSON.stringify({ users: [] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+
+      return new Response(JSON.stringify({ error: "not found" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" }
+      });
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    previewReplayUploadMock.mockResolvedValue({
+      success_count: 1,
+      total_files: 1,
+      preview_candidates: ["3x3_GG"],
+      results: [
+        {
+          ok: true,
+          filename: "first.rep",
+          preview: {
+            map_name: "Polypoid",
+            start_time: "2026-03-23T01:23:45Z",
+            player_count: 6,
+            parsed_players: ["3x3_GG"]
+          }
+        }
+      ]
+    });
+
+    const uploadDeferred = createDeferred<Awaited<ReturnType<typeof submitReplayUploadMock>>>();
+    submitReplayUploadMock.mockReturnValueOnce(uploadDeferred.promise as ReturnType<typeof submitReplayUploadMock>);
+
+    render(
+      <DashboardPage
+        model={{
+          ...DASHBOARD_FIXTURE,
+          currentUser: "",
+          playerStats: {
+            ...DASHBOARD_FIXTURE.playerStats,
+            name: ""
+          }
+        }}
+      />
+    );
+
+    fireEvent.change(document.querySelector("#replay-file") as HTMLInputElement, {
+      target: {
+        files: [new File(["mock replay"], "first.rep", { type: "application/octet-stream" })]
+      }
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /analyze_replay/i }));
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /upload_with_selected_user/i }));
+    });
+
+    fireEvent.change(screen.getByLabelText(/플레이어 이름 입력/i), { target: { value: "3x3_new" } });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^QUERY$/i }));
+    });
+
+    await act(async () => {
+      uploadDeferred.resolve({
+        game: {
+          id: 222,
+          map_name: "Polypoid"
+        }
+      });
+      await uploadDeferred.promise;
+    });
+
+    expect(screen.queryByText(/uploaded game: #222/i)).not.toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-upload-result")).toHaveTextContent("READY");
+    expect(globalThis.__TEST_ROUTER__.replace).toHaveBeenCalledWith("/?currentUser=3x3_new");
+  });
+
   it("keeps uploadResult as the short legacy status terminal and appends upload details under preview summary", async () => {
     render(<DashboardPage model={DASHBOARD_FIXTURE} />);
 

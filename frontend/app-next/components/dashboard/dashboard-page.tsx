@@ -458,8 +458,13 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
     const currentNormalized = currentUser.trim();
 
     if (normalized !== currentNormalized) {
+      uploadRequestRef.current += 1;
       setRecentGamesPage(1);
       setSelectedGameId(null);
+      setUploadState("idle");
+      setUploadErrorMessage(null);
+      setUploadSummary(null);
+      setUploadStatusMessage("READY");
     }
 
     setCurrentUser(normalized);
