@@ -114,6 +114,11 @@ export function VaultPage({ model }: { model: VaultPageModel }) {
         if (cancelled) {
           return;
         }
+        setActiveVizTab("apm");
+        setIsFullscreen(false);
+        setTechFocus(null);
+        setTechEventInfo(null);
+        setHighlightedPlayer(null);
         setDetailByGameId((previous) => {
           if (!(expandedId in previous)) {
             return previous;
@@ -216,13 +221,22 @@ export function VaultPage({ model }: { model: VaultPageModel }) {
                         >
                           FETCHING_GAME...
                         </div>
+                      ) : expandedDetailStatus === "error" ? (
+                        <div
+                          data-testid="vault-inline-detail-error"
+                          className="rounded-xl px-5 py-4 text-xs font-mono"
+                          style={{ backgroundColor: "#1a0f17", border: "1px solid rgba(239,68,68,0.25)", color: "#fecdd3" }}
+                        >
+                          <p className="text-[10px] uppercase tracking-widest text-red-200">DETAIL_ERROR</p>
+                          <p className="mt-2 font-semibold">Unable to load selected game detail.</p>
+                          <p className="mt-1 text-red-100/90">{detailErrorByGameId[expandedId] ?? "failed to load selected game detail"}</p>
+                        </div>
                       ) : (
                         <VaultDetailPanel
                           game={expandedGame}
                           currentUser={model.currentUser}
                           hydratedDetail={detailByGameId[expandedId]}
                           isHydrating={false}
-                          hydrateError={detailErrorByGameId[expandedId]}
                           activeVizTab={activeVizTab}
                           isFullscreen={isFullscreen}
                           techFocus={techFocus}
