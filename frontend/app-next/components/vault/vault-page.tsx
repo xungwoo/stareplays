@@ -114,6 +114,15 @@ export function VaultPage({ model }: { model: VaultPageModel }) {
         if (cancelled) {
           return;
         }
+        setDetailByGameId((previous) => {
+          if (!(expandedId in previous)) {
+            return previous;
+          }
+
+          const next = { ...previous };
+          delete next[expandedId];
+          return next;
+        });
         setDetailStatusByGameId((previous) => ({ ...previous, [expandedId]: "error" }));
         setDetailErrorByGameId((previous) => ({
           ...previous,
@@ -226,6 +235,7 @@ export function VaultPage({ model }: { model: VaultPageModel }) {
                             setHighlightedPlayer(focus?.playerName ?? null);
                             setTechEventInfo(focus ? `${focus.playerName} • ${focus.kind.toUpperCase()}` : null);
                           }}
+                          onTechEventInfoChange={setTechEventInfo}
                           onHighlightedPlayerChange={(playerName) => {
                             setHighlightedPlayer(playerName);
                           }}

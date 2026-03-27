@@ -30,12 +30,12 @@ export type VaultHydratedDetail = {
 const CARD_STYLE = CYAN_PANEL_STYLE;
 const VIZ_TABS = [
   { id: "apm", label: "APM" },
-  { id: "unitprod", label: "Unit Production" },
-  { id: "spend", label: "Resource Spend" },
+  { id: "unitprod", label: "Unit_Production" },
+  { id: "spend", label: "Resource_Spend" },
   { id: "production", label: "Production" },
-  { id: "tech", label: "Tech / Upgrade" },
-  { id: "battle", label: "Battle Intensity" },
-  { id: "actions", label: "Action Mix" }
+  { id: "tech", label: "Tech" },
+  { id: "battle", label: "Battle" },
+  { id: "actions", label: "Actions" }
 ] as const;
 
 export type VaultVizTab = (typeof VIZ_TABS)[number]["id"];
@@ -84,8 +84,25 @@ function getAllGamePlayers(game: VaultGame): VaultPlayer[] {
   return [...game.winnerTeam, ...game.loserTeam];
 }
 
+function getPlayerProductionProfile(player: VaultPlayer) {
+  const total = player.production;
+  const worker = Math.max(0, Math.round(player.production * 0.45));
+  const army = Math.max(0, Math.round(player.production * 0.35));
+  const tech = Math.max(0, total - worker - army);
+
+  return { total, worker, army, tech };
+}
+
 function buildAnalyzerHref(currentUser: string, gameId: number) {
   return `/analyzer?currentUser=${encodeURIComponent(currentUser)}&gameId=${gameId}`;
+}
+
+function buildTechEventLabel(playerName: string, kind: "tech" | "upgrade") {
+  return `${playerName} • ${kind.toUpperCase()}`;
+}
+
+function buildTechMarkerLabel(playerName: string, kind: "tech" | "upgrade") {
+  return `${playerName} • ${kind.toUpperCase()} MARKER`;
 }
 
 function PlayerBoardCard({
@@ -182,6 +199,7 @@ export function VaultDetailPanel({
   onActiveVizTabChange,
   onFullscreenToggle,
   onTechFocusChange,
+  onTechEventInfoChange,
   onHighlightedPlayerChange
 }: {
   game: VaultGame;
@@ -197,6 +215,7 @@ export function VaultDetailPanel({
   onActiveVizTabChange: (tab: VaultVizTab) => void;
   onFullscreenToggle: () => void;
   onTechFocusChange: (focus: VaultTechFocus) => void;
+  onTechEventInfoChange?: (value: string | null) => void;
   onHighlightedPlayerChange: (playerName: string | null) => void;
 }) {
   const apmData = useMemo(() => getApmData(game, hydratedDetail), [game, hydratedDetail]);
@@ -217,21 +236,23 @@ export function VaultDetailPanel({
     return kind === "tech" ? Math.max(1, Math.round(player.production / 50)) : Math.max(1, Math.round(player.redundancy / 3));
   }
 
-  function getTechEventLabel(playerName: string, kind: "tech" | "upgrade") {
-    return `${playerName} • ${kind.toUpperCase()} ${getTechMetric(playerName, kind)}`;
-  }
-
   function handleLegendPlayerClick(playerName: string) {
     onHighlightedPlayerChange(highlightedPlayer === playerName ? null : playerName);
 
     if (activeVizTab === "tech") {
       onTechFocusChange(null);
+      onTechEventInfoChange?.(null);
     }
   }
 
   function handleTechSummaryClick(playerName: string, kind: "tech" | "upgrade") {
     const nextFocus = techFocus?.playerName === playerName && techFocus.kind === kind ? null : { playerName, kind };
     onTechFocusChange(nextFocus);
+  }
+
+  function handleTechMarkerClick(playerName: string, kind: "tech" | "upgrade") {
+    onHighlightedPlayerChange(playerName);
+    onTechEventInfoChange?.(buildTechMarkerLabel(playerName, kind));
   }
 
   function renderChartArea() {
@@ -272,9 +293,147 @@ export function VaultDetailPanel({
       );
     }
 
+    if (activeVizTab === "unitprod") {
+      return (
+        <div className="rounded-lg p-3 text-xs font-mono text-slate-300" style={INNER_PANEL_STYLE}>
+          <p className="text-[10px] uppercase tracking-widest text-slate-500">production profile</p>
+          <p className="mt-1 text-slate-400">selected player production curve</p>
+          <div className="mt-3 space-y-1">
+            {allGamePlayers.map((player) => {
+              const profile = getPlayerProductionProfile(player);
+
+              return (
+                <div key={player.name} className="flex items-center justify-between gap-3">
+                  <span className="text-slate-300">{player.name}</span>
+                  <span className="text-slate-500">
+                    TOTAL {profile.total} / WORKER {profile.worker} / ARMY {profile.army} / TECH {profile.tech}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    if (activeVizTab === "spend") {
+      return (
+        <div className="rounded-lg p-3 text-xs font-mono text-slate-300" style={INNER_PANEL_STYLE}>
+          <p className="text-[10px] uppercase tracking-widest text-slate-500">resource spend overview</p>
+          <p className="mt-1 text-slate-400">cmd and ecmd pressure by player</p>
+          <div className="mt-3 space-y-1">
+            {allGamePlayers.map((player) => (
+              <div key={player.name} className="flex items-center justify-between gap-3">
+                <span className="text-slate-300">{player.name}</span>
+                <span className="text-slate-500">
+                  CMD {player.cmd.toLocaleString()} / ECMD {player.ecmd.toLocaleString()}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    if (activeVizTab === "production") {
+      return (
+        <div className="rounded-lg p-3 text-xs font-mono text-slate-300" style={INNER_PANEL_STYLE}>
+          <p className="text-[10px] uppercase tracking-widest text-slate-500">build order events</p>
+          <p className="mt-1 text-slate-400">time-bucketed production pacing</p>
+          <div className="mt-3 space-y-1">
+            {allGamePlayers.map((player) => (
+              <div key={player.name} className="flex items-center justify-between gap-3">
+                <span className="text-slate-300">{player.name}</span>
+                <span className="text-slate-500">
+                  {player.production} prod events over {game.playTime}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    if (activeVizTab === "tech") {
+      return (
+        <div data-testid="vault-tech-tree-markers" className="rounded-lg p-3 text-xs font-mono text-slate-300" style={INNER_PANEL_STYLE}>
+          <p className="text-[10px] uppercase tracking-widest text-slate-500">tech tree</p>
+          <p className="mt-1 text-slate-400">marker chart for tech and upgrade events</p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {allGamePlayers.map((player) => (
+              <div key={player.name} className="rounded border px-3 py-2" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-slate-200">{player.name}</span>
+                  <span className="text-slate-500">marker lane</span>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    aria-label={`${player.name} tech marker`}
+                    onClick={() => handleTechMarkerClick(player.name, "tech")}
+                    className="rounded border px-2 py-1 text-[10px] uppercase tracking-widest transition-all"
+                    style={{ borderColor: "rgba(255,255,255,0.12)", color: "#cbd5e1", backgroundColor: "rgba(255,255,255,0.04)" }}
+                  >
+                    TECH
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`${player.name} upgrade marker`}
+                    onClick={() => handleTechMarkerClick(player.name, "upgrade")}
+                    className="rounded border px-2 py-1 text-[10px] uppercase tracking-widest transition-all"
+                    style={{ borderColor: "rgba(255,255,255,0.12)", color: "#cbd5e1", backgroundColor: "rgba(255,255,255,0.04)" }}
+                  >
+                    UPG
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    if (activeVizTab === "battle") {
+      return (
+        <div className="rounded-lg p-3 text-xs font-mono text-slate-300" style={INNER_PANEL_STYLE}>
+          <p className="text-[10px] uppercase tracking-widest text-slate-500">combat snapshot</p>
+          <p className="mt-1 text-slate-400">smoothing team pressure by player</p>
+          <div className="mt-3 space-y-1">
+            {allGamePlayers.map((player) => (
+              <div key={player.name} className="flex items-center justify-between gap-3">
+                <span className="text-slate-300">{player.name}</span>
+                <span className="text-slate-500">
+                  APM {player.apm} / EAPM {player.eapm} / EFF {player.effective.toFixed(1)}%
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    if (activeVizTab === "actions") {
+      return (
+        <div className="rounded-lg p-3 text-xs font-mono text-slate-300" style={INNER_PANEL_STYLE}>
+          <p className="text-[10px] uppercase tracking-widest text-slate-500">action mix</p>
+          <p className="mt-1 text-slate-400">stacked input pressure and redundancy</p>
+          <div className="mt-3 space-y-1">
+            {allGamePlayers.map((player) => (
+              <div key={player.name} className="flex items-center justify-between gap-3">
+                <span className="text-slate-300">{player.name}</span>
+                <span className="text-slate-500">
+                  APM {player.apm} / REDUNDANCY {player.redundancy}%
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="rounded-lg p-3 text-xs font-mono text-slate-400" style={INNER_PANEL_STYLE}>
-        <div className="mb-2 text-[10px] uppercase tracking-widest text-slate-500">{activeVizTab.toUpperCase()}</div>
+        <div className="mb-2 text-[10px] uppercase tracking-widest text-slate-500">OTHER</div>
         <div className="space-y-1">
           {allGamePlayers.map((player) => (
             <div key={player.name} className="flex items-center justify-between gap-3">
@@ -317,19 +476,32 @@ export function VaultDetailPanel({
   }
 
   function renderChartHint() {
-    if (activeVizTab === "tech") {
-      return "click summary buttons to set tech focus";
+    switch (activeVizTab) {
+      case "apm":
+        return "click legend items to emphasize a player";
+      case "unitprod":
+        return "click a player to compare production profiles";
+      case "spend":
+        return "review command spending by player";
+      case "production":
+        return "inspect build order pacing by player";
+      case "tech":
+        return "click markers or summary buttons to set tech focus";
+      case "battle":
+        return "compare combat pressure across players";
+      case "actions":
+        return "compare action mix and redundancy";
+      default:
+        return "click legend items to emphasize a player";
     }
-
-    return "click legend items to emphasize a player";
   }
 
   function renderTechEventInfo() {
-    return techEventInfo ?? (techFocus ? getTechEventLabel(techFocus.playerName, techFocus.kind) : "NO TECH EVENT SELECTED");
+    return techEventInfo ?? (techFocus ? buildTechEventLabel(techFocus.playerName, techFocus.kind) : "NO TECH EVENT SELECTED");
   }
 
   function renderSummaryArea() {
-    if (activeVizTab !== "tech") {
+    if (activeVizTab === "apm") {
       return (
         <div className="grid gap-2 sm:grid-cols-2">
           {allGamePlayers.map((player) => (
@@ -344,98 +516,192 @@ export function VaultDetailPanel({
       );
     }
 
-    return (
-      <div data-testid={activeVizTab === "tech" ? "vault-tech-tree" : undefined} className="space-y-3">
-        <div className="grid gap-2 sm:grid-cols-2">
-          {allGamePlayers.map((player) => {
-            const techCount = getTechMetric(player.name, "tech");
-            const upgradeCount = getTechMetric(player.name, "upgrade");
-            const isFocused = techFocus?.playerName === player.name;
+    if (activeVizTab === "unitprod") {
+      return (
+        <div className="space-y-3">
+          <p className="text-[10px] font-mono uppercase tracking-widest text-slate-500">unit production summary</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {allGamePlayers.map((player) => {
+              const profile = getPlayerProductionProfile(player);
 
-            return (
-              <div key={player.name} className="rounded-lg p-3 text-xs font-mono" style={INNER_PANEL_STYLE}>
-                <div className="mb-2 flex items-center justify-between gap-3">
-                  <span className="text-slate-200">{player.name}</span>
-                  <span className="text-slate-500">{isFocused ? "FOCUSED" : "IDLE"}</span>
+              return (
+                <div key={player.name} className="rounded border p-2 text-xs font-mono" style={INNER_PANEL_STYLE}>
+                  <div className="text-slate-300">{player.name}</div>
+                  <div className="mt-1 text-slate-500">
+                    TOTAL {profile.total} WORKER {profile.worker} ARMY {profile.army} TECH {profile.tech}
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    aria-pressed={techFocus?.playerName === player.name && techFocus.kind === "tech"}
-                    aria-label={`${player.name} TECH ${techCount}`}
-                    onClick={() => handleTechSummaryClick(player.name, "tech")}
-                    className="rounded border px-3 py-1 transition-all"
-                    style={{
-                      backgroundColor: techFocus?.playerName === player.name && techFocus.kind === "tech" ? "rgba(34,211,238,0.12)" : "rgba(255,255,255,0.04)",
-                      borderColor: techFocus?.playerName === player.name && techFocus.kind === "tech" ? "rgba(34,211,238,0.35)" : "rgba(255,255,255,0.1)",
-                      color: techFocus?.playerName === player.name && techFocus.kind === "tech" ? "#22d3ee" : "#cbd5e1"
-                    }}
-                  >
-                    TECH {techCount}
-                  </button>
-                  <button
-                    type="button"
-                    aria-pressed={techFocus?.playerName === player.name && techFocus.kind === "upgrade"}
-                    aria-label={`${player.name} UPG ${upgradeCount}`}
-                    onClick={() => handleTechSummaryClick(player.name, "upgrade")}
-                    className="rounded border px-3 py-1 transition-all"
-                    style={{
-                      backgroundColor: techFocus?.playerName === player.name && techFocus.kind === "upgrade" ? "rgba(34,211,238,0.12)" : "rgba(255,255,255,0.04)",
-                      borderColor: techFocus?.playerName === player.name && techFocus.kind === "upgrade" ? "rgba(34,211,238,0.35)" : "rgba(255,255,255,0.1)",
-                      color: techFocus?.playerName === player.name && techFocus.kind === "upgrade" ? "#22d3ee" : "#cbd5e1"
-                    }}
-                  >
-                    UPG {upgradeCount}
-                  </button>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    if (activeVizTab === "spend") {
+      return (
+        <div className="space-y-3">
+          <p className="text-[10px] font-mono uppercase tracking-widest text-slate-500">resource spend summary</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {allGamePlayers.map((player) => (
+              <div key={player.name} className="rounded border p-2 text-xs font-mono" style={INNER_PANEL_STYLE}>
+                <div className="text-slate-300">{player.name}</div>
+                <div className="mt-1 text-slate-500">
+                  CMD {player.cmd.toLocaleString()} / ECMD {player.ecmd.toLocaleString()}
                 </div>
               </div>
-            );
-          })}
+            ))}
+          </div>
         </div>
+      );
+    }
+
+    if (activeVizTab === "production") {
+      return (
+        <div className="space-y-3">
+          <p className="text-[10px] font-mono uppercase tracking-widest text-slate-500">production event summary</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {allGamePlayers.map((player) => (
+              <div key={player.name} className="rounded border p-2 text-xs font-mono" style={INNER_PANEL_STYLE}>
+                <div className="text-slate-300">{player.name}</div>
+                <div className="mt-1 text-slate-500">
+                  PROD {player.production} / PLAY {game.playTime}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    if (activeVizTab === "tech") {
+      return (
+        <div data-testid="vault-tech-tree" className="space-y-3">
+          <div className="grid gap-2 sm:grid-cols-2">
+            {allGamePlayers.map((player) => {
+              const techCount = getTechMetric(player.name, "tech");
+              const upgradeCount = getTechMetric(player.name, "upgrade");
+              const isFocused = techFocus?.playerName === player.name;
+
+              return (
+                <div key={player.name} className="rounded-lg p-3 text-xs font-mono" style={INNER_PANEL_STYLE}>
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <span className="text-slate-200">{player.name}</span>
+                    <span className="text-slate-500">{isFocused ? "FOCUSED" : "IDLE"}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      aria-pressed={techFocus?.playerName === player.name && techFocus.kind === "tech"}
+                      aria-label={`${player.name} TECH ${techCount}`}
+                      onClick={() => handleTechSummaryClick(player.name, "tech")}
+                      className="rounded border px-3 py-1 transition-all"
+                      style={{
+                        backgroundColor: techFocus?.playerName === player.name && techFocus.kind === "tech" ? "rgba(34,211,238,0.12)" : "rgba(255,255,255,0.04)",
+                        borderColor: techFocus?.playerName === player.name && techFocus.kind === "tech" ? "rgba(34,211,238,0.35)" : "rgba(255,255,255,0.1)",
+                        color: techFocus?.playerName === player.name && techFocus.kind === "tech" ? "#22d3ee" : "#cbd5e1"
+                      }}
+                    >
+                      TECH {techCount}
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed={techFocus?.playerName === player.name && techFocus.kind === "upgrade"}
+                      aria-label={`${player.name} UPG ${upgradeCount}`}
+                      onClick={() => handleTechSummaryClick(player.name, "upgrade")}
+                      className="rounded border px-3 py-1 transition-all"
+                      style={{
+                        backgroundColor: techFocus?.playerName === player.name && techFocus.kind === "upgrade" ? "rgba(34,211,238,0.12)" : "rgba(255,255,255,0.04)",
+                        borderColor: techFocus?.playerName === player.name && techFocus.kind === "upgrade" ? "rgba(34,211,238,0.35)" : "rgba(255,255,255,0.1)",
+                        color: techFocus?.playerName === player.name && techFocus.kind === "upgrade" ? "#22d3ee" : "#cbd5e1"
+                      }}
+                    >
+                      UPG {upgradeCount}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    if (activeVizTab === "battle") {
+      return (
+        <div className="space-y-3">
+          <p className="text-[10px] font-mono uppercase tracking-widest text-slate-500">battle summary</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {allGamePlayers.map((player) => (
+              <div key={player.name} className="rounded border p-2 text-xs font-mono" style={INNER_PANEL_STYLE}>
+                <div className="text-slate-300">{player.name}</div>
+                <div className="mt-1 text-slate-500">
+                  APM {player.apm} / EAPM {player.eapm} / EFF {player.effective.toFixed(1)}%
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    if (activeVizTab === "actions") {
+      return (
+        <div className="space-y-3">
+          <p className="text-[10px] font-mono uppercase tracking-widest text-slate-500">actions summary</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {allGamePlayers.map((player) => (
+              <div key={player.name} className="rounded border p-2 text-xs font-mono" style={INNER_PANEL_STYLE}>
+                <div className="text-slate-300">{player.name}</div>
+                <div className="mt-1 text-slate-500">
+                  APM {player.apm} / REDUNDANCY {player.redundancy}%
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="grid gap-2 sm:grid-cols-2">
+        {allGamePlayers.map((player) => (
+          <div key={player.name} className="rounded border p-2 text-xs font-mono" style={INNER_PANEL_STYLE}>
+            <div className="text-slate-300">{player.name}</div>
+            <div className="mt-1 text-slate-500">
+              APM {player.apm} EAPM {player.eapm}
+            </div>
+          </div>
+        ))}
       </div>
     );
   }
 
   return (
     <div data-testid="vault-detail-shell" data-fullscreen={isFullscreen ? "true" : "false"} className="rounded-xl p-5" style={{ backgroundColor: "#080e1f", border: "1px solid rgba(34,211,238,0.12)" }}>
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-mono text-slate-400">#{game.id}</span>
-          <span className="text-sm font-mono font-semibold text-slate-200">{game.map}</span>
-          <span className="text-xs font-mono text-slate-500">{game.startTime}</span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onFullscreenToggle}
-            className="rounded-lg px-3 py-1.5 text-xs font-mono font-bold tracking-wider transition-all"
-            style={{
-              backgroundColor: isFullscreen ? "rgba(34,211,238,0.18)" : "rgba(255,255,255,0.04)",
-              color: isFullscreen ? "#22d3ee" : "#cbd5e1",
-              border: "1px solid rgba(255,255,255,0.1)"
-            }}
-          >
-            {isFullscreen ? "작게 보기" : "크게 보기"}
-          </button>
-          <Link
-            href={buildAnalyzerHref(currentUser, game.id)}
-            className="flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-xs font-mono font-bold tracking-wider transition-all"
-            style={{
-              background: "linear-gradient(90deg, #0891b2, #1d4ed8)",
-              color: "#e0f7ff",
-              border: "1px solid rgba(34,211,238,0.3)"
-            }}
-          >
-            <ExternalLink className="h-3 w-3" />
-            GAME ANALYZER
-          </Link>
-        </div>
+      <div className="mb-4 flex items-center gap-3">
+        <span className="text-xs font-mono text-slate-400">#{game.id}</span>
+        <span className="text-sm font-mono font-semibold text-slate-200">{game.map}</span>
+        <span className="text-xs font-mono text-slate-500">{game.startTime}</span>
       </div>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         <div>
-          <p className="mb-3 text-[10px] font-mono tracking-widest text-slate-500">SELECTED_GAME</p>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <p className="text-[10px] font-mono tracking-widest text-slate-500">Selected_Game</p>
+            <Link
+              href={buildAnalyzerHref(currentUser, game.id)}
+              className="flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-xs font-mono font-bold tracking-wider transition-all"
+              style={{
+                background: "linear-gradient(90deg, #0891b2, #1d4ed8)",
+                color: "#e0f7ff",
+                border: "1px solid rgba(34,211,238,0.3)"
+              }}
+            >
+              <ExternalLink className="h-3 w-3" />
+              Open_In_Analyzer
+            </Link>
+          </div>
 
           <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
             <div className="rounded-lg px-3 py-2" style={INNER_PANEL_STYLE}>
@@ -496,7 +762,21 @@ export function VaultDetailPanel({
         </div>
 
         <div>
-          <p className="mb-3 text-[10px] font-mono tracking-widest text-slate-500">Game_Detail_Visualization</p>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <p className="text-[10px] font-mono tracking-widest text-slate-500">Game_Detail_Visualization</p>
+            <button
+              type="button"
+              onClick={onFullscreenToggle}
+              className="rounded-lg px-3 py-1.5 text-xs font-mono font-bold tracking-wider transition-all"
+              style={{
+                backgroundColor: isFullscreen ? "rgba(34,211,238,0.18)" : "rgba(255,255,255,0.04)",
+                color: isFullscreen ? "#22d3ee" : "#cbd5e1",
+                border: "1px solid rgba(255,255,255,0.1)"
+              }}
+            >
+              {isFullscreen ? "작게 보기" : "크게 보기"}
+            </button>
+          </div>
           <div className="space-y-3">
             <div className="rounded-lg px-3 py-2 text-xs font-mono text-slate-300" style={INNER_PANEL_STYLE}>
               <p className="text-[10px] uppercase tracking-widest text-slate-500">analysis notice</p>
