@@ -41,7 +41,7 @@ import type { VaultGame, VaultPlayer } from "@/types/vault";
 
 const SECTION_LABEL = "text-[10px] font-mono font-semibold tracking-widest text-slate-500 uppercase mb-3";
 const RECENT_GAMES_LOGIN_REQUIRED = "LOGIN_REQUIRED: SIMPLE_LOGIN 후 Recent_Games 조회 가능";
-const RECENT_GAMES_PAGE_SIZE = 10;
+const RECENT_GAMES_PAGE_SIZE = 12;
 const VIZ_TABS = [
   { id: "apm", label: "APM" },
   { id: "unitprod", label: "Unit_Production" },
@@ -366,6 +366,9 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
   const [recentGames, setRecentGames] = useState<VaultGame[]>(() =>
     model.currentUser.trim() ? buildFallbackRecentGames(model.currentUser) : []
   );
+  const [recentGamesTotal, setRecentGamesTotal] = useState(() =>
+    model.currentUser.trim() ? buildFallbackRecentGames(model.currentUser).length : 0
+  );
   const [gamesState, setGamesState] = useState<DashboardActionStatus>(model.currentUser.trim() ? "success" : "idle");
   const [gamesError, setGamesError] = useState<string | null>(model.currentUser.trim() ? null : RECENT_GAMES_LOGIN_REQUIRED);
   const [recentGamesPage, setRecentGamesPage] = useState(1);
@@ -387,20 +390,17 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
   const selectedGameDetail = selectedGameId != null ? gameDetailById[selectedGameId] ?? null : null;
   const selectedGameDetailState = selectedGameId != null ? gameDetailStateById[selectedGameId] ?? "idle" : "idle";
   const selectedGameBoard = selectedGame ? getStartGridBoard(selectedGame) : null;
-  const recentGamesPageCount = Math.max(1, Math.ceil(recentGames.length / RECENT_GAMES_PAGE_SIZE));
-  const visibleRecentGames = recentGames.slice(
-    (recentGamesPage - 1) * RECENT_GAMES_PAGE_SIZE,
-    recentGamesPage * RECENT_GAMES_PAGE_SIZE
-  );
+  const recentGamesPageCount = Math.max(1, Math.ceil(recentGamesTotal / RECENT_GAMES_PAGE_SIZE));
 
   function appendSystemLog(entry: string) {
     setSystemLogs((previous) => [...previous, entry].slice(-24));
   }
 
-  async function loadRecentGames(nextUser: string, trigger: string) {
+  async function loadRecentGames(nextUser: string, trigger: string, page = 1) {
     const normalized = nextUser.trim();
     if (!normalized) {
       setRecentGames([]);
+      setRecentGamesTotal(0);
       setGamesState("idle");
       setGamesError(RECENT_GAMES_LOGIN_REQUIRED);
       setRecentGamesPage(1);
@@ -414,11 +414,14 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
     appendSystemLog(`${trigger}: ${normalized}`);
 
     try {
+      const offset = (page - 1) * RECENT_GAMES_PAGE_SIZE;
       const response = await fetchBrowserApiJson<ApiGamesListResponse>(
-        `/api/v1/games?limit=12&offset=0&user_name=${encodeURIComponent(normalized)}`
+        `/api/v1/games?limit=${RECENT_GAMES_PAGE_SIZE}&offset=${offset}&user_name=${encodeURIComponent(normalized)}`
       );
       const games = createVaultPageModel({ currentUser: normalized, gamesResponse: response }).games;
       setRecentGames(games);
+      setRecentGamesTotal(toNumber(response.total, games.length));
+      setRecentGamesPage(page);
       setGamesState("success");
       setGamesError(null);
       setSelectedGameId((current) => (current != null && !games.some((game) => game.id === current) ? null : current));
@@ -426,6 +429,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
     } catch (error) {
       const message = error instanceof Error ? error.message : "failed to load recent games";
       setRecentGames([]);
+      setRecentGamesTotal(0);
       setGamesState("error");
       setGamesError(`LOAD_GAMES_FAIL: ${message}`);
       setSelectedGameId(null);
@@ -482,6 +486,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
   useEffect(() => {
     if (!currentUser.trim()) {
       setRecentGames([]);
+      setRecentGamesTotal(0);
       setGamesState("idle");
       setGamesError(RECENT_GAMES_LOGIN_REQUIRED);
       setRecentGamesPage(1);
@@ -492,10 +497,12 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
       return;
     }
 
-    setRecentGames(buildFallbackRecentGames(currentUser));
+    const fallbackGames = buildFallbackRecentGames(currentUser);
+    setRecentGames(fallbackGames);
+    setRecentGamesTotal(fallbackGames.length);
     setRecentGamesPage(1);
     setSelectedGameId(null);
-    void loadRecentGames(currentUser, "LOAD_GAMES");
+    void loadRecentGames(currentUser, "LOAD_GAMES", 1);
   }, [currentUser]);
 
   useEffect(() => {
@@ -649,13 +656,16 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
       setUploadSummary(summary);
       setUploadState("success");
       setUploadErrorMessage(null);
-      setUploadStatusMessage("UPLOAD_DONE: check terminal log");
-      appendSystemLog("UPLOAD_DONE: check terminal log");
+      const uploadMessage = summary.uploadedGameId
+        ? `UPLOAD_DONE: game #${summary.uploadedGameId}${summary.uploadedMapName ? ` - ${summary.uploadedMapName}` : ""}`
+        : "UPLOAD_DONE: batch upload completed";
+      setUploadStatusMessage(uploadMessage);
+      appendSystemLog(uploadMessage);
       persistCurrentUser(normalizedCurrentUser, { refresh: true });
       if (summary.uploadedGameId != null) {
         setSelectedGameId(summary.uploadedGameId);
       }
-      void loadRecentGames(normalizedCurrentUser, "UPLOAD_REFRESH");
+      void loadRecentGames(normalizedCurrentUser, "UPLOAD_REFRESH", 1);
     } catch (error) {
       const message = error instanceof Error ? error.message : "upload failed";
       setUploadState("error");
@@ -696,7 +706,6 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
         if (suggestionRequestRef.current !== requestId) {
           return;
         }
-        setQuerySuggestions((previous) => (previous.includes(normalized) ? previous : [normalized, ...previous].slice(0, 5)));
         appendSystemLog(`SUGGEST_FAIL: ${normalized}`);
       }
     }, 280);
@@ -729,7 +738,15 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
   }
 
   function handleRefreshGames() {
-    void loadRecentGames(currentUser, "REFRESH_GAMES");
+    void loadRecentGames(currentUser, "REFRESH_GAMES", recentGamesPage);
+  }
+
+  function handleRecentGamesPageChange(nextPage: number) {
+    if (nextPage === recentGamesPage) {
+      return;
+    }
+
+    void loadRecentGames(currentUser, "PAGE_GAMES", nextPage);
   }
 
   function handleToggleSelectedGame(gameId: number) {
@@ -896,45 +913,29 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
             <div
               data-testid="dashboard-upload-result"
               className="mt-3 rounded-lg px-4 py-3"
-              style={
-                uploadSummary
-                  ? { backgroundColor: "#0a1428", border: "1px solid rgba(16,185,129,0.18)" }
-                  : INNER_PANEL_STYLE
-              }
+              style={INNER_PANEL_STYLE}
             >
+              <pre className="overflow-auto whitespace-pre-wrap text-[11px] font-mono text-slate-300">
+                {formatPreviewTerminal(previewSummary, uploadErrorMessage ?? uploadStatusMessage)}
+              </pre>
               {uploadSummary ? (
-                <>
-                  <div className="flex items-center gap-2 text-xs font-mono text-emerald-300">
-                    <CheckCircle className="h-4 w-4 text-emerald-400" aria-hidden="true" />
-                    <span>UPLOAD COMPLETE</span>
-                  </div>
-                  <p className="mt-2 text-[11px] font-mono text-slate-400">
-                    {uploadSummary.uploadedGameId
-                      ? `game #${uploadSummary.uploadedGameId}${uploadSummary.uploadedMapName ? ` • ${uploadSummary.uploadedMapName}` : ""}`
-                      : "Batch upload completed"}
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <Link
-                      href={uploadSummary.vaultHref}
-                      className="rounded border px-3 py-2 text-[11px] font-mono font-bold text-cyan-200"
-                      style={{ borderColor: "rgba(34,211,238,0.24)", backgroundColor: "rgba(34,211,238,0.06)" }}
-                    >
-                      Open Replay Vault
-                    </Link>
-                    <Link
-                      href={uploadSummary.analyzerHref}
-                      className="rounded border px-3 py-2 text-[11px] font-mono font-bold text-cyan-200"
-                      style={{ borderColor: "rgba(34,211,238,0.24)", backgroundColor: "rgba(34,211,238,0.06)" }}
-                    >
-                      Open Analyzer
-                    </Link>
-                  </div>
-                </>
-              ) : (
-                <pre className="overflow-auto whitespace-pre-wrap text-[11px] font-mono text-slate-300">
-                  {formatPreviewTerminal(previewSummary, uploadErrorMessage ?? uploadStatusMessage)}
-                </pre>
-              )}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Link
+                    href={uploadSummary.vaultHref}
+                    className="rounded border px-3 py-2 text-[11px] font-mono font-bold text-cyan-200"
+                    style={{ borderColor: "rgba(34,211,238,0.24)", backgroundColor: "rgba(34,211,238,0.06)" }}
+                  >
+                    Open Replay Vault
+                  </Link>
+                  <Link
+                    href={uploadSummary.analyzerHref}
+                    className="rounded border px-3 py-2 text-[11px] font-mono font-bold text-cyan-200"
+                    style={{ borderColor: "rgba(34,211,238,0.24)", backgroundColor: "rgba(34,211,238,0.06)" }}
+                  >
+                    Open Analyzer
+                  </Link>
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -1088,7 +1089,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setRecentGamesPage((previous) => Math.max(1, previous - 1))}
+                onClick={() => handleRecentGamesPageChange(Math.max(1, recentGamesPage - 1))}
                 disabled={recentGamesPage <= 1 || recentGames.length === 0}
                 className="rounded border px-3 py-1.5 text-[11px] font-mono font-bold uppercase tracking-widest text-slate-400 disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ borderColor: "rgba(255,255,255,0.1)", backgroundColor: "rgba(255,255,255,0.02)" }}
@@ -1098,7 +1099,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
               <span className="text-[11px] font-mono text-slate-500">{`Page ${recentGamesPage}/${recentGamesPageCount}`}</span>
               <button
                 type="button"
-                onClick={() => setRecentGamesPage((previous) => Math.min(recentGamesPageCount, previous + 1))}
+                onClick={() => handleRecentGamesPageChange(Math.min(recentGamesPageCount, recentGamesPage + 1))}
                 disabled={recentGamesPage >= recentGamesPageCount || recentGames.length === 0}
                 className="rounded border px-3 py-1.5 text-[11px] font-mono font-bold uppercase tracking-widest text-slate-400 disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ borderColor: "rgba(255,255,255,0.1)", backgroundColor: "rgba(255,255,255,0.02)" }}
@@ -1140,7 +1141,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {visibleRecentGames.map((game) => {
+                  {recentGames.map((game) => {
                     const { ourTeam, enemyTeam, ourResult, enemyResult } = getRecentGameTeams(game);
                     const isSelected = selectedGameId === game.id;
 

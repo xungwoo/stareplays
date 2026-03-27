@@ -361,19 +361,27 @@ describe("dashboard page", () => {
     expect(screen.queryByText("#48")).not.toBeInTheDocument();
   });
 
-  it("paginates recent games and resets to page 1 when the current user changes", async () => {
-    const currentUserGames = createGamesListResponse();
-    currentUserGames.total = 11;
-    currentUserGames.games = Array.from({ length: 11 }, (_, index) => ({
-      ...currentUserGames.games[index % currentUserGames.games.length],
+  it("loads recent game pages via limit and offset and resets back to page 1 when the current user changes", async () => {
+    const currentUserPage1 = createGamesListResponse();
+    currentUserPage1.total = 24;
+    currentUserPage1.games = Array.from({ length: 12 }, (_, index) => ({
+      ...currentUserPage1.games[index % currentUserPage1.games.length],
       id: 200 + index,
       map_name: `Legacy Map ${index + 1}`
     }));
 
-    const nextUserGames = createGamesListResponse();
-    nextUserGames.total = 11;
-    nextUserGames.games = Array.from({ length: 11 }, (_, index) => ({
-      ...nextUserGames.games[index % nextUserGames.games.length],
+    const currentUserPage2 = createGamesListResponse();
+    currentUserPage2.total = 24;
+    currentUserPage2.games = Array.from({ length: 12 }, (_, index) => ({
+      ...currentUserPage2.games[index % currentUserPage2.games.length],
+      id: 212 + index,
+      map_name: `Legacy Map ${index + 13}`
+    }));
+
+    const nextUserPage1 = createGamesListResponse();
+    nextUserPage1.total = 13;
+    nextUserPage1.games = Array.from({ length: 12 }, (_, index) => ({
+      ...nextUserPage1.games[index % nextUserPage1.games.length],
       id: 300 + index,
       map_name: `Next User Map ${index + 1}`
     }));
@@ -381,15 +389,22 @@ describe("dashboard page", () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = typeof input === "string" ? input : input.toString();
 
-      if (url.includes("/api/v1/games?") && url.includes("user_name=3x3_GG")) {
-        return new Response(JSON.stringify(currentUserGames), {
+      if (url.includes("/api/v1/games?") && url.includes("user_name=3x3_GG") && url.includes("offset=0")) {
+        return new Response(JSON.stringify(currentUserPage1), {
           status: 200,
           headers: { "Content-Type": "application/json" }
         });
       }
 
-      if (url.includes("/api/v1/games?") && url.includes("user_name=3x3_smwoo")) {
-        return new Response(JSON.stringify(nextUserGames), {
+      if (url.includes("/api/v1/games?") && url.includes("user_name=3x3_GG") && url.includes("offset=12")) {
+        return new Response(JSON.stringify(currentUserPage2), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+
+      if (url.includes("/api/v1/games?") && url.includes("user_name=3x3_smwoo") && url.includes("offset=0")) {
+        return new Response(JSON.stringify(nextUserPage1), {
           status: 200,
           headers: { "Content-Type": "application/json" }
         });
@@ -438,14 +453,21 @@ describe("dashboard page", () => {
     render(<DashboardPage model={DASHBOARD_FIXTURE} />);
 
     expect(await screen.findByText("Page 1/2")).toBeInTheDocument();
+    expect(screen.getByText("#200")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Prev$/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /^Next$/i })).toBeEnabled();
-    expect(screen.queryByText("#210")).not.toBeInTheDocument();
+    expect(screen.queryByText("#212")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /^Next$/i }));
 
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining("/api/v1/games?limit=12&offset=12&user_name=3x3_GG"),
+        expect.any(Object)
+      );
+    });
     expect(await screen.findByText("Page 2/2")).toBeInTheDocument();
-    expect(screen.getByText("#210")).toBeInTheDocument();
+    expect(screen.getByText("#212")).toBeInTheDocument();
     expect(screen.queryByText("#200")).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText(/플레이어 이름 입력/i), { target: { value: "3x3_smwoo" } });
@@ -454,9 +476,15 @@ describe("dashboard page", () => {
       fireEvent.click(screen.getByRole("button", { name: /^QUERY$/i }));
     });
 
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining("/api/v1/games?limit=12&offset=0&user_name=3x3_smwoo"),
+        expect.any(Object)
+      );
+    });
     expect(await screen.findByText("Page 1/2")).toBeInTheDocument();
     expect(screen.getByText("#300")).toBeInTheDocument();
-    expect(screen.queryByText("#310")).not.toBeInTheDocument();
+    expect(screen.queryByText("#312")).not.toBeInTheDocument();
   });
 
   it("renders inline selected-game detail directly below the clicked recent game row and collapses on re-click", async () => {
@@ -715,7 +743,7 @@ describe("dashboard page", () => {
     expect(screen.getByRole("button", { name: /upload_with_selected_user/i })).toBeEnabled();
   });
 
-  it("uploads the previewed replay with the selected current user and exposes follow-up links", async () => {
+  it("appends upload success into the preview terminal flow and keeps follow-up links secondary", async () => {
     render(<DashboardPage model={DASHBOARD_FIXTURE} />);
 
     previewReplayUploadMock.mockResolvedValue({
@@ -761,7 +789,10 @@ describe("dashboard page", () => {
       "3x3_GG",
       expect.any(Object)
     );
-    expect(await screen.findByText(/upload complete/i)).toBeInTheDocument();
+    const uploadTerminal = screen.getByTestId("dashboard-upload-result");
+    expect(uploadTerminal).toHaveTextContent("UPLOAD_DONE: game #88 - Polypoid");
+    expect(uploadTerminal).toHaveTextContent("OK ladder.rep - map: Polypoid");
+    expect(screen.queryByText(/upload complete/i)).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /open replay vault/i })).toHaveAttribute("href", "/vault?currentUser=3x3_GG");
     expect(screen.getByRole("link", { name: /open analyzer/i })).toHaveAttribute("href", "/analyzer?currentUser=3x3_GG&gameId=88");
     expect(document.cookie).toContain("current_user=3x3_GG");
@@ -927,6 +958,53 @@ describe("dashboard page", () => {
     });
 
     expect(screen.queryByRole("option", { name: "3x_old" })).not.toBeInTheDocument();
+    vi.useRealTimers();
+  });
+
+  it("keeps suggestion failures in system logs without mutating the datalist", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+
+      if (url.includes("/api/v1/users/suggest?q=3x3_fail")) {
+        return new Response(JSON.stringify({ error: "suggest down" }), {
+          status: 503,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+
+      return new Response(JSON.stringify({ users: [] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" }
+      });
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <DashboardPage
+        model={{
+          ...DASHBOARD_FIXTURE,
+          currentUser: "",
+          playerStats: {
+            ...DASHBOARD_FIXTURE.playerStats,
+            name: ""
+          }
+        }}
+      />
+    );
+
+    const queryInput = screen.getByLabelText(/플레이어 이름 입력/i);
+    fireEvent.change(queryInput, { target: { value: "3x3_fail" } });
+
+    await act(async () => {
+      vi.advanceTimersByTime(280);
+      await Promise.resolve();
+    });
+
+    expect(screen.queryByRole("option", { name: "3x3_fail" })).not.toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "3x3_GG" })).toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-system-logs")).toHaveTextContent("SUGGEST_FAIL: 3x3_fail");
     vi.useRealTimers();
   });
 
