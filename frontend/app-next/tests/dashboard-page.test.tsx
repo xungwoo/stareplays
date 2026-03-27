@@ -182,6 +182,9 @@ describe("dashboard page", () => {
 
     const replayUploadLabel = screen.getByText(/^Replay_Upload$/i);
     const playerStatsQueryLabel = screen.getByText(/^Player_Stats_Query$/i);
+    const playerStatsInput = screen.getByLabelText(/플레이어 이름 입력/i);
+    const playerStatsDatalist = container.querySelector('datalist');
+    const queryButton = screen.getByRole("button", { name: /^QUERY$/i });
     const recentGamesLabel = screen.getByText(/^Recent_Games$/i);
     const systemLogsLabel = screen.getByText(/^System_Logs$/i);
 
@@ -190,7 +193,7 @@ describe("dashboard page", () => {
     expect(screen.getByText(/select_player_from_parsed_replay/i)).toBeInTheDocument();
     expect(screen.queryByText(/^HOW TO USE$/i)).not.toBeInTheDocument();
     expect(playerStatsQueryLabel).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^QUERY$/i })).toHaveClass("transition-all");
+    expect(queryButton).toHaveClass("transition-all");
     expect(screen.queryByText(/^Win Rate Progress$/i)).not.toBeInTheDocument();
     expect(screen.getByText(DASHBOARD_FIXTURE.playerStats.favoriteRaceLabel)).toHaveClass("text-amber-400");
     expect(screen.getByText(/^CURRENT_USER:$/i).nextElementSibling).toHaveTextContent(DASHBOARD_FIXTURE.currentUser);
@@ -203,6 +206,9 @@ describe("dashboard page", () => {
     expect(playerStatsQueryLabel.compareDocumentPosition(recentGamesLabel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(recentGamesLabel.compareDocumentPosition(systemLogsLabel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(playerStatsQueryLabel.compareDocumentPosition(screen.getByText(/^Race Stats$/i)) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(playerStatsQueryLabel.compareDocumentPosition(playerStatsInput) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect((playerStatsInput as Node).compareDocumentPosition(playerStatsDatalist as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect((playerStatsDatalist as Node).compareDocumentPosition(queryButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     const winRateStatValue = screen.getByText(`${DASHBOARD_FIXTURE.playerStats.winRate.toFixed(1)}%`, {
       selector: "span"
     });
@@ -491,6 +497,7 @@ describe("dashboard page", () => {
     const inlineRow = await screen.findByTestId("dashboard-inline-game-detail-row");
     expect(gameRow.compareDocumentPosition(inlineRow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(inlineRow.compareDocumentPosition(nextGameRow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(inlineRow.compareDocumentPosition(screen.getByTestId("dashboard-system-logs")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(within(inlineRow).getByText("Selected_Game")).toBeInTheDocument();
     expect(within(inlineRow).getByText("Game_Detail_Visualization")).toBeInTheDocument();
     expect(within(inlineRow).getByText(/#48 OP3060 CLAN 6슈빨무/i)).toBeInTheDocument();
