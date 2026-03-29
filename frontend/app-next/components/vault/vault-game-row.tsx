@@ -1,7 +1,5 @@
 "use client";
 
-import { ChevronDown, ChevronUp } from "lucide-react";
-
 import { RaceBadge } from "@/components/shared/race-badge";
 import { StatusBadge } from "@/components/shared/status-badge";
 import type { VaultGame, VaultPlayer } from "@/types/vault";
@@ -42,27 +40,30 @@ function teamResultBadge(result: VaultResultBadge) {
   );
 }
 
-function hasDrawSignal(game: VaultGame) {
-  const normalized = game.matchStory.trim().toLowerCase();
-  return normalized.includes("draw") || normalized.includes("무승부") || normalized.includes("tie");
+function parsePlayTimeSeconds(playTime: string) {
+  const [minutesPart = "0", secondsPart = "0"] = playTime.trim().split(":");
+  const minutes = Number(minutesPart);
+  const seconds = Number(secondsPart);
+
+  if (!Number.isFinite(minutes) || !Number.isFinite(seconds)) {
+    return null;
+  }
+
+  return Math.max(0, minutes) * 60 + Math.max(0, seconds);
+}
+
+function isLegacyInvalidGame(game: VaultGame) {
+  const playTimeSeconds = parsePlayTimeSeconds(game.playTime);
+  return playTimeSeconds != null && playTimeSeconds > 0 && playTimeSeconds <= 120;
 }
 
 function resolveTeamSemantics(game: VaultGame) {
-  if (game.analyzerStatus === "INVALID") {
+  if (isLegacyInvalidGame(game)) {
     return {
       ourTeam: game.winnerTeam,
       enemyTeam: game.loserTeam,
       ourResult: "INVALID" as const,
       enemyResult: "INVALID" as const
-    };
-  }
-
-  if (hasDrawSignal(game)) {
-    return {
-      ourTeam: game.winnerTeam,
-      enemyTeam: game.loserTeam,
-      ourResult: "DRAW" as const,
-      enemyResult: "DRAW" as const
     };
   }
 
@@ -96,17 +97,14 @@ function resolveTeamSemantics(game: VaultGame) {
 }
 
 function TeamCell({
-  label,
   result,
   players
 }: {
-  label: "OUR_TEAM" | "ENEMY_TEAM";
   result: VaultResultBadge;
   players: VaultPlayer[];
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <p className="text-[10px] font-mono tracking-widest text-slate-500">{label}</p>
       {teamResultBadge(result)}
       {players.map((player) => (
         <div key={player.name} className="flex items-center gap-1 text-[11px] font-mono">
@@ -157,10 +155,10 @@ export function VaultGameRow({
         <span className="text-xs font-mono">{game.matchup}</span>
       </td>
       <td className="px-4 py-3 align-top">
-        <TeamCell label="OUR_TEAM" result={ourResult} players={ourTeam} />
+        <TeamCell result={ourResult} players={ourTeam} />
       </td>
       <td className="px-4 py-3 align-top">
-        <TeamCell label="ENEMY_TEAM" result={enemyResult} players={enemyTeam} />
+        <TeamCell result={enemyResult} players={enemyTeam} />
       </td>
       <td className="px-4 py-3 align-top">
         <div className="flex justify-center">
@@ -171,10 +169,7 @@ export function VaultGameRow({
         <span className="text-xs font-mono">{game.playTime}</span>
       </td>
       <td className="px-4 py-3 align-top">
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-xs font-mono text-slate-500">{game.startTime}</span>
-          {isExpanded ? <ChevronUp className="h-4 w-4 text-slate-600" /> : <ChevronDown className="h-4 w-4 text-slate-600" />}
-        </div>
+        <span className="text-xs font-mono text-slate-500">{game.startTime}</span>
       </td>
     </tr>
   );

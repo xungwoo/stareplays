@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { ExternalLink } from "lucide-react";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
@@ -385,6 +385,10 @@ function getAllGamePlayers(game: VaultGame): VaultPlayer[] {
   return [...game.winnerTeam, ...game.loserTeam];
 }
 
+function getCenterCardTeams(game: VaultGame) {
+  return [game.winnerTeam, game.loserTeam].filter((team) => team.length > 0);
+}
+
 function buildAnalyzerHref(gameId: number) {
   return `/analyzer?game_id=${gameId}`;
 }
@@ -588,6 +592,7 @@ export function VaultDetailPanel({
   const apmData = useMemo(() => getApmData(hydratedDetail), [hydratedDetail]);
   const allPlayers = getAllGamePlayers(game).map((player) => player.name);
   const allGamePlayers = getAllGamePlayers(game);
+  const centerCardTeams = useMemo(() => getCenterCardTeams(game), [game]);
   const board = useMemo(() => getStartGridBoard(game), [game]);
   const analysisStatus = hydratedDetail?.analysisStatus?.trim().toLowerCase() || "";
   const shouldRenderAnalysisNotice = analysisStatus !== "" && analysisStatus !== "ready";
@@ -1535,7 +1540,7 @@ export function VaultDetailPanel({
               }}
             >
               <ExternalLink className="h-3 w-3" />
-              Open_In_Analyzer
+              Analyzer
             </Link>
           </div>
 
@@ -1582,17 +1587,16 @@ export function VaultDetailPanel({
                         >
                           <div className="text-4xl font-mono font-bold text-slate-700">{game.matchup}</div>
                           <div className="mt-3 flex items-center gap-2">
-                            <div className="flex gap-0.5">
-                              {board.leftColumn.map((entry) => (
-                                <RaceBadge key={`left-${entry.player.name}`} race={entry.player.race} />
-                              ))}
-                            </div>
-                            <span className="text-base font-mono font-bold text-slate-500">vs</span>
-                            <div className="flex gap-0.5">
-                              {board.rightColumn.map((entry) => (
-                                <RaceBadge key={`right-${entry.player.name}`} race={entry.player.race} />
-                              ))}
-                            </div>
+                            {centerCardTeams.map((team, teamIndex) => (
+                              <Fragment key={`center-team-${teamIndex}`}>
+                                {teamIndex > 0 ? <span className="text-base font-mono font-bold text-slate-500">vs</span> : null}
+                                <div className="flex gap-0.5">
+                                  {team.map((player, playerIndex) => (
+                                    <RaceBadge key={`center-team-${teamIndex}-${player.name}-${playerIndex}`} race={player.race} />
+                                  ))}
+                                </div>
+                              </Fragment>
+                            ))}
                           </div>
                           <div className="mt-3 text-xs font-mono tracking-widest text-slate-500">PLAY TIME</div>
                           <div className="text-3xl font-mono font-bold text-slate-700">{game.playTime}</div>

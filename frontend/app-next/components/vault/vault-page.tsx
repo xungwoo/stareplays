@@ -68,6 +68,7 @@ async function fetchBrowserApiJson<T>(path: string): Promise<T> {
 export function VaultPage({ model }: { model: VaultPageModel }) {
   const runtimeModel = model as VaultRuntimeModel;
   const currentUser = model.currentUser.trim();
+  const previousCurrentUserRef = useRef(currentUser);
   const initialTableMessage = getResolvedTableMessage(currentUser, runtimeModel);
   const initialPageSize = getResolvedPageSize(runtimeModel);
   const initialTotalGames = getResolvedTotalGames(initialTableMessage, runtimeModel);
@@ -168,16 +169,18 @@ export function VaultPage({ model }: { model: VaultPageModel }) {
   }, [expandedId, games]);
 
   useEffect(() => {
+    const didCurrentUserChange = previousCurrentUserRef.current !== currentUser;
     const nextTableMessage = getResolvedTableMessage(currentUser, runtimeModel);
     const nextPageSize = getResolvedPageSize(runtimeModel);
     const nextTotalGames = getResolvedTotalGames(nextTableMessage, runtimeModel);
     const nextTotalPages = Math.max(1, Math.ceil(nextTotalGames / nextPageSize));
 
+    previousCurrentUserRef.current = currentUser;
     setGames(model.games);
     setTableMessage(nextTableMessage);
     setPageSize(nextPageSize);
     setTotalGames(nextTotalGames);
-    setPage(Math.min(Math.max(1, runtimeModel.page ?? 1), nextTotalPages));
+    setPage(didCurrentUserChange ? 1 : Math.min(Math.max(1, runtimeModel.page ?? 1), nextTotalPages));
   }, [currentUser, model.games, runtimeModel]);
 
   useEffect(() => {
@@ -300,7 +303,7 @@ export function VaultPage({ model }: { model: VaultPageModel }) {
       <div className="mb-5 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="w-1.5 h-5 rounded-sm" style={{ backgroundColor: "#22d3ee" }} />
-          <h2 className="text-sm font-mono font-bold uppercase tracking-widest text-slate-200">Recent Games</h2>
+          <h2 className="text-sm font-mono font-bold uppercase tracking-widest text-slate-200">Recent_Games</h2>
         </div>
 
         <button
@@ -313,7 +316,7 @@ export function VaultPage({ model }: { model: VaultPageModel }) {
           style={{ border: "1px solid rgba(255,255,255,0.1)" }}
         >
           <RefreshCw className="h-3 w-3" />
-          REFRESH
+          Refresh
         </button>
       </div>
 

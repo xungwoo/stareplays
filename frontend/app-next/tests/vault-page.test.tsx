@@ -371,17 +371,17 @@ describe("vault page", () => {
     render(await VaultPage({}));
     const user = userEvent.setup();
 
-    expect(screen.getByText(/^Recent Games$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Recent_Games$/i)).toBeInTheDocument();
     expect(screen.queryByText(/CURRENT_USER:/i)).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /refresh/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Refresh$/i })).toBeInTheDocument();
     expect(screen.queryByText(/^SELECTED_GAME$/i)).not.toBeInTheDocument();
 
     await user.click(getGameIdCell(9));
 
     await waitFor(() => expect(screen.getByTestId("vault-detail-shell")).toBeInTheDocument());
     expect(screen.getByRole("button", { name: /^APM$/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /^Open_In_Analyzer$/i }).getAttribute("href")).toContain("/analyzer?game_id=");
-    expect(screen.getByRole("link", { name: /^Open_In_Analyzer$/i }).getAttribute("href")).not.toContain("currentUser=");
+    expect(screen.getByRole("link", { name: /^Analyzer$/i }).getAttribute("href")).toContain("/analyzer?game_id=");
+    expect(screen.getByRole("link", { name: /^Analyzer$/i }).getAttribute("href")).not.toContain("currentUser=");
     expect(screen.queryByRole("link", { name: /game analyzer/i })).not.toBeInTheDocument();
   });
 
@@ -426,13 +426,13 @@ describe("vault page", () => {
   it("uses figma source inline accent and refresh styles", async () => {
     render(await VaultPage({}));
 
-    const accent = screen.getByText(/^Recent Games$/i).previousElementSibling;
+    const accent = screen.getByText(/^Recent_Games$/i).previousElementSibling;
     expect(accent).toHaveStyle({ backgroundColor: "#22d3ee" });
 
-    expect(screen.getByRole("button", { name: /^REFRESH$/i })).toHaveStyle({
+    expect(screen.getByRole("button", { name: /^Refresh$/i })).toHaveStyle({
       border: "1px solid rgba(255,255,255,0.1)"
     });
-    expect(screen.queryByRole("link", { name: /^REFRESH$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /^Refresh$/i })).not.toBeInTheDocument();
   });
 
   it("renders the legacy selected-game board layout and visible viz copy without scaffold placeholders", async () => {
@@ -476,8 +476,8 @@ describe("vault page", () => {
     );
 
     expect(screen.getAllByText(/^#99$/i).length).toBeGreaterThan(0);
-    expect(screen.getByRole("link", { name: /open_in_analyzer/i })).toHaveAttribute("href", "/analyzer?game_id=99");
-    expect(screen.getByText(/^SELECTED_GAME$/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Analyzer$/i })).toHaveAttribute("href", "/analyzer?game_id=99");
+    expect(screen.getByText(/^Selected_Game$/i)).toBeInTheDocument();
     expect(screen.getByTestId("vault-detail-shell")).toHaveTextContent("#99 Test Arena");
     expect(screen.getByText(/^APM TIMELINE$/i)).toBeInTheDocument();
     expect(screen.getAllByText(/^REDUNDANCY%$/i)).toHaveLength(2);
@@ -756,7 +756,7 @@ describe("vault page", () => {
     expect(screen.queryByTestId("vault-game-row-203")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Next$/i })).toBeDisabled();
 
-    await user.click(screen.getByRole("button", { name: /^REFRESH$/i }));
+    await user.click(screen.getByRole("button", { name: /^Refresh$/i }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     expect(fetchMock).toHaveBeenLastCalledWith(expect.stringContaining("limit=2&offset=4&user_name=neo_user"), expect.any(Object));
@@ -821,7 +821,7 @@ describe("vault page", () => {
     expect(scrollTo).toHaveBeenCalledWith({ top: 732, behavior: "auto" });
   });
 
-  it("uses OUR_TEAM and ENEMY_TEAM semantics for the current user row", () => {
+  it("keeps OUR_TEAM and ENEMY_TEAM semantics without rendering row-local team labels or start-time chevrons", () => {
     const game: VaultGame = {
       id: 77,
       map: "Semantics Test",
@@ -847,10 +847,16 @@ describe("vault page", () => {
       </table>
     );
 
-    expect(screen.getByText(/^OUR_TEAM$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^ENEMY_TEAM$/i)).toBeInTheDocument();
+    const row = screen.getByTestId("vault-game-row-77");
+    const cells = row.querySelectorAll("td");
+
     expect(screen.getAllByText(/^YOU$/i)).toHaveLength(1);
-    expect(screen.getByText("neo_user").closest("td")).toHaveTextContent("OUR_TEAM");
+    expect(cells[3]).toHaveTextContent("neo_user");
+    expect(cells[4]).toHaveTextContent("enemy_winner");
+    expect(within(row).queryByText(/^OUR_TEAM$/i)).not.toBeInTheDocument();
+    expect(within(row).queryByText(/^ENEMY_TEAM$/i)).not.toBeInTheDocument();
+    expect(cells[7]).toHaveTextContent("2026-03-21 10:00");
+    expect(cells[7].querySelector("svg")).toBeNull();
   });
 
   it("renders the legacy visualization section headings, exact tab copy, and fullscreen text", async () => {
@@ -860,8 +866,8 @@ describe("vault page", () => {
     await user.click(getGameIdCell(99));
     await waitFor(() => expect(screen.getByTestId("vault-detail-shell")).toBeInTheDocument());
 
-    expect(screen.getByText(/^SELECTED_GAME$/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /^Open_In_Analyzer$/i })).toBeInTheDocument();
+    expect(screen.getByText(/^Selected_Game$/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Analyzer$/i })).toBeInTheDocument();
     expect(screen.getByText(/^Game_Detail_Visualization$/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^APM$/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Unit Production$/i })).toBeInTheDocument();
@@ -926,10 +932,10 @@ describe("vault page", () => {
     const user = userEvent.setup();
 
     await user.click(getGameIdCell(99));
-    await waitFor(() => expect(screen.getByRole("link", { name: /open_in_analyzer/i })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole("link", { name: /^Analyzer$/i })).toBeInTheDocument());
 
-    expect(screen.getByRole("link", { name: /open_in_analyzer/i })).toHaveAttribute("href", "/analyzer?game_id=99");
-    expect(screen.getByRole("link", { name: /open_in_analyzer/i }).getAttribute("href")).not.toContain("gameId=");
+    expect(screen.getByRole("link", { name: /^Analyzer$/i })).toHaveAttribute("href", "/analyzer?game_id=99");
+    expect(screen.getByRole("link", { name: /^Analyzer$/i }).getAttribute("href")).not.toContain("gameId=");
   });
 
   it("starts with no selected game and keeps the detail shell hidden until the user selects a row", () => {
@@ -957,7 +963,7 @@ describe("vault page", () => {
     render(<VaultPageComponent model={model} />);
 
     expect(screen.queryByText(/^SELECTED_GAME$/i)).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /open_in_analyzer/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /^Analyzer$/i })).not.toBeInTheDocument();
   });
 
   it("shows the legacy FETCHING_GAME placeholder and rehydrates selected rows with live api data", async () => {
@@ -1104,7 +1110,7 @@ describe("vault page", () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
   });
 
-  it("renders the selected game around start-position sides instead of winner and loser columns", async () => {
+  it("renders the selected game around start-position sides but keeps the center card on actual teams ordered winner-first", async () => {
     const model: VaultPageModel = {
       currentUser: "3x3_GG",
       games: [
@@ -1138,9 +1144,11 @@ describe("vault page", () => {
 
     const leftColumn = screen.getByTestId("vault-start-grid-left");
     const rightColumn = screen.getByTestId("vault-start-grid-right");
+    const centerCard = screen.getAllByText("13:55")[1].parentElement;
 
     expect(within(leftColumn).getAllByTestId("start-grid-player-name").map((node) => node.textContent)).toEqual(["3x3_Kiyong", "3x3_syntax", "3x3_mh"]);
     expect(within(rightColumn).getAllByTestId("start-grid-player-name").map((node) => node.textContent)).toEqual(["3x3_GG", "3x3_smwoo", "3x3_pil"]);
+    expect(centerCard?.textContent?.replace(/\s+/g, "")).toContain("PPPvsPZP");
   });
 
   it("clears the selected row when clicked again and hides the detail section entirely", async () => {
@@ -1173,6 +1181,39 @@ describe("vault page", () => {
     expect(screen.queryByRole("button", { name: /^Resource_Spend$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Battle$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Actions$/i })).not.toBeInTheDocument();
+  });
+
+  it("resets the games pager back to page 1 when the current user changes", () => {
+    const { rerender } = render(
+      <VaultPageComponent
+        model={
+          {
+            ...createManyGamesModel(2),
+            page: 3,
+            pageSize: 2,
+            totalGames: 5
+          } as VaultPageRuntimeModel
+        }
+      />
+    );
+
+    expect(screen.getByText(/^Page 3\/3$/i)).toBeInTheDocument();
+
+    rerender(
+      <VaultPageComponent
+        model={
+          {
+            currentUser: "other_user",
+            games: createManyGamesModel(2).games,
+            page: 3,
+            pageSize: 2,
+            totalGames: 5
+          } as VaultPageRuntimeModel
+        }
+      />
+    );
+
+    expect(screen.getByText(/^Page 1\/3$/i)).toBeInTheDocument();
   });
 
   it("renders the production tab as a bucketed event-count chart instead of build-event chips", async () => {
@@ -1465,7 +1506,7 @@ describe("vault page", () => {
     expect(screen.queryByText("live detail")).not.toBeInTheDocument();
   });
 
-  it("supports DRAW and INVALID result badges in recent game rows", () => {
+  it("uses legacy short-game and winner-based row badges instead of matchStory or analyzerStatus heuristics", () => {
     const invalidGame: VaultGame = {
       id: 200,
       map: "Invalid Arena",
@@ -1476,23 +1517,23 @@ describe("vault page", () => {
       loserTeam: [
         { name: "opponent", race: "Z", apm: 88, eapm: 72, cmd: 870, ecmd: 700, effective: 80, redundancy: 8, production: 38, startLocationX: 4000, startLocationY: 900 }
       ],
-      analyzerStatus: "INVALID",
+      analyzerStatus: "DONE",
       playTime: "01:15",
       startTime: "2026-03-20 09:00",
-      matchStory: "Invalid short game"
+      matchStory: "Regular summary"
     };
 
-    const drawGame = {
+    const heuristicGame = {
       id: 201,
-      map: "Draw Arena",
+      map: "Heuristic Arena",
       matchup: "1v1",
       winnerTeam: [
         { name: "neo_user", race: "P", apm: 150, eapm: 130, cmd: 2200, ecmd: 2000, effective: 90, redundancy: 6, production: 120, isCurrentUser: true, startLocationX: 100, startLocationY: 100 }
       ],
       loserTeam: [
-        { name: "draw_opponent", race: "T", apm: 149, eapm: 128, cmd: 2180, ecmd: 1975, effective: 90.6, redundancy: 6, production: 118, startLocationX: 4000, startLocationY: 900 }
+        { name: "heuristic_opponent", race: "T", apm: 149, eapm: 128, cmd: 2180, ecmd: 1975, effective: 90.6, redundancy: 6, production: 118, startLocationX: 4000, startLocationY: 900 }
       ],
-      analyzerStatus: "DONE",
+      analyzerStatus: "INVALID",
       playTime: "09:45",
       startTime: "2026-03-20 10:00",
       matchStory: "DRAW game"
@@ -1513,13 +1554,15 @@ describe("vault page", () => {
     rerender(
       <table>
         <tbody>
-          <VaultGameRow game={drawGame} isExpanded={false} onToggle={() => {}} />
+          <VaultGameRow game={heuristicGame} isExpanded={false} onToggle={() => {}} />
         </tbody>
       </table>
     );
 
-    expect(
-      Array.from(screen.getByTestId("vault-game-row-201").querySelectorAll("span.uppercase")).filter((node) => node.textContent?.trim() === "DRAW")
-    ).toHaveLength(2);
+    const heuristicBadges = Array.from(screen.getByTestId("vault-game-row-201").querySelectorAll("span.uppercase")).map((node) => node.textContent?.trim());
+    expect(heuristicBadges.filter((value) => value === "INVALID")).toHaveLength(0);
+    expect(heuristicBadges.filter((value) => value === "DRAW")).toHaveLength(0);
+    expect(heuristicBadges.filter((value) => value === "WINNER")).toHaveLength(1);
+    expect(heuristicBadges.filter((value) => value === "LOSER")).toHaveLength(1);
   });
 });
