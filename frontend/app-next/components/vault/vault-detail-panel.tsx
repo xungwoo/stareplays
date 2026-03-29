@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState } from "react";
 import { ExternalLink } from "lucide-react";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
-import { generateApmSeries, generateUnitProductionSeries } from "@/lib/fixtures/analyzer";
 import { CYAN_PANEL_STYLE, INNER_PANEL_STYLE } from "@/lib/constants/ui-styles";
 import { RaceBadge } from "@/components/shared/race-badge";
 import { ResultBadge } from "@/components/shared/status-badge";
@@ -131,11 +130,6 @@ function toNumber(value: unknown, fallback = 0): number {
   return Number.isFinite(candidate) ? candidate : fallback;
 }
 
-function getGameMinutes(game: VaultGame) {
-  const parsedMinutes = Number.parseInt(game.playTime.split(":")[0] ?? "0", 10);
-  return Math.max(6, parsedMinutes + 1);
-}
-
 function normalizeKind(kind: string | undefined): "tech" | "upgrade" | "building" {
   const normalized = kind?.trim().toLowerCase() ?? "";
   if (normalized.includes("upgrade")) {
@@ -204,54 +198,6 @@ function buildVaultSeries(rows: ApiPlayerSeriesRow[] | undefined, pickValue: (po
   });
 }
 
-function buildMetricSummary(
-  summary: VaultMetricSummary | undefined,
-  fallback: VaultPlayer
-): VaultMetricSummary {
-  if (summary) {
-    return summary;
-  }
-
-  const total = fallback.production;
-  const worker = Math.max(0, Math.round(total * 0.42));
-  const army = Math.max(0, Math.round(total * 0.33));
-  const techUnit = Math.max(0, total - worker - army);
-
-  return {
-    playerName: fallback.name,
-    total,
-    worker,
-    army,
-    techUnit
-  };
-}
-
-function buildSpendSummary(summary: VaultSpendSummary | undefined, fallback: VaultPlayer): VaultSpendSummary {
-  if (summary) {
-    return summary;
-  }
-
-  return {
-    playerName: fallback.name,
-    totalMineral: undefined,
-    totalGas: undefined,
-    totalSpend: fallback.cmd
-  };
-}
-
-function buildTechSummary(summary: VaultTechSummary | undefined, fallback: VaultPlayer): VaultTechSummary {
-  if (summary) {
-    return summary;
-  }
-
-  return {
-    playerName: fallback.name,
-    techCount: Math.max(1, Math.round(fallback.production / 60)),
-    upgradeCount: Math.max(1, Math.round(fallback.redundancy / 2)),
-    prereqBuildCount: Math.max(0, Math.round(fallback.redundancy / 6))
-  };
-}
-
 function buildTechEvents(detailResponse: ApiGameDetailResponse | undefined): VaultTechEvent[] {
   const events = detailResponse?.tech_tree?.events ?? [];
 
@@ -263,10 +209,6 @@ function buildTechEvents(detailResponse: ApiGameDetailResponse | undefined): Vau
       name: event.name?.trim() || "Tech Event"
     }))
     .sort((left, right) => left.second - right.second);
-}
-
-function findSummaryByPlayer<T extends { playerName: string }>(rows: T[] | undefined, playerName: string) {
-  return rows?.find((row) => row.playerName === playerName);
 }
 
 function toFrame(point: ApiSeriesPoint | undefined) {
@@ -604,12 +546,8 @@ function PlayerBoardCard({
   );
 }
 
-function getApmData(game: VaultGame, hydratedDetail?: VaultHydratedDetail): VaultTimelinePoint[] {
-  if (hydratedDetail?.apmSeries.length) {
-    return hydratedDetail.apmSeries;
-  }
-
-  return generateApmSeries(Number.parseInt(game.playTime.split(":")[0] ?? "0", 10) + 1) as unknown as VaultTimelinePoint[];
+function getApmData(hydratedDetail?: VaultHydratedDetail): VaultTimelinePoint[] {
+  return hydratedDetail?.apmSeries ?? [];
 }
 
 export function VaultDetailPanel({
@@ -647,43 +585,31 @@ export function VaultDetailPanel({
 }) {
   void currentUser;
   const [resourceSpendFocus, setResourceSpendFocus] = useState<VaultSpendFocus>({ playerName: "", mode: "both" });
-  const apmData = useMemo(() => getApmData(game, hydratedDetail), [game, hydratedDetail]);
+  const apmData = useMemo(() => getApmData(hydratedDetail), [hydratedDetail]);
   const allPlayers = getAllGamePlayers(game).map((player) => player.name);
   const allGamePlayers = getAllGamePlayers(game);
   const board = useMemo(() => getStartGridBoard(game), [game]);
   const analysisStatus = hydratedDetail?.analysisStatus?.trim().toLowerCase() || "";
   const shouldRenderAnalysisNotice = analysisStatus !== "" && analysisStatus !== "ready";
   const analysisNoticeMessage = hydratedDetail?.analysisMessage?.trim() || "analysis pending";
-  const unitProductionRows = useMemo(
-    () =>
-      allGamePlayers.map((player) =>
-        buildMetricSummary(findSummaryByPlayer(hydratedDetail?.unitProductionSummaries, player.name), player)
-      ),
-    [allGamePlayers, hydratedDetail?.unitProductionSummaries]
-  );
-  const resourceSpendRows = useMemo(
-    () =>
-      allGamePlayers.map((player) =>
-        buildSpendSummary(findSummaryByPlayer(hydratedDetail?.resourceSpendSummaries, player.name), player)
-      ),
-    [allGamePlayers, hydratedDetail?.resourceSpendSummaries]
-  );
+  const unitProductionRows = useMemo(() => hydratedDetail?.unitProductionSummaries ?? [], [hydratedDetail?.unitProductionSummaries]);
+  const resourceSpendRows = useMemo(() => hydratedDetail?.resourceSpendSummaries ?? [], [hydratedDetail?.resourceSpendSummaries]);
   const resourceSpendTimelines = useMemo(() => hydratedDetail?.resourceSpendTimelines ?? [], [hydratedDetail?.resourceSpendTimelines]);
-  const techSummaryRows = useMemo(
-    () =>
-      allGamePlayers.map((player) => buildTechSummary(findSummaryByPlayer(hydratedDetail?.techTreeSummaries, player.name), player)),
-    [allGamePlayers, hydratedDetail?.techTreeSummaries]
-  );
+  const techSummaryRows = useMemo(() => hydratedDetail?.techTreeSummaries ?? [], [hydratedDetail?.techTreeSummaries]);
   const techEvents = useMemo(() => hydratedDetail?.techTreeEvents ?? [], [hydratedDetail?.techTreeEvents]);
+  const techPlayerNames = useMemo(
+    () =>
+      Array.from(
+        new Set([
+          ...techSummaryRows.map((row) => row.playerName),
+          ...techEvents.map((event) => event.playerName)
+        ])
+      ),
+    [techEvents, techSummaryRows]
+  );
   const buildOrders = useMemo(() => pickBuildOrders(hydratedDetail), [hydratedDetail?.buildOrders, hydratedDetail?.compressedBuildOrders]);
   const productionChartSeries = useMemo(() => buildProductionSeries(buildOrders), [buildOrders]);
-  const productionSeries = useMemo<VaultTimelinePoint[]>(
-    () =>
-      hydratedDetail?.unitProductionSeries?.length
-        ? hydratedDetail.unitProductionSeries
-        : (generateUnitProductionSeries(getGameMinutes(game)) as unknown as VaultTimelinePoint[]),
-    [game, hydratedDetail?.unitProductionSeries]
-  );
+  const productionSeries = useMemo<VaultTimelinePoint[]>(() => hydratedDetail?.unitProductionSeries ?? [], [hydratedDetail?.unitProductionSeries]);
   const battleSeries = useMemo(() => buildSummedApmSeries(apmData), [apmData]);
 
   useEffect(() => {
@@ -747,8 +673,20 @@ export function VaultDetailPanel({
     onTechEventInfoChange?.(buildTechMarkerLabel(event));
   }
 
+  function renderEmptyChart(message: string) {
+    return (
+      <div className="rounded-lg border px-4 py-5 text-xs font-mono text-slate-500" style={INNER_PANEL_STYLE}>
+        {message}
+      </div>
+    );
+  }
+
   function renderChartArea() {
     if (activeVizTab === "apm") {
+      if (apmData.length === 0) {
+        return renderEmptyChart("NO_APM");
+      }
+
       return (
         <div className="space-y-3">
           <p className="text-[10px] font-mono tracking-widest text-slate-500">APM TIMELINE</p>
@@ -786,6 +724,10 @@ export function VaultDetailPanel({
     }
 
     if (activeVizTab === "unitprod") {
+      if (productionSeries.length === 0) {
+        return renderEmptyChart("NO_UNIT_PRODUCTION");
+      }
+
       const chartWidth = 640;
       const chartHeight = 220;
       const timeLabels = productionSeries.map((point) => point.time);
@@ -858,6 +800,10 @@ export function VaultDetailPanel({
     }
 
     if (activeVizTab === "spend") {
+      if (visibleSpendSeries.length === 0) {
+        return renderEmptyChart("NO_RESOURCE_SPEND");
+      }
+
       const chartWidth = 640;
       const chartHeight = 220;
       const innerWidth = chartWidth - 32;
@@ -916,6 +862,10 @@ export function VaultDetailPanel({
     }
 
     if (activeVizTab === "production") {
+      if (productionChartSeries.length === 0) {
+        return renderEmptyChart("NO_PRODUCTION");
+      }
+
       const chartWidth = 640;
       const chartHeight = 220;
       const maxFrame = Math.max(1, ...productionChartSeries.flatMap((series) => series.dataPoints.map((point) => point.frame)));
@@ -956,6 +906,10 @@ export function VaultDetailPanel({
     }
 
     if (activeVizTab === "tech") {
+      if (techEvents.length === 0 || techPlayerNames.length === 0) {
+        return renderEmptyChart("NO_TECH_TIMING");
+      }
+
       const chartMaxSecond = Math.max(1, ...techEvents.map((event) => event.second));
 
       return (
@@ -965,7 +919,7 @@ export function VaultDetailPanel({
             <span className="text-[10px] uppercase tracking-widest text-slate-500">TECH / UPG / BUILD</span>
           </div>
           <div className="space-y-2">
-            {techSummaryRows.map((row) => {
+              {techSummaryRows.map((row) => {
               const isFocused = techFocus?.playerName === row.playerName;
               const isDimmed = highlightedPlayer != null && highlightedPlayer !== row.playerName;
 
@@ -1016,12 +970,12 @@ export function VaultDetailPanel({
               <span className="text-slate-500">click a marker to update techEventInfo</span>
             </div>
             <div className="mt-2 space-y-2">
-              {allGamePlayers.map((player) => {
-                const playerEvents = techEvents.filter((event) => event.playerName === player.name);
+              {techPlayerNames.map((playerName) => {
+                const playerEvents = techEvents.filter((event) => event.playerName === playerName);
 
                 return (
-                  <div key={player.name} className="grid grid-cols-[110px_1fr] items-center gap-3">
-                    <span className="text-slate-300">{player.name}</span>
+                  <div key={playerName} className="grid grid-cols-[110px_1fr] items-center gap-3">
+                    <span className="text-slate-300">{playerName}</span>
                     <div className="relative h-10 rounded bg-slate-950/30">
                       <div className="absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-slate-700/70" />
                       {playerEvents.length > 0 ? (
@@ -1056,6 +1010,10 @@ export function VaultDetailPanel({
     }
 
     if (activeVizTab === "battle") {
+      if (battleSeries.length === 0) {
+        return renderEmptyChart("NO_BATTLE_INTENSITY");
+      }
+
       const chartWidth = 640;
       const chartHeight = 180;
       const battleValues = battleSeries.map((point) => Math.max(0, point.sum));
@@ -1090,6 +1048,10 @@ export function VaultDetailPanel({
     }
 
     if (activeVizTab === "actions") {
+      if (buildOrders.length === 0 || apmData.length === 0) {
+        return renderEmptyChart("NO_ACTION_MIX");
+      }
+
       return (
         <section aria-label="Action Mix Matrix" data-testid="vault-actions-mix" className="space-y-3 rounded-lg p-3 text-xs font-mono text-slate-300" style={INNER_PANEL_STYLE}>
           <div className="flex items-center justify-between gap-3">
@@ -1152,6 +1114,10 @@ export function VaultDetailPanel({
 
   function renderLegendRow() {
     if (activeVizTab === "spend") {
+      if (resourceSpendTimelines.length === 0) {
+        return null;
+      }
+
       return (
         <div className="flex flex-wrap gap-2">
           <button
@@ -1223,6 +1189,30 @@ export function VaultDetailPanel({
       );
     }
 
+    if (activeVizTab === "battle") {
+      return null;
+    }
+
+    if (activeVizTab === "apm" && apmData.length === 0) {
+      return null;
+    }
+
+    if (activeVizTab === "unitprod" && productionSeries.length === 0) {
+      return null;
+    }
+
+    if (activeVizTab === "production" && productionChartSeries.length === 0) {
+      return null;
+    }
+
+    if (activeVizTab === "tech" && (techEvents.length === 0 || techPlayerNames.length === 0)) {
+      return null;
+    }
+
+    if (activeVizTab === "actions" && (buildOrders.length === 0 || apmData.length === 0)) {
+      return null;
+    }
+
     return (
       <div className="flex flex-wrap gap-2">
         {allPlayers.map((name) => {
@@ -1256,6 +1246,9 @@ export function VaultDetailPanel({
       case "unitprod":
         return "시간 구간별 유닛 생산량(유효 생산 기준)입니다.";
       case "spend":
+        if (resourceSpendTimelines.length === 0) {
+          return "데이터가 없습니다.";
+        }
         if (!selectedSpendPlayer) {
           return "전체 플레이어 조회 모드입니다. 플레이어 버튼([M]/[G])을 클릭하면 해당 플레이어가 선택됩니다.";
         }
@@ -1269,10 +1262,19 @@ export function VaultDetailPanel({
       case "production":
         return "시간 구간별 생산 이벤트 개수입니다.";
       case "tech":
+        if (techEvents.length === 0 || techPlayerNames.length === 0) {
+          return "데이터가 없습니다.";
+        }
         return techFocus ? `필터: ${techFocus.playerName} / ${techFocus.kind.toUpperCase()} 강조` : "Tech/UPG 숫자를 클릭하면 해당 플레이어의 해당 이벤트만 강조됩니다.";
       case "battle":
+        if (battleSeries.length === 0) {
+          return "데이터가 없습니다.";
+        }
         return "전 플레이어 APM 합계 기반 교전 강도 추정치입니다.";
       case "actions":
+        if (buildOrders.length === 0 || apmData.length === 0) {
+          return "데이터가 없습니다.";
+        }
         return "APM + 생산 이벤트 기반 액션 비중 추정치입니다.";
       default:
         return "범례를 클릭하면 플레이어 라인이 강조됩니다.";
@@ -1289,6 +1291,10 @@ export function VaultDetailPanel({
 
   function renderSummaryArea() {
     if (activeVizTab === "apm") {
+      if (apmData.length === 0) {
+        return null;
+      }
+
       return (
         <div className="grid gap-2 sm:grid-cols-2">
           {allGamePlayers.map((player) => (
@@ -1304,6 +1310,10 @@ export function VaultDetailPanel({
     }
 
     if (activeVizTab === "unitprod") {
+      if (unitProductionRows.length === 0) {
+        return null;
+      }
+
       return (
         <div className="overflow-hidden rounded-lg" style={INNER_PANEL_STYLE}>
           <table data-testid="vault-unit-production-summary" className="w-full text-xs font-mono">
@@ -1337,6 +1347,10 @@ export function VaultDetailPanel({
     }
 
     if (activeVizTab === "spend") {
+      if (resourceSpendRows.length === 0) {
+        return null;
+      }
+
       return (
         <div className="overflow-hidden rounded-lg" style={INNER_PANEL_STYLE}>
           <table className="w-full text-xs font-mono">
@@ -1352,10 +1366,6 @@ export function VaultDetailPanel({
             <tbody>
             {resourceSpendRows.map((row) => {
               const isDimmed = selectedSpendPlayer !== "" && selectedSpendPlayer !== row.playerName;
-              const timeline = resourceSpendTimelines.find((entry) => entry.playerName === row.playerName);
-              const timelineMineral = timeline?.dataPoints.reduce((total, point) => total + point.mineral, 0) ?? 0;
-              const timelineGas = timeline?.dataPoints.reduce((total, point) => total + point.gas, 0) ?? 0;
-
               return (
                 <tr
                   key={row.playerName}
@@ -1363,8 +1373,8 @@ export function VaultDetailPanel({
                   style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", opacity: isDimmed ? 0.45 : 1 }}
                 >
                   <td className="px-3 py-2 text-slate-300">{row.playerName}</td>
-                  <td className="px-3 py-2 text-slate-400">{(row.totalMineral ?? timelineMineral).toLocaleString()}</td>
-                  <td className="px-3 py-2 text-slate-400">{(row.totalGas ?? timelineGas).toLocaleString()}</td>
+                  <td className="px-3 py-2 text-slate-400">{(row.totalMineral ?? 0).toLocaleString()}</td>
+                  <td className="px-3 py-2 text-slate-400">{(row.totalGas ?? 0).toLocaleString()}</td>
                   <td className="px-3 py-2 text-slate-200">{row.totalSpend.toLocaleString()}</td>
                 </tr>
               );
@@ -1376,6 +1386,10 @@ export function VaultDetailPanel({
     }
 
     if (activeVizTab === "production") {
+      if (productionChartSeries.length === 0) {
+        return null;
+      }
+
       return (
         <div className="overflow-hidden rounded-lg" style={INNER_PANEL_STYLE}>
           <table className="w-full text-xs font-mono">
@@ -1409,6 +1423,10 @@ export function VaultDetailPanel({
     }
 
     if (activeVizTab === "tech") {
+      if (techEvents.length === 0 || techSummaryRows.length === 0) {
+        return null;
+      }
+
       return (
         <div data-testid="vault-tech-summary" className="space-y-3 rounded-lg p-3" style={INNER_PANEL_STYLE}>
           <p className="text-[10px] font-mono uppercase tracking-widest text-slate-500">tech focus summary</p>
@@ -1434,6 +1452,10 @@ export function VaultDetailPanel({
     }
 
     if (activeVizTab === "battle") {
+      if (battleSeries.length === 0) {
+        return null;
+      }
+
       const battleSnapshot = getSeriesSnapshot(battleSeries, "sum", 0);
 
       return (
@@ -1458,6 +1480,10 @@ export function VaultDetailPanel({
     }
 
     if (activeVizTab === "actions") {
+      if (buildOrders.length === 0 || apmData.length === 0) {
+        return null;
+      }
+
       return (
         <div className="space-y-3 rounded-lg p-3" style={INNER_PANEL_STYLE}>
           <p className="text-[10px] font-mono uppercase tracking-widest text-slate-500">actions summary</p>
@@ -1518,10 +1544,8 @@ export function VaultDetailPanel({
               FETCHING_GAME...
             </div>
           ) : hydrateError ? (
-            <div className="rounded-lg border p-4 text-xs font-mono text-red-100" style={{ backgroundColor: "rgba(255,255,255,0.04)", borderColor: "rgba(239,68,68,0.25)" }}>
-              <p className="text-[10px] uppercase tracking-widest text-red-200">DETAIL_ERROR</p>
-              <p className="mt-2 font-semibold">Unable to load selected game detail.</p>
-              <p className="mt-1 text-red-100/90">{hydrateError}</p>
+            <div className="rounded-lg border px-4 py-5 text-xs font-mono font-bold" style={{ backgroundColor: "rgba(255,255,255,0.04)", borderColor: "rgba(239,68,68,0.25)", color: "#8a2f2f" }}>
+              ERROR: {hydrateError}
             </div>
           ) : (
             <div className="rounded-lg border p-3" style={{ backgroundColor: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.08)" }}>

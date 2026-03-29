@@ -1,14 +1,14 @@
 "use client";
 
-import Link from "next/link";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { RefreshCw } from "lucide-react";
 
 import { CYAN_PANEL_STYLE, CYAN_SECTION_DIVIDER_STYLE } from "@/lib/constants/ui-styles";
 import { VaultDetailPanel, type VaultHydratedDetail, type VaultTechFocus, type VaultVizTab, createHydratedVaultDetail } from "@/components/vault/vault-detail-panel";
 import { VaultGameRow } from "@/components/vault/vault-game-row";
+import { createVaultPageModel } from "@/lib/adapters/vault";
 import { buildApiUrl } from "@/lib/api/url";
-import type { ApiGameDetailResponse, ApiGetGameResponse } from "@/types/api";
+import type { ApiGameDetailResponse, ApiGamesListResponse, ApiGetGameResponse } from "@/types/api";
 import type { VaultPageModel } from "@/types/vault";
 
 const CARD_STYLE = CYAN_PANEL_STYLE;
@@ -21,6 +21,22 @@ type VaultRuntimeModel = VaultPageModel & {
   totalGames?: number;
   tableMessage?: string | null;
 };
+
+function getResolvedTableMessage(currentUser: string, runtimeModel: VaultRuntimeModel) {
+  if (!currentUser) {
+    return LOGIN_REQUIRED_MESSAGE;
+  }
+
+  return runtimeModel.tableMessage?.trim() || (runtimeModel.games.length === 0 ? NO_GAMES_FOUND_MESSAGE : null);
+}
+
+function getResolvedPageSize(runtimeModel: VaultRuntimeModel) {
+  return Math.max(1, runtimeModel.pageSize ?? Math.max(runtimeModel.games.length, 1));
+}
+
+function getResolvedTotalGames(tableMessage: string | null, runtimeModel: VaultRuntimeModel) {
+  return tableMessage ? 0 : Math.max(runtimeModel.games.length, runtimeModel.totalGames ?? runtimeModel.games.length);
+}
 
 async function fetchBrowserApiJson<T>(path: string): Promise<T> {
   const response = await fetch(buildApiUrl(path), {
@@ -52,6 +68,17 @@ async function fetchBrowserApiJson<T>(path: string): Promise<T> {
 export function VaultPage({ model }: { model: VaultPageModel }) {
   const runtimeModel = model as VaultRuntimeModel;
   const currentUser = model.currentUser.trim();
+  const initialTableMessage = getResolvedTableMessage(currentUser, runtimeModel);
+  const initialPageSize = getResolvedPageSize(runtimeModel);
+  const initialTotalGames = getResolvedTotalGames(initialTableMessage, runtimeModel);
+  const initialTotalPages = Math.max(1, Math.ceil(initialTotalGames / initialPageSize));
+  const initialPage = Math.min(Math.max(1, runtimeModel.page ?? 1), initialTotalPages);
+  const [games, setGames] = useState(model.games);
+  const [tableMessage, setTableMessage] = useState<string | null>(initialTableMessage);
+  const [pageSize, setPageSize] = useState(initialPageSize);
+  const [totalGames, setTotalGames] = useState(initialTotalGames);
+  const [page, setPage] = useState(initialPage);
+  const [isGamesLoading, setIsGamesLoading] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [detailByGameId, setDetailByGameId] = useState<Record<number, VaultHydratedDetail>>({});
   const [detailStatusByGameId, setDetailStatusByGameId] = useState<Record<number, "idle" | "loading" | "success" | "error">>({});
@@ -62,15 +89,45 @@ export function VaultPage({ model }: { model: VaultPageModel }) {
   const [techEventInfo, setTechEventInfo] = useState<string | null>(null);
   const [highlightedPlayer, setHighlightedPlayer] = useState<string | null>(null);
   const rowRefs = useRef<Record<number, HTMLTableRowElement | null>>({});
-  const tableMessage = !currentUser ? LOGIN_REQUIRED_MESSAGE : runtimeModel.tableMessage?.trim() || (model.games.length === 0 ? NO_GAMES_FOUND_MESSAGE : null);
-  const totalGames = tableMessage ? 0 : Math.max(model.games.length, runtimeModel.totalGames ?? model.games.length);
-  const pageSize = Math.max(1, runtimeModel.pageSize ?? Math.max(totalGames, 1));
   const totalPages = Math.max(1, Math.ceil(totalGames / pageSize));
-  const page = Math.min(Math.max(1, runtimeModel.page ?? 1), totalPages);
-  const currentUserHref = currentUser ? `/vault?currentUser=${encodeURIComponent(currentUser)}` : "/vault";
-  const expandedGame = expandedId == null ? null : model.games.find((game) => game.id === expandedId) ?? null;
+  const expandedGame = expandedId == null ? null : games.find((game) => game.id === expandedId) ?? null;
   const expandedDetailStatus = expandedId == null ? null : detailStatusByGameId[expandedId] ?? null;
-  const canPaginate = false;
+
+  async function loadGames(targetPage: number) {
+    if (!currentUser) {
+      return;
+    }
+
+    const nextPageSize = Math.max(1, pageSize);
+    const requestedPage = Math.max(1, targetPage);
+    const offset = (requestedPage - 1) * nextPageSize;
+    setIsGamesLoading(true);
+
+    try {
+      const response = await fetchBrowserApiJson<ApiGamesListResponse>(
+        `/api/v1/games?limit=${nextPageSize}&offset=${offset}&user_name=${encodeURIComponent(currentUser)}`
+      );
+      const nextModel = createVaultPageModel({
+        currentUser,
+        gamesResponse: response
+      });
+      const nextTableMessage = nextModel.games.length === 0 ? NO_GAMES_FOUND_MESSAGE : null;
+      const nextTotalGames = nextTableMessage ? 0 : Math.max(nextModel.games.length, response.total ?? nextModel.games.length);
+      const nextTotalPages = Math.max(1, Math.ceil(nextTotalGames / nextPageSize));
+
+      setGames(nextModel.games);
+      setTableMessage(nextTableMessage);
+      setTotalGames(nextTotalGames);
+      setPage(Math.min(requestedPage, nextTotalPages));
+    } catch (error) {
+      setGames([]);
+      setTableMessage(error instanceof Error ? `ERROR_LOAD_GAMES: ${error.message}` : "ERROR_LOAD_GAMES: failed to load games");
+      setTotalGames(0);
+      setPage(1);
+    } finally {
+      setIsGamesLoading(false);
+    }
+  }
 
   function stickyTopOffset() {
     const nav = document.querySelector("nav.sticky");
@@ -105,10 +162,23 @@ export function VaultPage({ model }: { model: VaultPageModel }) {
   }
 
   useEffect(() => {
-    if (expandedId != null && !model.games.some((game) => game.id === expandedId)) {
+    if (expandedId != null && !games.some((game) => game.id === expandedId)) {
       setExpandedId(null);
     }
-  }, [expandedId, model.games]);
+  }, [expandedId, games]);
+
+  useEffect(() => {
+    const nextTableMessage = getResolvedTableMessage(currentUser, runtimeModel);
+    const nextPageSize = getResolvedPageSize(runtimeModel);
+    const nextTotalGames = getResolvedTotalGames(nextTableMessage, runtimeModel);
+    const nextTotalPages = Math.max(1, Math.ceil(nextTotalGames / nextPageSize));
+
+    setGames(model.games);
+    setTableMessage(nextTableMessage);
+    setPageSize(nextPageSize);
+    setTotalGames(nextTotalGames);
+    setPage(Math.min(Math.max(1, runtimeModel.page ?? 1), nextTotalPages));
+  }, [currentUser, model.games, runtimeModel]);
 
   useEffect(() => {
     if (!isFullscreen) {
@@ -231,19 +301,20 @@ export function VaultPage({ model }: { model: VaultPageModel }) {
         <div className="flex items-center gap-3">
           <span className="w-1.5 h-5 rounded-sm" style={{ backgroundColor: "#22d3ee" }} />
           <h2 className="text-sm font-mono font-bold uppercase tracking-widest text-slate-200">Recent Games</h2>
-          <span className="rounded px-2 py-1 text-[10px] font-mono font-bold" style={{ backgroundColor: "rgba(34,211,238,0.08)", color: "#22d3ee", border: "1px solid rgba(34,211,238,0.18)" }}>
-            CURRENT_USER: {model.currentUser}
-          </span>
         </div>
 
-        <Link
-          href={currentUserHref}
+        <button
+          type="button"
+          onClick={() => {
+            void loadGames(page);
+          }}
+          disabled={isGamesLoading || !currentUser}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono text-slate-400 transition-all hover:text-slate-200"
           style={{ border: "1px solid rgba(255,255,255,0.1)" }}
         >
           <RefreshCw className="h-3 w-3" />
           REFRESH
-        </Link>
+        </button>
       </div>
 
       <div className="rounded-xl overflow-hidden" style={CARD_STYLE}>
@@ -278,7 +349,7 @@ export function VaultPage({ model }: { model: VaultPageModel }) {
                 </td>
               </tr>
             ) : (
-              model.games.map((game) => (
+              games.map((game) => (
                 <Fragment key={game.id}>
                   <VaultGameRow
                     game={game}
@@ -340,7 +411,14 @@ export function VaultPage({ model }: { model: VaultPageModel }) {
         <div className="flex items-center justify-between px-4 py-3" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
           <button
             type="button"
-            disabled={!canPaginate || page === 1}
+            onClick={() => {
+              if (page <= 1 || isGamesLoading) {
+                return;
+              }
+
+              void loadGames(page - 1);
+            }}
+            disabled={page <= 1 || totalGames === 0 || isGamesLoading}
             className="rounded px-4 py-1.5 text-xs font-mono transition-all hover:bg-slate-800 disabled:opacity-30"
             style={{ border: "1px solid rgba(255,255,255,0.1)", color: "#94a3b8" }}
           >
@@ -351,7 +429,14 @@ export function VaultPage({ model }: { model: VaultPageModel }) {
           </span>
           <button
             type="button"
-            disabled={!canPaginate || page === totalPages}
+            onClick={() => {
+              if (page >= totalPages || totalGames === 0 || isGamesLoading) {
+                return;
+              }
+
+              void loadGames(page + 1);
+            }}
+            disabled={page >= totalPages || totalGames === 0 || isGamesLoading}
             className="rounded px-4 py-1.5 text-xs font-mono transition-all hover:bg-slate-800 disabled:opacity-30"
             style={{ border: "1px solid rgba(255,255,255,0.1)", color: "#94a3b8" }}
           >

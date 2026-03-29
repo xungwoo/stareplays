@@ -16,6 +16,24 @@ type VaultPageRuntimeModel = VaultPageModel & {
   tableMessage?: string | null;
 };
 
+function createPagedGame(id: number): VaultGame {
+  return {
+    id,
+    map: `Arena ${id}`,
+    matchup: "1v1",
+    winnerTeam: [
+      { name: "neo_user", race: "P", apm: 200, eapm: 180, cmd: 3000, ecmd: 2800, effective: 92, redundancy: 5, production: 140, isCurrentUser: true, startLocationX: 100, startLocationY: 100 }
+    ],
+    loserTeam: [
+      { name: "opponent", race: "Z", apm: 150, eapm: 130, cmd: 2200, ecmd: 2000, effective: 84, redundancy: 10, production: 120, startLocationX: 4000, startLocationY: 900 }
+    ],
+    analyzerStatus: "DONE",
+    playTime: "10:00",
+    startTime: `2026-03-${String(Math.max(1, 30 - (id % 20))).padStart(2, "0")} 09:00`,
+    matchStory: `Match ${id}`
+  };
+}
+
 describe("vault page", () => {
   beforeEach(() => {
     vi.stubGlobal(
@@ -354,8 +372,8 @@ describe("vault page", () => {
     const user = userEvent.setup();
 
     expect(screen.getByText(/^Recent Games$/i)).toBeInTheDocument();
-    expect(screen.getByText(/CURRENT_USER: 3x3_GG/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /refresh/i })).toBeInTheDocument();
+    expect(screen.queryByText(/CURRENT_USER:/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /refresh/i })).toBeInTheDocument();
     expect(screen.queryByText(/^SELECTED_GAME$/i)).not.toBeInTheDocument();
 
     await user.click(getGameIdCell(9));
@@ -411,9 +429,10 @@ describe("vault page", () => {
     const accent = screen.getByText(/^Recent Games$/i).previousElementSibling;
     expect(accent).toHaveStyle({ backgroundColor: "#22d3ee" });
 
-    expect(screen.getByRole("link", { name: /^REFRESH$/i })).toHaveStyle({
+    expect(screen.getByRole("button", { name: /^REFRESH$/i })).toHaveStyle({
       border: "1px solid rgba(255,255,255,0.1)"
     });
+    expect(screen.queryByRole("link", { name: /^REFRESH$/i })).not.toBeInTheDocument();
   });
 
   it("renders the legacy selected-game board layout and visible viz copy without scaffold placeholders", async () => {
@@ -483,6 +502,57 @@ describe("vault page", () => {
     expect(screen.queryByText(/^summary area$/i)).not.toBeInTheDocument();
     expect(screen.getByTestId("vault-start-grid-left")).toBeInTheDocument();
     expect(screen.getByTestId("vault-start-grid-right")).toBeInTheDocument();
+  });
+
+  it("uses legacy empty states instead of synthesizing missing detail data", async () => {
+    const user = userEvent.setup();
+    const model = createSingleGameModel();
+
+    function Harness() {
+      const [activeVizTab, setActiveVizTab] = useState<VaultVizTab>("apm");
+
+      return (
+        <VaultDetailPanel
+          game={model.games[0]}
+          currentUser={model.currentUser}
+          activeVizTab={activeVizTab}
+          isFullscreen={false}
+          highlightedPlayer={null}
+          techFocus={null}
+          techEventInfo={null}
+          onActiveVizTabChange={setActiveVizTab}
+          onFullscreenToggle={() => {}}
+          onTechFocusChange={() => {}}
+          onHighlightedPlayerChange={() => {}}
+          hydratedDetail={{
+            reliability: null,
+            reliabilityMOfN: null,
+            replayFileCount: null,
+            analysisMessage: null,
+            apmSeries: []
+          }}
+        />
+      );
+    }
+
+    render(<Harness />);
+
+    expect(screen.getByText(/^NO_APM$/i)).toBeInTheDocument();
+    expect(screen.queryByText(/^APM 200 EAPM 180$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^APM 150 EAPM 130$/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^Unit Production$/i }));
+    expect(screen.getByText(/^NO_UNIT_PRODUCTION$/i)).toBeInTheDocument();
+    expect(screen.queryByTestId("vault-unit-production-summary")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^Resource Spend$/i }));
+    expect(screen.getByText(/^NO_RESOURCE_SPEND$/i)).toBeInTheDocument();
+    expect(screen.queryByTestId("vault-resource-spend-row-neo_user")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^Tech \/ Upgrade$/i }));
+    expect(screen.getByText(/^NO_TECH_TIMING$/i)).toBeInTheDocument();
+    expect(screen.queryByTestId("vault-tech-summary")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^neo_user TECH/i })).not.toBeInTheDocument();
   });
 
   it("toggles APM highlighted player from the legend and updates tech focus and tech marker info", async () => {
@@ -574,12 +644,23 @@ describe("vault page", () => {
     expect(bodyRows[2]).toHaveTextContent("100");
   });
 
-  it("renders all loaded games without local client-side slicing and shows legacy table-state messages", () => {
-    const { rerender } = render(<VaultPageComponent model={createManyGamesModel(6)} />);
+  it("uses legacy pager metadata and table-state messages instead of assuming a fixed single page", () => {
+    const { rerender } = render(
+      <VaultPageComponent
+        model={
+          {
+            ...createManyGamesModel(2),
+            page: 2,
+            pageSize: 2,
+            totalGames: 5
+          } as VaultPageRuntimeModel
+        }
+      />
+    );
 
-    expect(screen.queryByTestId("vault-game-row-104")).toBeTruthy();
-    expect(screen.getByText(/^Page 1\/1$/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^Next$/i })).toBeDisabled();
+    expect(screen.getByText(/^Page 2\/3$/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Prev$/i })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /^Next$/i })).toBeEnabled();
 
     rerender(<VaultPageComponent model={{ currentUser: "", games: [] }} />);
     expect(screen.getByText(/^LOGIN_REQUIRED: SIMPLE_LOGIN 후 Recent_Games 조회 가능$/i)).toBeInTheDocument();
@@ -599,6 +680,95 @@ describe("vault page", () => {
       />
     );
     expect(screen.getByText(/^ERROR_LOAD_GAMES: upstream failed$/i)).toBeInTheDocument();
+  });
+
+  it("paginates and refreshes in place using the legacy games api semantics", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+
+      if (!url.includes("/api/v1/games?")) {
+        return new Response(JSON.stringify({ error: "not found" }), {
+          status: 404,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+
+      if (url.includes("limit=2") && url.includes("offset=4") && url.includes("user_name=neo_user")) {
+        return new Response(
+          JSON.stringify({
+            total: 5,
+            games: [createPagedGame(205)],
+            analysis_statuses: { 205: "done" }
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" }
+          }
+        );
+      }
+
+      if (url.includes("limit=2") && url.includes("offset=2") && url.includes("user_name=neo_user")) {
+        return new Response(
+          JSON.stringify({
+            total: 5,
+            games: [createPagedGame(203), createPagedGame(204)],
+            analysis_statuses: { 203: "done", 204: "pending" }
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" }
+          }
+        );
+      }
+
+      return new Response(JSON.stringify({ error: `unexpected url: ${url}` }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" }
+      });
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(
+      <VaultPageComponent
+        model={
+          {
+            currentUser: "neo_user",
+            games: [createPagedGame(203), createPagedGame(204)],
+            page: 2,
+            pageSize: 2,
+            totalGames: 5
+          } as VaultPageRuntimeModel
+        }
+      />
+    );
+
+    expect(screen.getByText(/^Page 2\/3$/i)).toBeInTheDocument();
+    expect(screen.getByTestId("vault-game-row-203")).toBeInTheDocument();
+    expect(screen.queryByTestId("vault-game-row-205")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^Next$/i }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("limit=2&offset=4&user_name=neo_user"), expect.any(Object)));
+    await waitFor(() => expect(screen.getByText(/^Page 3\/3$/i)).toBeInTheDocument());
+    expect(screen.getByTestId("vault-game-row-205")).toBeInTheDocument();
+    expect(screen.queryByTestId("vault-game-row-203")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Next$/i })).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: /^REFRESH$/i }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(fetchMock).toHaveBeenLastCalledWith(expect.stringContaining("limit=2&offset=4&user_name=neo_user"), expect.any(Object));
+    expect(screen.getByText(/^Page 3\/3$/i)).toBeInTheDocument();
+    expect(screen.getByTestId("vault-game-row-205")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^Prev$/i }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("limit=2&offset=2&user_name=neo_user"), expect.any(Object)));
+    await waitFor(() => expect(screen.getByText(/^Page 2\/3$/i)).toBeInTheDocument());
+    expect(screen.getByTestId("vault-game-row-203")).toBeInTheDocument();
+    expect(screen.queryByTestId("vault-game-row-205")).not.toBeInTheDocument();
   });
 
   it("syncs the selected row viewport on row selection using legacy-style top alignment", async () => {
@@ -1285,9 +1455,11 @@ describe("vault page", () => {
     await user.click(getGameIdCell(99));
 
     await waitFor(() => expect(screen.getByTestId("vault-detail-shell")).toBeInTheDocument());
-    expect(screen.getByText(/unable to load selected game detail/i)).toBeInTheDocument();
+    expect(screen.getByText(/^ERROR: detail failed$/i)).toBeInTheDocument();
     expect(screen.getByText(/^SELECTED_GAME$/i)).toBeInTheDocument();
     expect(screen.getByText(/^Game_Detail_Visualization$/i)).toBeInTheDocument();
+    expect(screen.queryByText(/^DETAIL_ERROR$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/unable to load selected game detail/i)).not.toBeInTheDocument();
     expect(screen.queryByTestId("vault-inline-detail-error")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^APM$/i })).toHaveAttribute("aria-pressed", "true");
     expect(screen.queryByText("live detail")).not.toBeInTheDocument();
