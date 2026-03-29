@@ -3,10 +3,69 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
 
 import { RaceBadge } from "@/components/shared/race-badge";
-import { ResultBadge, StatusBadge } from "@/components/shared/status-badge";
+import { StatusBadge } from "@/components/shared/status-badge";
 import type { VaultGame, VaultPlayer } from "@/types/vault";
 
+type VaultResultBadge = "WINNER" | "LOSER" | "DRAW" | "INVALID";
+
+const RESULT_BADGE_STYLES: Record<VaultResultBadge, { backgroundColor: string; color: string; border: string }> = {
+  WINNER: {
+    backgroundColor: "rgba(16, 185, 129, 0.2)",
+    color: "#6ee7b7",
+    border: "1px solid rgba(16, 185, 129, 0.4)"
+  },
+  LOSER: {
+    backgroundColor: "rgba(239, 68, 68, 0.2)",
+    color: "#fca5a5",
+    border: "1px solid rgba(239, 68, 68, 0.4)"
+  },
+  DRAW: {
+    backgroundColor: "rgba(148, 163, 184, 0.2)",
+    color: "#cbd5e1",
+    border: "1px solid rgba(148, 163, 184, 0.35)"
+  },
+  INVALID: {
+    backgroundColor: "rgba(100, 116, 139, 0.2)",
+    color: "#94a3b8",
+    border: "1px solid rgba(100, 116, 139, 0.4)"
+  }
+};
+
+function teamResultBadge(result: VaultResultBadge) {
+  return (
+    <span
+      className="inline-flex items-center rounded font-bold font-mono tracking-wide uppercase text-[10px] px-1.5 py-0.5"
+      style={RESULT_BADGE_STYLES[result]}
+    >
+      {result}
+    </span>
+  );
+}
+
+function hasDrawSignal(game: VaultGame) {
+  const normalized = game.matchStory.trim().toLowerCase();
+  return normalized.includes("draw") || normalized.includes("무승부") || normalized.includes("tie");
+}
+
 function resolveTeamSemantics(game: VaultGame) {
+  if (game.analyzerStatus === "INVALID") {
+    return {
+      ourTeam: game.winnerTeam,
+      enemyTeam: game.loserTeam,
+      ourResult: "INVALID" as const,
+      enemyResult: "INVALID" as const
+    };
+  }
+
+  if (hasDrawSignal(game)) {
+    return {
+      ourTeam: game.winnerTeam,
+      enemyTeam: game.loserTeam,
+      ourResult: "DRAW" as const,
+      enemyResult: "DRAW" as const
+    };
+  }
+
   const winnerHasCurrentUser = game.winnerTeam.some((player) => player.isCurrentUser);
   const loserHasCurrentUser = game.loserTeam.some((player) => player.isCurrentUser);
 
@@ -42,13 +101,13 @@ function TeamCell({
   players
 }: {
   label: "OUR_TEAM" | "ENEMY_TEAM";
-  result: "WINNER" | "LOSER";
+  result: VaultResultBadge;
   players: VaultPlayer[];
 }) {
   return (
     <div className="flex flex-col gap-1">
       <p className="text-[10px] font-mono tracking-widest text-slate-500">{label}</p>
-      <ResultBadge result={result} size="sm" />
+      {teamResultBadge(result)}
       {players.map((player) => (
         <div key={player.name} className="flex items-center gap-1 text-[11px] font-mono">
           <RaceBadge race={player.race} />

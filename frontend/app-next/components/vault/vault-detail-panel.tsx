@@ -98,6 +98,7 @@ export type VaultHydratedDetail = {
   reliability: string | null;
   reliabilityMOfN: string | null;
   replayFileCount: number | null;
+  analysisStatus?: string | null;
   analysisMessage: string | null;
   apmSeries: VaultTimelinePoint[];
   unitProductionSummaries?: VaultMetricSummary[];
@@ -407,6 +408,7 @@ export function createHydratedVaultDetail(gameResponse: ApiGetGameResponse, deta
     reliability: gameResponse.reliability?.trim() || null,
     reliabilityMOfN: gameResponse.reliability_m_of_n?.trim() || null,
     replayFileCount: gameResponse.game?.edges?.replay_files?.length ?? null,
+    analysisStatus: detailResponse.analysis_status?.status?.trim() || null,
     analysisMessage: detailResponse.analysis_status?.user_message?.trim() || null,
     apmSeries: buildVaultApmSeries(detailResponse.detail?.apm_timeline),
     unitProductionSummaries: unitProductionSummaries.map((summary) => ({
@@ -612,7 +614,9 @@ function getApmData(game: VaultGame, hydratedDetail?: VaultHydratedDetail): Vaul
 
 export function VaultDetailPanel({
   game,
+  currentUser,
   hydratedDetail,
+  isHydrating = false,
   hydrateError,
   activeVizTab,
   isFullscreen,
@@ -641,12 +645,15 @@ export function VaultDetailPanel({
   onTechEventInfoChange?: (value: string | null) => void;
   onHighlightedPlayerChange: (playerName: string | null) => void;
 }) {
+  void currentUser;
   const [resourceSpendFocus, setResourceSpendFocus] = useState<VaultSpendFocus>({ playerName: "", mode: "both" });
   const apmData = useMemo(() => getApmData(game, hydratedDetail), [game, hydratedDetail]);
   const allPlayers = getAllGamePlayers(game).map((player) => player.name);
   const allGamePlayers = getAllGamePlayers(game);
   const board = useMemo(() => getStartGridBoard(game), [game]);
-  const insightMessage = hydratedDetail?.analysisMessage || game.matchStory;
+  const analysisStatus = hydratedDetail?.analysisStatus?.trim().toLowerCase() || "";
+  const shouldRenderAnalysisNotice = analysisStatus !== "" && analysisStatus !== "ready";
+  const analysisNoticeMessage = hydratedDetail?.analysisMessage?.trim() || "analysis pending";
   const unitProductionRows = useMemo(
     () =>
       allGamePlayers.map((player) =>
@@ -1506,74 +1513,86 @@ export function VaultDetailPanel({
             </Link>
           </div>
 
-          <div className="rounded-lg border p-3" style={{ backgroundColor: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.08)" }}>
-            <div className="mb-2 flex items-center justify-between gap-3 text-[10px] font-mono uppercase">
-              <div className="font-bold text-slate-200">
-                #{game.id} {game.map}
-              </div>
-              <div className="text-slate-500">{game.startTime}</div>
+          {isHydrating ? (
+            <div className="rounded-lg border px-4 py-5 text-xs font-mono text-slate-400" style={{ backgroundColor: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.08)" }}>
+              FETCHING_GAME...
             </div>
-
-            <div className="rounded border p-1" style={{ backgroundColor: "rgba(74,79,89,0.72)", borderColor: "rgba(255,255,255,0.08)" }}>
-              <div className="grid gap-px md:grid-cols-[minmax(0,1fr)_minmax(180px,0.9fr)_minmax(0,1fr)]">
-                <div data-testid="vault-start-grid-left" className="contents">
-                  {Array.from({ length: 3 }, (_, rowIndex) => {
-                    const entry = board.leftColumn[rowIndex];
-                    return entry ? (
-                      <PlayerBoardCard key={`left-${entry.player.name}`} player={entry.player} result={entry.result} highlighted={!highlightedPlayer || highlightedPlayer === entry.player.name} />
-                    ) : (
-                      <div key={`left-empty-${rowIndex}`} className="min-h-[140px] rounded-sm bg-white/70" />
-                    );
-                  })}
+          ) : hydrateError ? (
+            <div className="rounded-lg border p-4 text-xs font-mono text-red-100" style={{ backgroundColor: "rgba(255,255,255,0.04)", borderColor: "rgba(239,68,68,0.25)" }}>
+              <p className="text-[10px] uppercase tracking-widest text-red-200">DETAIL_ERROR</p>
+              <p className="mt-2 font-semibold">Unable to load selected game detail.</p>
+              <p className="mt-1 text-red-100/90">{hydrateError}</p>
+            </div>
+          ) : (
+            <div className="rounded-lg border p-3" style={{ backgroundColor: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.08)" }}>
+              <div className="mb-2 flex items-center justify-between gap-3 text-[10px] font-mono uppercase">
+                <div className="font-bold text-slate-200">
+                  #{game.id} {game.map}
                 </div>
+                <div className="text-slate-500">{game.startTime}</div>
+              </div>
 
-                <div className="contents">
-                  {Array.from({ length: 3 }, (_, rowIndex) =>
-                    rowIndex === 1 ? (
-                      <div
-                        key="center-card"
-                        className="flex min-h-[140px] flex-col items-center justify-center rounded-sm px-4 py-5 text-center"
-                        style={{
-                          background:
-                            "radial-gradient(circle at 28% 25%, rgba(255,255,255,0.22), transparent 40%), radial-gradient(circle at 72% 72%, rgba(255,255,255,0.18), transparent 34%), rgba(219,219,223,0.92)"
-                        }}
-                      >
-                        <div className="text-4xl font-mono font-bold text-slate-700">{game.matchup}</div>
-                        <div className="mt-3 flex items-center gap-2">
-                          <div className="flex gap-0.5">
-                            {board.leftColumn.map((entry) => (
-                              <RaceBadge key={`left-${entry.player.name}`} race={entry.player.race} />
-                            ))}
+              <div className="rounded border p-1" style={{ backgroundColor: "rgba(74,79,89,0.72)", borderColor: "rgba(255,255,255,0.08)" }}>
+                <div className="grid gap-px md:grid-cols-[minmax(0,1fr)_minmax(180px,0.9fr)_minmax(0,1fr)]">
+                  <div data-testid="vault-start-grid-left" className="contents">
+                    {Array.from({ length: 3 }, (_, rowIndex) => {
+                      const entry = board.leftColumn[rowIndex];
+                      return entry ? (
+                        <PlayerBoardCard key={`left-${entry.player.name}`} player={entry.player} result={entry.result} highlighted={!highlightedPlayer || highlightedPlayer === entry.player.name} />
+                      ) : (
+                        <div key={`left-empty-${rowIndex}`} className="min-h-[140px] rounded-sm bg-white/70" />
+                      );
+                    })}
+                  </div>
+
+                  <div className="contents">
+                    {Array.from({ length: 3 }, (_, rowIndex) =>
+                      rowIndex === 1 ? (
+                        <div
+                          key="center-card"
+                          className="flex min-h-[140px] flex-col items-center justify-center rounded-sm px-4 py-5 text-center"
+                          style={{
+                            background:
+                              "radial-gradient(circle at 28% 25%, rgba(255,255,255,0.22), transparent 40%), radial-gradient(circle at 72% 72%, rgba(255,255,255,0.18), transparent 34%), rgba(219,219,223,0.92)"
+                          }}
+                        >
+                          <div className="text-4xl font-mono font-bold text-slate-700">{game.matchup}</div>
+                          <div className="mt-3 flex items-center gap-2">
+                            <div className="flex gap-0.5">
+                              {board.leftColumn.map((entry) => (
+                                <RaceBadge key={`left-${entry.player.name}`} race={entry.player.race} />
+                              ))}
+                            </div>
+                            <span className="text-base font-mono font-bold text-slate-500">vs</span>
+                            <div className="flex gap-0.5">
+                              {board.rightColumn.map((entry) => (
+                                <RaceBadge key={`right-${entry.player.name}`} race={entry.player.race} />
+                              ))}
+                            </div>
                           </div>
-                          <span className="text-base font-mono font-bold text-slate-500">vs</span>
-                          <div className="flex gap-0.5">
-                            {board.rightColumn.map((entry) => (
-                              <RaceBadge key={`right-${entry.player.name}`} race={entry.player.race} />
-                            ))}
-                          </div>
+                          <div className="mt-3 text-xs font-mono tracking-widest text-slate-500">PLAY TIME</div>
+                          <div className="text-3xl font-mono font-bold text-slate-700">{game.playTime}</div>
                         </div>
-                        <div className="mt-3 text-xs font-mono tracking-widest text-slate-500">PLAY TIME</div>
-                        <div className="text-3xl font-mono font-bold text-slate-700">{game.playTime}</div>
-                      </div>
-                    ) : (
-                      <div key={`center-empty-${rowIndex}`} className="min-h-[140px] rounded-sm bg-white/70" />
-                    )
-                  )}
-                </div>
+                      ) : (
+                        <div key={`center-empty-${rowIndex}`} className="min-h-[140px] rounded-sm bg-white/70" />
+                      )
+                    )}
+                  </div>
 
-                <div data-testid="vault-start-grid-right" className="contents">
-                  {Array.from({ length: 3 }, (_, rowIndex) => {
-                    const entry = board.rightColumn[rowIndex];
-                    return entry ? (
-                      <PlayerBoardCard key={`right-${entry.player.name}`} player={entry.player} result={entry.result} highlighted={!highlightedPlayer || highlightedPlayer === entry.player.name} />
-                    ) : (
-                      <div key={`right-empty-${rowIndex}`} className="min-h-[140px] rounded-sm bg-white/70" />
-                    );
-                  })}
+                  <div data-testid="vault-start-grid-right" className="contents">
+                    {Array.from({ length: 3 }, (_, rowIndex) => {
+                      const entry = board.rightColumn[rowIndex];
+                      return entry ? (
+                        <PlayerBoardCard key={`right-${entry.player.name}`} player={entry.player} result={entry.result} highlighted={!highlightedPlayer || highlightedPlayer === entry.player.name} />
+                      ) : (
+                        <div key={`right-empty-${rowIndex}`} className="min-h-[140px] rounded-sm bg-white/70" />
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
         </article>
 
         <article
@@ -1608,52 +1627,46 @@ export function VaultDetailPanel({
               {isFullscreen ? "작게 보기" : "크게 보기"}
             </button>
           </div>
-          {hydrateError ? (
-            <div data-testid="vault-detail-error" className="rounded-lg border border-red-400/30 bg-red-500/10 p-4 text-xs font-mono text-red-100">
-              <p className="text-[10px] uppercase tracking-widest text-red-200">DETAIL_ERROR</p>
-              <p className="mt-2 font-semibold">Unable to load selected game detail.</p>
-              <p className="mt-1 text-red-100/90">{hydrateError}</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
+          <div className="space-y-3">
+            {shouldRenderAnalysisNotice ? (
               <div className="rounded-lg px-3 py-2 text-xs font-mono text-slate-300" style={INNER_PANEL_STYLE}>
-                <p className="mt-1">{insightMessage || "analysis pending"}</p>
+                <p className="mt-1">{analysisNoticeMessage}</p>
               </div>
+            ) : null}
 
-              <div className="flex flex-wrap gap-2">
-                {VIZ_TABS.map((tab) => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    aria-pressed={activeVizTab === tab.id}
-                    onClick={() => onActiveVizTabChange(tab.id)}
-                    className="rounded border px-3 py-1 text-xs font-mono uppercase tracking-widest transition-all"
-                    style={{
-                      backgroundColor: activeVizTab === tab.id ? "rgba(34,211,238,0.15)" : "rgba(255,255,255,0.04)",
-                      color: activeVizTab === tab.id ? "#22d3ee" : "#94a3b8",
-                      borderColor: activeVizTab === tab.id ? "rgba(34,211,238,0.35)" : "rgba(255,255,255,0.1)"
-                    }}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-
-              {renderChartArea()}
-
-              {renderLegendRow()}
-
-              <div className="rounded-lg px-3 py-2 text-xs font-mono text-slate-400" style={INNER_PANEL_STYLE}>
-                <p className="mt-1">{renderChartHint()}</p>
-              </div>
-
-              <div className="rounded-lg px-3 py-2 text-xs font-mono text-slate-300" style={INNER_PANEL_STYLE}>
-                <p data-testid="vault-tech-tree-focus" className="mt-1">{renderTechEventInfo()}</p>
-              </div>
-
-              {renderSummaryArea()}
+            <div className="flex flex-wrap gap-2">
+              {VIZ_TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  aria-pressed={activeVizTab === tab.id}
+                  onClick={() => onActiveVizTabChange(tab.id)}
+                  className="rounded border px-3 py-1 text-xs font-mono uppercase tracking-widest transition-all"
+                  style={{
+                    backgroundColor: activeVizTab === tab.id ? "rgba(34,211,238,0.15)" : "rgba(255,255,255,0.04)",
+                    color: activeVizTab === tab.id ? "#22d3ee" : "#94a3b8",
+                    borderColor: activeVizTab === tab.id ? "rgba(34,211,238,0.35)" : "rgba(255,255,255,0.1)"
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </div>
-          )}
+
+            {renderChartArea()}
+
+            {renderLegendRow()}
+
+            <div className="rounded-lg px-3 py-2 text-xs font-mono text-slate-400" style={INNER_PANEL_STYLE}>
+              <p className="mt-1">{renderChartHint()}</p>
+            </div>
+
+            <div className="rounded-lg px-3 py-2 text-xs font-mono text-slate-300" style={INNER_PANEL_STYLE}>
+              <p data-testid="vault-tech-tree-focus" className="mt-1">{renderTechEventInfo()}</p>
+            </div>
+
+            {renderSummaryArea()}
+          </div>
         </article>
       </div>
     </div>

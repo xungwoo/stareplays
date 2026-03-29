@@ -291,29 +291,13 @@ export function VaultPage({ model }: { model: VaultPageModel }) {
                   {expandedId === game.id ? (
                     <tr data-testid="vault-inline-detail-row" className="border-b" style={{ borderColor: "rgba(34,211,238,0.12)" }}>
                       <td colSpan={8} className="p-3">
-                        {expandedDetailStatus === "loading" || !expandedGame ? (
-                          <div
-                            className="rounded-xl px-5 py-4 text-xs font-mono text-slate-400"
-                            style={{ backgroundColor: "#080e1f", border: "1px solid rgba(34,211,238,0.12)" }}
-                          >
-                            FETCHING_GAME...
-                          </div>
-                        ) : expandedDetailStatus === "error" ? (
-                          <div
-                            data-testid="vault-inline-detail-error"
-                            className="rounded-xl px-5 py-4 text-xs font-mono"
-                            style={{ backgroundColor: "#1a0f17", border: "1px solid rgba(239,68,68,0.25)", color: "#fecdd3" }}
-                          >
-                            <p className="text-[10px] uppercase tracking-widest text-red-200">DETAIL_ERROR</p>
-                            <p className="mt-2 font-semibold">Unable to load selected game detail.</p>
-                            <p className="mt-1 text-red-100/90">{detailErrorByGameId[expandedId] ?? "failed to load selected game detail"}</p>
-                          </div>
-                        ) : (
+                        {expandedGame ? (
                           <VaultDetailPanel
                             game={expandedGame}
                             currentUser={currentUser}
                             hydratedDetail={detailByGameId[expandedId]}
-                            isHydrating={false}
+                            isHydrating={expandedDetailStatus === "loading"}
+                            hydrateError={expandedDetailStatus === "error" ? detailErrorByGameId[expandedId] ?? "failed to load selected game detail" : null}
                             activeVizTab={activeVizTab}
                             isFullscreen={isFullscreen}
                             techFocus={techFocus}
@@ -336,6 +320,13 @@ export function VaultPage({ model }: { model: VaultPageModel }) {
                               setHighlightedPlayer(playerName);
                             }}
                           />
+                        ) : (
+                          <div
+                            className="rounded-xl px-5 py-4 text-xs font-mono text-slate-400"
+                            style={{ backgroundColor: "#080e1f", border: "1px solid rgba(34,211,238,0.12)" }}
+                          >
+                            FETCHING_GAME...
+                          </div>
                         )}
                       </td>
                     </tr>

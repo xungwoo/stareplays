@@ -393,7 +393,7 @@ describe("vault page", () => {
     expect(screen.getByTestId("vault-inline-detail-row")).toHaveStyle({
       borderColor: "rgba(34, 211, 238, 0.12)"
     });
-    expect(screen.getByText(/detail ready/i, { selector: "p.mt-1" }).parentElement).toHaveStyle({
+    expect(screen.getByText(/^범례를 클릭하면 플레이어 라인이 강조됩니다\.$/).parentElement).toHaveStyle({
       backgroundColor: "#0a1428",
       border: "1px solid rgba(255,255,255,0.05)"
     });
@@ -466,6 +466,8 @@ describe("vault page", () => {
     expect(screen.queryByText(/^REPLAY_FILES$/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/^DETAIL_STATUS$/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/^MATCH STORY$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^detail ready$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Fallback story$/i)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Unit Production$/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Resource Spend$/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Tech \/ Upgrade$/i })).toBeInTheDocument();
@@ -704,10 +706,8 @@ describe("vault page", () => {
     expect(screen.queryByRole("button", { name: /^Battle$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Actions$/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/^analysis notice$/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/detail ready/i, { selector: "p.mt-1" }).parentElement).toHaveStyle({
-      backgroundColor: "rgb(10, 20, 40)",
-      border: "1px solid rgba(255, 255, 255, 0.05)"
-    });
+    expect(screen.queryByText(/detail ready/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Fallback story$/i)).not.toBeInTheDocument();
   });
 
   it("switches the fullscreen label and exits fullscreen with Escape", async () => {
@@ -842,7 +842,11 @@ describe("vault page", () => {
 
     await user.click(getGameIdCell(99));
 
+    expect(screen.getByTestId("vault-detail-shell")).toBeInTheDocument();
+    expect(screen.getByText(/^SELECTED_GAME$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Game_Detail_Visualization$/i)).toBeInTheDocument();
     expect(screen.getByText(/FETCHING_GAME\.\.\./i)).toBeInTheDocument();
+    expect(screen.queryByText(/^Fallback story$/i)).not.toBeInTheDocument();
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/api/v1/games/99"), expect.any(Object)));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/api/v1/games/99/detail"), expect.any(Object)));
@@ -884,7 +888,8 @@ describe("vault page", () => {
     expect(screen.queryByText(/^DETAIL_STATUS$/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/^RELIABILITY$/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/^REPLAY_FILES$/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/^최신 분석 데이터입니다\.$/)).toBeInTheDocument();
+    expect(screen.queryByText(/^최신 분석 데이터입니다\.$/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Fallback story$/i)).not.toBeInTheDocument();
   });
 
   it("re-fetches game detail when the same row is reselected after collapse", async () => {
@@ -1204,7 +1209,7 @@ describe("vault page", () => {
     expect(screen.getByTestId("vault-tech-tree-focus")).toHaveTextContent("TECH_EVENT: CLICK_MARKER_TO_VIEW");
   });
 
-  it("replaces the selected game detail area with an error state when detail fetch fails", async () => {
+  it("keeps the inline shell mounted and writes detail fetch errors into Selected_Game", async () => {
     let shouldFailDetailFetch = false;
 
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
@@ -1269,7 +1274,7 @@ describe("vault page", () => {
     render(<VaultPageComponent model={createSingleGameModel()} />);
 
     await user.click(getGameIdCell(99));
-    await waitFor(() => expect(screen.getAllByText(/live detail/i).length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getByTestId("vault-start-grid-left")).toBeInTheDocument());
     expect(screen.queryByText(/^DETAIL_STATUS$/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/^RELIABILITY$/i)).not.toBeInTheDocument();
 
@@ -1279,11 +1284,70 @@ describe("vault page", () => {
     shouldFailDetailFetch = true;
     await user.click(getGameIdCell(99));
 
-    await waitFor(() => expect(screen.getByTestId("vault-inline-detail-error")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId("vault-detail-shell")).toBeInTheDocument());
     expect(screen.getByText(/unable to load selected game detail/i)).toBeInTheDocument();
-    expect(screen.queryByTestId("vault-detail-shell")).not.toBeInTheDocument();
-    expect(screen.queryByText(/^SELECTED_GAME$/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/^Game_Detail_Visualization$/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/^SELECTED_GAME$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Game_Detail_Visualization$/i)).toBeInTheDocument();
+    expect(screen.queryByTestId("vault-inline-detail-error")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^APM$/i })).toHaveAttribute("aria-pressed", "true");
     expect(screen.queryByText("live detail")).not.toBeInTheDocument();
+  });
+
+  it("supports DRAW and INVALID result badges in recent game rows", () => {
+    const invalidGame: VaultGame = {
+      id: 200,
+      map: "Invalid Arena",
+      matchup: "1v1",
+      winnerTeam: [
+        { name: "neo_user", race: "P", apm: 90, eapm: 80, cmd: 900, ecmd: 820, effective: 91, redundancy: 3, production: 40, isCurrentUser: true, startLocationX: 100, startLocationY: 100 }
+      ],
+      loserTeam: [
+        { name: "opponent", race: "Z", apm: 88, eapm: 72, cmd: 870, ecmd: 700, effective: 80, redundancy: 8, production: 38, startLocationX: 4000, startLocationY: 900 }
+      ],
+      analyzerStatus: "INVALID",
+      playTime: "01:15",
+      startTime: "2026-03-20 09:00",
+      matchStory: "Invalid short game"
+    };
+
+    const drawGame = {
+      id: 201,
+      map: "Draw Arena",
+      matchup: "1v1",
+      winnerTeam: [
+        { name: "neo_user", race: "P", apm: 150, eapm: 130, cmd: 2200, ecmd: 2000, effective: 90, redundancy: 6, production: 120, isCurrentUser: true, startLocationX: 100, startLocationY: 100 }
+      ],
+      loserTeam: [
+        { name: "draw_opponent", race: "T", apm: 149, eapm: 128, cmd: 2180, ecmd: 1975, effective: 90.6, redundancy: 6, production: 118, startLocationX: 4000, startLocationY: 900 }
+      ],
+      analyzerStatus: "DONE",
+      playTime: "09:45",
+      startTime: "2026-03-20 10:00",
+      matchStory: "DRAW game"
+    } as VaultGame;
+
+    const { rerender } = render(
+      <table>
+        <tbody>
+          <VaultGameRow game={invalidGame} isExpanded={false} onToggle={() => {}} />
+        </tbody>
+      </table>
+    );
+
+    expect(
+      Array.from(screen.getByTestId("vault-game-row-200").querySelectorAll("span.uppercase")).filter((node) => node.textContent?.trim() === "INVALID")
+    ).toHaveLength(2);
+
+    rerender(
+      <table>
+        <tbody>
+          <VaultGameRow game={drawGame} isExpanded={false} onToggle={() => {}} />
+        </tbody>
+      </table>
+    );
+
+    expect(
+      Array.from(screen.getByTestId("vault-game-row-201").querySelectorAll("span.uppercase")).filter((node) => node.textContent?.trim() === "DRAW")
+    ).toHaveLength(2);
   });
 });
