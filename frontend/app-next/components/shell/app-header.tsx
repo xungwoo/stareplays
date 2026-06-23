@@ -11,18 +11,18 @@ export function AppHeader({ currentUser = CURRENT_USER }: { currentUser?: string
   return (
     <header
       className="sticky top-0 z-50 flex items-center justify-between px-6 py-0"
-      style={{ backgroundColor: "#080e1f", borderBottom: "1px solid rgba(34,211,238,0.15)" }}
+      style={{ backgroundColor: "rgba(18,24,38,0.96)", borderBottom: "1px solid rgba(148,163,184,0.14)", backdropFilter: "blur(12px)" }}
       >
       <div className="flex items-center gap-8">
         <Link href="/" className="flex items-center gap-2 py-4">
-          <Shield className="h-5 w-5 text-cyan-400" />
+          <Shield className="h-5 w-5 text-cyan-300" />
           <span
             style={{
               fontFamily: "'Rajdhani', sans-serif",
               fontWeight: 700,
               fontSize: "1.25rem",
               letterSpacing: "0.08em",
-              background: "linear-gradient(90deg, #22d3ee, #60a5fa)",
+              background: "linear-gradient(90deg, #9bd6df, #9eb6dc)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent"
             }}

@@ -14,6 +14,8 @@ type Tx struct {
 	config
 	// AnalyzerRaceMatchup is the client for interacting with the AnalyzerRaceMatchup builders.
 	AnalyzerRaceMatchup *AnalyzerRaceMatchupClient
+	// AppSetting is the client for interacting with the AppSetting builders.
+	AppSetting *AppSettingClient
 	// Game is the client for interacting with the Game builders.
 	Game *GameClient
 	// GameAnalysis is the client for interacting with the GameAnalysis builders.
@@ -160,6 +162,7 @@ func (tx *Tx) Client() *Client {
 
 func (tx *Tx) init() {
 	tx.AnalyzerRaceMatchup = NewAnalyzerRaceMatchupClient(tx.config)
+	tx.AppSetting = NewAppSettingClient(tx.config)
 	tx.Game = NewGameClient(tx.config)
 	tx.GameAnalysis = NewGameAnalysisClient(tx.config)
 	tx.GameDetail = NewGameDetailClient(tx.config)

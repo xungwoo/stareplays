@@ -38,6 +38,10 @@ const (
 	FieldUploadCount = "upload_count"
 	// FieldWinnerTeam holds the string denoting the winner_team field in the database.
 	FieldWinnerTeam = "winner_team"
+	// FieldSeasonLabel holds the string denoting the season_label field in the database.
+	FieldSeasonLabel = "season_label"
+	// FieldSeasonNo holds the string denoting the season_no field in the database.
+	FieldSeasonNo = "season_no"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -97,6 +101,8 @@ var Columns = []string{
 	FieldPlayerCount,
 	FieldUploadCount,
 	FieldWinnerTeam,
+	FieldSeasonLabel,
+	FieldSeasonNo,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -194,6 +200,16 @@ func ByUploadCount(opts ...sql.OrderTermOption) OrderOption {
 // ByWinnerTeam orders the results by the winner_team field.
 func ByWinnerTeam(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldWinnerTeam, opts...).ToFunc()
+}
+
+// BySeasonLabel orders the results by the season_label field.
+func BySeasonLabel(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSeasonLabel, opts...).ToFunc()
+}
+
+// BySeasonNo orders the results by the season_no field.
+func BySeasonNo(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSeasonNo, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

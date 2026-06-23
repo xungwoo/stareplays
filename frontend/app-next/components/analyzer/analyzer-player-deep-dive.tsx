@@ -7,6 +7,7 @@ import { ResultBadge } from "@/components/shared/status-badge";
 import { CYAN_PANEL_STYLE, INNER_PANEL_STRONG_STYLE } from "@/lib/constants/ui-styles";
 import { getOrderedGamePlayers } from "@/lib/utils/analyzer-player-order";
 import { getPlayerColor } from "@/lib/utils/player-colors";
+import { displayPlayerName } from "@/lib/utils/player-display";
 import type { AnalyzerGameInsight, AnalyzerPageModel } from "@/types/analyzer";
 
 import { samePlayer } from "./analyzer-tabs";
@@ -63,7 +64,7 @@ export function AnalyzerPlayerDeepDive({
           >
             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: getPlayerColor(player.name) }} />
             <RaceBadge race={player.race} />
-            <span className="flex-1 text-[11px] font-mono text-slate-300">{player.name}</span>
+            <span className="flex-1 text-[11px] font-mono text-slate-300" title={player.name}>{displayPlayerName(player.name)}</span>
             {player.isCurrentUser ? <span className="text-[9px] font-mono text-cyan-500">YOU</span> : null}
             <ResultBadge result={game.winnerTeam.some((candidate) => candidate.name === player.name) ? "WINNER" : "LOSER"} />
           </button>
@@ -75,7 +76,7 @@ export function AnalyzerPlayerDeepDive({
           <div className="mb-3 flex items-center gap-2">
             <RaceBadge race={focused.race} size="md" />
             <span className="text-sm font-mono font-bold" style={{ color: getPlayerColor(focused.name) }}>
-              {focused.name}
+              {displayPlayerName(focused.name)}
             </span>
             <ResultBadge result={game.winnerTeam.some((candidate) => candidate.name === focused.name) ? "WINNER" : "LOSER"} size="md" />
           </div>
@@ -100,7 +101,7 @@ export function AnalyzerPlayerDeepDive({
           <div className="border-t border-white/5 pt-2">
             <p className="mb-1 text-[10px] font-mono tracking-widest text-slate-500">PLAYER READ</p>
             <p className="text-[11px] font-mono leading-relaxed text-slate-400">
-              {focused.name} shows the shared player focus state used across timeline, APM, economy, production, tech, and combat views.
+              {displayPlayerName(focused.name)}의 플레이 흐름입니다. 타임라인, APM, 경제, 생산, 테크, 전투 탭이 모두 이 선수 기준으로 따라옵니다.
             </p>
           </div>
         </div>
@@ -111,13 +112,13 @@ export function AnalyzerPlayerDeepDive({
           {game.keyPlayer ? (
             <div className="flex justify-between text-xs font-mono">
               <span className="text-slate-500">Key Player</span>
-              <span style={{ color: "#34d399" }}>{game.keyPlayer}</span>
+              <span style={{ color: "#34d399" }}>{displayPlayerName(game.keyPlayer)}</span>
             </div>
           ) : null}
           {game.worstPlayer ? (
             <div className="flex justify-between text-xs font-mono">
               <span className="text-slate-500">Worst Impact</span>
-              <span style={{ color: "#f87171" }}>{game.worstPlayer}</span>
+              <span style={{ color: "#f87171" }}>{displayPlayerName(game.worstPlayer)}</span>
             </div>
           ) : null}
         </div>

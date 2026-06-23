@@ -23,7 +23,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="ko">
       <body
         className="flex min-h-screen flex-col"
-        style={{ backgroundColor: "#080e1f", color: "#e2e8f0", fontFamily: "'Inter', sans-serif" }}
+        style={{ backgroundColor: "#121826", color: "#e5e7eb", fontFamily: "'Inter', sans-serif" }}
       >
         <AppHeader currentUser={currentUser} />
         <main className="flex-1">{children}</main>

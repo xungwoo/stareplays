@@ -199,7 +199,7 @@ describe("api actions", () => {
     ).resolves.toEqual({ preview: true });
   });
 
-  it("builds upload multipart bodies with uploader name", async () => {
+  it("builds upload multipart bodies without uploader selection", async () => {
     const files = [new File(["alpha"], "first.rep", { type: "application/octet-stream" })];
 
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -211,13 +211,13 @@ describe("api actions", () => {
       const body = init?.body as FormData;
       expect(body).toBeInstanceOf(FormData);
       expect(body.getAll("replay_files")).toHaveLength(1);
-      expect(body.get("uploader_name")).toBe("3x3_GG");
+      expect(body.get("uploader_name")).toBeNull();
 
       return createJsonResponse({ game: { id: 1 } });
     });
 
     await expect(
-      submitReplayUpload(files, "3x3_GG", {
+      submitReplayUpload(files, {
         apiBaseUrl: "http://example.test",
         fetchImpl: fetchMock
       })

@@ -9,6 +9,7 @@ import { CYAN_PANEL_STYLE, INNER_PANEL_STYLE } from "@/lib/constants/ui-styles";
 import { RaceBadge } from "@/components/shared/race-badge";
 import { ResultBadge } from "@/components/shared/status-badge";
 import { getPlayerColor } from "@/lib/utils/player-colors";
+import { displayPlayerName } from "@/lib/utils/player-display";
 import { getStartGridBoard } from "@/lib/utils/start-grid-board";
 import type { ApiApmTimelineRow, ApiGameDetailResponse, ApiGetGameResponse, ApiPlayerSeriesRow, ApiSeriesPoint } from "@/types/api";
 import type { VaultGame, VaultPlayer } from "@/types/vault";
@@ -502,7 +503,7 @@ function PlayerBoardCard({
         <div className="flex items-center gap-1.5">
           <RaceBadge race={player.race} />
           <span data-testid="start-grid-player-name" className="text-xs font-mono font-semibold text-slate-200">
-            {player.name}
+            {displayPlayerName(player.name)}
           </span>
           {player.isCurrentUser ? (
             <span
@@ -1077,7 +1078,7 @@ export function VaultDetailPanel({
               return (
                 <div key={player.name} className="rounded border px-3 py-2" style={{ borderColor: "rgba(255,255,255,0.08)", opacity: isDimmed ? 0.5 : 1 }}>
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-slate-200">{player.name}</span>
+                    <span className="text-slate-200" title={player.name}>{displayPlayerName(player.name)}</span>
                     <span className="text-slate-500">DOMINANT {dominant}</span>
                   </div>
                   <div className="mt-2 h-3 overflow-hidden rounded-full bg-slate-800">
@@ -1106,7 +1107,7 @@ export function VaultDetailPanel({
         <div className="space-y-1">
           {allGamePlayers.map((player) => (
             <div key={player.name} className="flex items-center justify-between gap-3">
-              <span className="text-slate-300">{player.name}</span>
+              <span className="text-slate-300" title={player.name}>{displayPlayerName(player.name)}</span>
               <span className="text-slate-500">
                 APM {player.apm} / EAPM {player.eapm}
               </span>
@@ -1304,7 +1305,7 @@ export function VaultDetailPanel({
         <div className="grid gap-2 sm:grid-cols-2">
           {allGamePlayers.map((player) => (
             <div key={player.name} className="rounded border p-2 text-xs font-mono" style={INNER_PANEL_STYLE}>
-              <div className="text-slate-300">{player.name}</div>
+              <div className="text-slate-300" title={player.name}>{displayPlayerName(player.name)}</div>
               <div className="mt-1 text-slate-500">
                 APM {player.apm} EAPM {player.eapm}
               </div>
@@ -1498,7 +1499,7 @@ export function VaultDetailPanel({
 
               return (
                 <div key={player.name} className="rounded border p-2 text-xs font-mono" style={INNER_PANEL_STYLE}>
-                  <div className="text-slate-300">{player.name}</div>
+                  <div className="text-slate-300" title={player.name}>{displayPlayerName(player.name)}</div>
                   <div className="mt-1 text-slate-500">
                     MACRO {mix.macro.toFixed(1)} COMBAT {mix.combat.toFixed(1)} TECH {mix.tech.toFixed(1)}
                   </div>
@@ -1514,7 +1515,7 @@ export function VaultDetailPanel({
       <div className="grid gap-2 sm:grid-cols-2">
         {allGamePlayers.map((player) => (
           <div key={player.name} className="rounded border p-2 text-xs font-mono" style={INNER_PANEL_STYLE}>
-            <div className="text-slate-300">{player.name}</div>
+            <div className="text-slate-300" title={player.name}>{displayPlayerName(player.name)}</div>
             <div className="mt-1 text-slate-500">
               APM {player.apm} EAPM {player.eapm}
             </div>

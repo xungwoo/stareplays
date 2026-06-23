@@ -10,6 +10,7 @@ describe("app header", () => {
 
     expect(screen.getByRole("link", { name: /dashboard/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /replay vault/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /team analysis/i })).toBeInTheDocument();
     expect(screen.getByText(/current_user/i)).toBeInTheDocument();
 
     const header = container.querySelector("header");
@@ -20,10 +21,10 @@ describe("app header", () => {
     expect(header).toHaveClass("flex", "items-center", "justify-between", "px-6", "py-0");
     expect(header).not.toHaveClass("max-w-[1400px]");
     expect(header).toHaveStyle({
-      backgroundColor: "#080e1f",
-      borderBottom: "1px solid rgba(34,211,238,0.15)"
+      backgroundColor: "rgba(18,24,38,0.96)",
+      borderBottom: "1px solid rgba(148,163,184,0.14)"
     });
-    expect(logoIcon).toHaveClass("text-cyan-400");
+    expect(logoIcon).toHaveClass("text-cyan-300");
     expect(activeNav).toHaveClass("bg-cyan-500/15", "text-cyan-300", "border-cyan-500/30");
     expect(currentUserChip).toHaveClass("px-3", "py-1", "tracking-wider");
     expect(currentUserChip?.tagName).toBe("DIV");
@@ -36,7 +37,7 @@ describe("app header", () => {
       window.dispatchEvent(new CustomEvent(CURRENT_USER_CHANGE_EVENT, { detail: "3x3_smwoo" }));
     });
 
-    expect(screen.getByText("3x3_smwoo")).toBeInTheDocument();
+    expect(screen.getByText("성민")).toBeInTheDocument();
   });
 
   it("prefers the currentUser query param on client-side navigation", () => {
@@ -48,6 +49,7 @@ describe("app header", () => {
     expect(screen.getByText("query-user")).toBeInTheDocument();
     expect(screen.queryByText("cookie-user")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /replay vault/i })).toHaveAttribute("href", "/vault?currentUser=query-user");
+    expect(screen.getByRole("link", { name: /team analysis/i })).toHaveAttribute("href", "/team-analysis?currentUser=query-user");
     expect(screen.getByRole("link", { name: /rankings/i })).toHaveAttribute("href", "/rankings?currentUser=query-user");
 
     globalThis.__TEST_SEARCH_PARAMS__ = "";

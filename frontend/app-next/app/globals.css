@@ -5,18 +5,18 @@
 @tailwind utilities;
 
 :root {
-  --color-bg: 8 14 31;
-  --color-panel: 13 24 51;
-  --color-panel-alt: 10 20 40;
-  --color-text: 226 232 240;
-  --color-muted: 100 116 139;
-  --color-cyan: 34 211 238;
-  --color-blue: 96 165 250;
-  --color-emerald: 52 211 153;
-  --color-amber: 245 158 11;
-  --color-red: 248 113 113;
-  --color-violet: 167 139 250;
-  --color-line: 56 189 248;
+  --color-bg: 18 24 38;
+  --color-panel: 25 34 52;
+  --color-panel-alt: 30 41 59;
+  --color-text: 229 231 235;
+  --color-muted: 139 148 163;
+  --color-cyan: 103 190 207;
+  --color-blue: 125 164 214;
+  --color-emerald: 101 190 150;
+  --color-amber: 218 165 85;
+  --color-red: 218 112 112;
+  --color-violet: 157 139 203;
+  --color-line: 93 143 166;
   --radius-lg: 0.875rem;
   --radius-xl: 1.25rem;
   --font-display: "Rajdhani";
@@ -32,12 +32,12 @@ html,
 body {
   margin: 0;
   min-height: 100%;
-  background-color: #080e1f !important;
-  color: #e2e8f0;
+  background-color: #121826 !important;
+  color: #e5e7eb;
 }
 
 body {
-  background: rgb(var(--color-bg));
+  background: linear-gradient(180deg, #151c2b 0%, #111827 100%);
   color: rgb(var(--color-text));
   font-family: var(--font-sans), system-ui, sans-serif;
 }
@@ -57,16 +57,16 @@ body,
 }
 
 ::-webkit-scrollbar-track {
-  background: #0d1833;
+  background: #182235;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1e3a6e;
+  background: #41506a;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #22d3ee44;
+  background: #5f718d;
 }
 
 a {
@@ -98,12 +98,12 @@ select {
   }
 
   .nav-link:hover {
-    @apply bg-slate-800/60 text-slate-300;
+    @apply bg-slate-700/40 text-slate-200;
   }
 
   .nav-link-active {
-    border-color: rgba(6, 182, 212, 0.3);
-    background-color: rgba(6, 182, 212, 0.15);
-    color: rgb(103 232 249);
+    border-color: rgba(103, 190, 207, 0.32);
+    background-color: rgba(103, 190, 207, 0.12);
+    color: rgb(186 230 240);
   }
 }

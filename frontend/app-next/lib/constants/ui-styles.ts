@@ -1,22 +1,22 @@
 export const CYAN_PANEL_STYLE = {
-  backgroundColor: "#0d1833",
-  border: "1px solid rgba(34,211,238,0.1)"
+  backgroundColor: "#192234",
+  border: "1px solid rgba(148,163,184,0.16)"
 } as const;
 
 export const INNER_PANEL_STYLE = {
-  backgroundColor: "#0a1428",
-  border: "1px solid rgba(255,255,255,0.05)"
+  backgroundColor: "#1e293b",
+  border: "1px solid rgba(226,232,240,0.08)"
 } as const;
 
 export const INNER_PANEL_STRONG_STYLE = {
-  backgroundColor: "#0a1428",
-  border: "1px solid rgba(255,255,255,0.06)"
+  backgroundColor: "#202c40",
+  border: "1px solid rgba(226,232,240,0.1)"
 } as const;
 
 export const CYAN_SECTION_DIVIDER_STYLE = {
-  borderBottom: "1px solid rgba(34,211,238,0.1)"
+  borderBottom: "1px solid rgba(148,163,184,0.16)"
 } as const;
 
 export const CYAN_SECTION_ACCENT_STYLE = {
-  backgroundColor: "#22d3ee"
+  backgroundColor: "#67becf"
 } as const;

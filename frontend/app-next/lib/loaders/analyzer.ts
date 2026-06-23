@@ -14,9 +14,11 @@ export async function loadAnalyzerPageModel(options: AnalyzerLoaderOptions = {})
         ? resolveCurrentUser(undefined, options.currentUserCookie)
         : "";
   const userQuery = currentUser ? `&user_name=${encodeURIComponent(currentUser)}` : "";
+  const listOptions = { ...options, revalidateSeconds: options.revalidateSeconds ?? 60 };
+  const detailOptions = { ...options, revalidateSeconds: options.revalidateSeconds ?? 180 };
   const gamesResponse = await tryFetchApiJson<ApiGamesListResponse>(
     `/api/v1/games?limit=12&offset=0${userQuery}`,
-    options
+    listOptions
   );
 
   if (!gamesResponse) {
@@ -27,13 +29,13 @@ export async function loadAnalyzerPageModel(options: AnalyzerLoaderOptions = {})
   const detailEntries = await Promise.all(
     games.map(async (game) => [
       Number(game.id ?? 0),
-      await tryFetchApiJson<ApiGameDetailResponse>(`/api/v1/games/${game.id}/detail`, options)
+      await tryFetchApiJson<ApiGameDetailResponse>(`/api/v1/games/${game.id}/detail`, detailOptions)
     ] as const)
   );
   const analyzerEntries = await Promise.all(
     games.map(async (game) => [
       Number(game.id ?? 0),
-      await tryFetchApiJson<ApiGameAnalyzerResponse>(`/api/v1/games/${game.id}/analyzer`, options)
+      await tryFetchApiJson<ApiGameAnalyzerResponse>(`/api/v1/games/${game.id}/analyzer`, detailOptions)
     ] as const)
   );
 

@@ -20,6 +20,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/xungwoo/stareplays/ent"
+	"github.com/xungwoo/stareplays/ent/appsetting"
 	"github.com/xungwoo/stareplays/ent/game"
 	"github.com/xungwoo/stareplays/ent/gameanalysis"
 	"github.com/xungwoo/stareplays/ent/player"
@@ -79,9 +80,24 @@ type gameResponseDTO struct {
 	PlayerCount int                  `json:"player_count,omitempty"`
 	UploadCount int                  `json:"upload_count,omitempty"`
 	WinnerTeam  uint8                `json:"winner_team,omitempty"`
+	SeasonLabel *string              `json:"season_label,omitempty"`
+	SeasonNo    *int                 `json:"season_no,omitempty"`
 	CreatedAt   time.Time            `json:"created_at,omitempty"`
 	UpdatedAt   time.Time            `json:"updated_at,omitempty"`
 	Edges       gameResponseEdgesDTO `json:"edges"`
+}
+
+type seasonRequest struct {
+	SeasonLabel string `json:"season_label"`
+	SeasonNo    *int   `json:"season_no,omitempty"`
+}
+
+const currentSeasonSettingKey = "current_season"
+
+type uploadOptions struct {
+	UploaderName string
+	SeasonLabel  *string
+	SeasonNo     *int
 }
 
 type gameResponseEdgesDTO struct {
@@ -153,18 +169,11 @@ func ParseLocalReplay(c *fiber.Ctx) error {
 		})
 	}
 
-	return processParsedReplay(c, parsed, req.UploaderName, nil)
+	return processParsedReplay(c, parsed, uploadOptions{UploaderName: req.UploaderName}, nil)
 }
 
 // ParseUploadedReplay parses an uploaded replay file (multipart/form-data) and saves it.
 func ParseUploadedReplay(c *fiber.Ctx) error {
-	uploaderName := strings.TrimSpace(c.FormValue("uploader_name"))
-	if uploaderName == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "uploader_name is required",
-		})
-	}
-
 	form, err := c.MultipartForm()
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -180,6 +189,14 @@ func ParseUploadedReplay(c *fiber.Ctx) error {
 		})
 	}
 
+	options, err := uploadOptionsFromRequest(c)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "invalid upload options",
+			"details": err.Error(),
+		})
+	}
+
 	// Backward compatibility: single upload keeps original response shape.
 	if len(files) == 1 {
 		parsed, replayData, err := parseUploadedFile(files[0])
@@ -189,7 +206,7 @@ func ParseUploadedReplay(c *fiber.Ctx) error {
 				"details": err.Error(),
 			})
 		}
-		return processParsedReplay(c, parsed, uploaderName, replayData)
+		return processParsedReplay(c, parsed, options, replayData)
 	}
 
 	results := make([]fiber.Map, 0, len(files))
@@ -210,7 +227,7 @@ func ParseUploadedReplay(c *fiber.Ctx) error {
 			continue
 		}
 
-		status, payload := processParsedReplayResult(c.Context(), parsedFile.Parsed, uploaderName, parsedFile.ReplayData)
+		status, payload := processParsedReplayResult(c.Context(), parsedFile.Parsed, options, parsedFile.ReplayData)
 		ok := status < 400
 		if ok {
 			successCount++
@@ -301,18 +318,28 @@ func PreviewUploadedReplay(c *fiber.Ctx) error {
 	})
 }
 
-func processParsedReplay(c *fiber.Ctx, parsed *parser.ParsedGame, uploaderName string, replayData []byte) error {
-	status, payload := processParsedReplayResult(c.Context(), parsed, uploaderName, replayData)
+func processParsedReplay(c *fiber.Ctx, parsed *parser.ParsedGame, options uploadOptions, replayData []byte) error {
+	status, payload := processParsedReplayResult(c.Context(), parsed, options, replayData)
 	return c.Status(status).JSON(payload)
 }
 
-func processParsedReplayResult(ctx context.Context, parsed *parser.ParsedGame, uploaderName string, replayData []byte) (int, fiber.Map) {
-	if strings.TrimSpace(uploaderName) == "" {
+func processParsedReplayResult(ctx context.Context, parsed *parser.ParsedGame, options uploadOptions, replayData []byte) (int, fiber.Map) {
+	if non3x3 := nonThreeVsThreePlayers(parsed.Players); len(non3x3) > 0 {
 		return fiber.StatusBadRequest, fiber.Map{
-			"error": "uploader_name is required",
+			"error":       "replay contains non-3x3 players",
+			"non_players": non3x3,
 		}
 	}
 
+	uploaderName := strings.TrimSpace(options.UploaderName)
+	if uploaderName == "" {
+		uploaderName = autoUploaderName(parsed.Players)
+	}
+	if uploaderName == "" {
+		return fiber.StatusBadRequest, fiber.Map{
+			"error": "no 3x3 player found in replay",
+		}
+	}
 	uploader, err := getOrCreateUser(ctx, uploaderName)
 	if err != nil {
 		return fiber.StatusInternalServerError, fiber.Map{
@@ -355,21 +382,21 @@ func processParsedReplayResult(ctx context.Context, parsed *parser.ParsedGame, u
 			}
 		}
 
-		if !isUploaderParticipant(hashGame.Edges.Players, uploaderName) {
-			return fiber.StatusBadRequest, fiber.Map{
-				"error": "uploader must be one of non-observer players in this game",
-			}
-		}
-
 		savedGame, err := addReplayFileToGame(ctx, hashGame, uploader, parsed, replayData)
 		if err != nil {
 			if errors.Is(err, errAlreadyUploadedByUser) {
-				return fiber.StatusConflict, fiber.Map{
-					"error": "This user already uploaded a replay for this game",
+				savedGame = hashGame
+			} else {
+				return fiber.StatusInternalServerError, fiber.Map{
+					"error":   "Failed to add replay file",
+					"details": err.Error(),
 				}
 			}
+		}
+		savedGame, err = applySeasonToGame(ctx, savedGame.ID, options)
+		if err != nil {
 			return fiber.StatusInternalServerError, fiber.Map{
-				"error":   "Failed to add replay file",
+				"error":   "Failed to set season",
 				"details": err.Error(),
 			}
 		}
@@ -400,22 +427,22 @@ func processParsedReplayResult(ctx context.Context, parsed *parser.ParsedGame, u
 	}
 
 	if existingGame != nil {
-		if !isUploaderParticipant(existingGame.Edges.Players, uploaderName) {
-			return fiber.StatusBadRequest, fiber.Map{
-				"error": "uploader must be one of non-observer players in this game",
-			}
-		}
-
 		// Same game exists — add replay file and increment upload count
 		savedGame, err := addReplayFileToGame(ctx, existingGame, uploader, parsed, replayData)
 		if err != nil {
 			if errors.Is(err, errAlreadyUploadedByUser) {
-				return fiber.StatusConflict, fiber.Map{
-					"error": "This user already uploaded a replay for this game",
+				savedGame = existingGame
+			} else {
+				return fiber.StatusInternalServerError, fiber.Map{
+					"error":   "Failed to add replay file",
+					"details": err.Error(),
 				}
 			}
+		}
+		savedGame, err = applySeasonToGame(ctx, savedGame.ID, options)
+		if err != nil {
 			return fiber.StatusInternalServerError, fiber.Map{
-				"error":   "Failed to add replay file",
+				"error":   "Failed to set season",
 				"details": err.Error(),
 			}
 		}
@@ -427,14 +454,14 @@ func processParsedReplayResult(ctx context.Context, parsed *parser.ParsedGame, u
 		}
 	}
 
-	if !isUploaderInParsedPlayers(parsed.Players, uploaderName) {
+	if strings.TrimSpace(options.UploaderName) != "" && !isUploaderInParsedPlayers(parsed.Players, uploaderName) {
 		return fiber.StatusBadRequest, fiber.Map{
 			"error": "uploader must be one of non-observer players in this replay",
 		}
 	}
 
 	// New game — create everything in a transaction
-	savedGame, err := createNewGame(ctx, parsed, uploader, replayData)
+	savedGame, err := createNewGame(ctx, parsed, uploader, options, replayData)
 	if err != nil {
 		return fiber.StatusInternalServerError, fiber.Map{
 			"error":   "Failed to save game to database",
@@ -463,6 +490,8 @@ func buildGameResponseDTO(g *ent.Game) gameResponseDTO {
 		PlayerCount: g.PlayerCount,
 		UploadCount: g.UploadCount,
 		WinnerTeam:  g.WinnerTeam,
+		SeasonLabel: g.SeasonLabel,
+		SeasonNo:    g.SeasonNo,
 		CreatedAt:   g.CreatedAt,
 		UpdatedAt:   g.UpdatedAt,
 		Edges: gameResponseEdgesDTO{
@@ -517,6 +546,158 @@ func collectReplayFiles(form *multipart.Form) []*multipart.FileHeader {
 	files = append(files, form.File["replay_files"]...)
 	files = append(files, form.File["replay_file"]...)
 	return files
+}
+
+func isThreeVsThreeName(name string) bool {
+	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(name)), "3x3")
+}
+
+func nonThreeVsThreePlayers(players []parser.ParsedPlayer) []string {
+	nonPlayers := make([]string, 0)
+	for _, p := range players {
+		name := strings.TrimSpace(p.Name)
+		if name == "" || !isThreeVsThreeName(name) {
+			nonPlayers = append(nonPlayers, name)
+		}
+	}
+	sort.Strings(nonPlayers)
+	return nonPlayers
+}
+
+func autoUploaderName(players []parser.ParsedPlayer) string {
+	for _, p := range players {
+		name := strings.TrimSpace(p.Name)
+		if isThreeVsThreeName(name) {
+			return name
+		}
+	}
+	return ""
+}
+
+func uploadOptionsFromRequest(c *fiber.Ctx) (uploadOptions, error) {
+	options := uploadOptions{
+		UploaderName: strings.TrimSpace(c.FormValue("uploader_name")),
+	}
+
+	label := strings.TrimSpace(c.FormValue("season_label"))
+	if label != "" {
+		options.SeasonLabel = &label
+		if rawNo := strings.TrimSpace(c.FormValue("season_no")); rawNo != "" {
+			seasonNo, err := strconv.Atoi(rawNo)
+			if err != nil || seasonNo <= 0 {
+				return options, fmt.Errorf("season_no must be a positive integer")
+			}
+			options.SeasonNo = &seasonNo
+		} else if inferred := inferSeasonNo(label); inferred != nil {
+			options.SeasonNo = inferred
+		}
+		return options, nil
+	}
+
+	current, err := getCurrentSeason(c.Context())
+	if err != nil {
+		return options, err
+	}
+	options.SeasonLabel = current.SeasonLabel
+	options.SeasonNo = current.SeasonNo
+	return options, nil
+}
+
+func inferSeasonNo(label string) *int {
+	digits := strings.Builder{}
+	for _, r := range label {
+		if r >= '0' && r <= '9' {
+			digits.WriteRune(r)
+		}
+	}
+	if digits.Len() == 0 {
+		return nil
+	}
+	value, err := strconv.Atoi(digits.String())
+	if err != nil || value <= 0 {
+		return nil
+	}
+	return &value
+}
+
+func applySeasonToGame(ctx context.Context, gameID int, options uploadOptions) (*ent.Game, error) {
+	if options.SeasonLabel == nil && options.SeasonNo == nil {
+		return database.Client.Game.Query().Where(game.IDEQ(gameID)).WithPlayers().WithReplayFiles().Only(ctx)
+	}
+	update := database.Client.Game.UpdateOneID(gameID)
+	if options.SeasonLabel != nil {
+		update.SetSeasonLabel(*options.SeasonLabel)
+	}
+	if options.SeasonNo != nil {
+		update.SetSeasonNo(*options.SeasonNo)
+	}
+	return update.Save(ctx)
+}
+
+func getCurrentSeason(ctx context.Context) (uploadOptions, error) {
+	row, err := database.Client.AppSetting.Query().
+		Where(appsetting.KeyEQ(currentSeasonSettingKey)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return uploadOptions{}, nil
+		}
+		return uploadOptions{}, err
+	}
+	var req seasonRequest
+	if err := json.Unmarshal([]byte(row.Value), &req); err != nil {
+		return uploadOptions{}, err
+	}
+	options := uploadOptions{}
+	label := strings.TrimSpace(req.SeasonLabel)
+	if label != "" {
+		options.SeasonLabel = &label
+	}
+	if req.SeasonNo != nil && *req.SeasonNo > 0 {
+		options.SeasonNo = req.SeasonNo
+	} else if inferred := inferSeasonNo(label); inferred != nil {
+		options.SeasonNo = inferred
+	}
+	return options, nil
+}
+
+func setCurrentSeason(ctx context.Context, req seasonRequest) (uploadOptions, error) {
+	label := strings.TrimSpace(req.SeasonLabel)
+	if label == "" {
+		return uploadOptions{}, fmt.Errorf("season_label is required")
+	}
+	if req.SeasonNo == nil {
+		req.SeasonNo = inferSeasonNo(label)
+	}
+	payload, err := json.Marshal(req)
+	if err != nil {
+		return uploadOptions{}, err
+	}
+
+	existing, err := database.Client.AppSetting.Query().
+		Where(appsetting.KeyEQ(currentSeasonSettingKey)).
+		Only(ctx)
+	if err != nil && !ent.IsNotFound(err) {
+		return uploadOptions{}, err
+	}
+	if existing == nil {
+		if _, err := database.Client.AppSetting.Create().
+			SetKey(currentSeasonSettingKey).
+			SetValue(string(payload)).
+			Save(ctx); err != nil {
+			return uploadOptions{}, err
+		}
+	} else if _, err := database.Client.AppSetting.UpdateOneID(existing.ID).
+		SetValue(string(payload)).
+		Save(ctx); err != nil {
+		return uploadOptions{}, err
+	}
+
+	label = strings.TrimSpace(req.SeasonLabel)
+	return uploadOptions{
+		SeasonLabel: &label,
+		SeasonNo:    req.SeasonNo,
+	}, nil
 }
 
 func parseUploadedFile(fileHeader *multipart.FileHeader) (*parser.ParsedGame, []byte, error) {
@@ -895,7 +1076,7 @@ func addReplayFileToGame(ctx context.Context, existingGame *ent.Game, uploader *
 }
 
 // createNewGame creates a new game with all related entities in a transaction.
-func createNewGame(ctx context.Context, parsed *parser.ParsedGame, uploader *ent.User, replayData []byte) (*ent.Game, error) {
+func createNewGame(ctx context.Context, parsed *parser.ParsedGame, uploader *ent.User, options uploadOptions, replayData []byte) (*ent.Game, error) {
 	tx, err := database.Client.Tx(ctx)
 	if err != nil {
 		return nil, err
@@ -921,6 +1102,8 @@ func createNewGame(ctx context.Context, parsed *parser.ParsedGame, uploader *ent
 		SetPlayerCount(parsed.PlayerCount).
 		SetUploadCount(1).
 		SetWinnerTeam(parsed.WinnerTeam)
+	gameCreate.SetNillableSeasonLabel(options.SeasonLabel)
+	gameCreate.SetNillableSeasonNo(options.SeasonNo)
 
 	savedGame, err := gameCreate.Save(ctx)
 	if err != nil {
@@ -1035,6 +1218,7 @@ func ListGames(c *fiber.Ctx) error {
 	limit := c.QueryInt("limit", 10)
 	offset := c.QueryInt("offset", 0)
 	userName := strings.TrimSpace(c.Query("user_name"))
+	seasonLabel := strings.TrimSpace(c.Query("season_label"))
 	if limit > 100 {
 		limit = 100
 	}
@@ -1048,6 +1232,9 @@ func ListGames(c *fiber.Ctx) error {
 	gameQuery := database.Client.Game.Query()
 	if userName != "" {
 		gameQuery = gameQuery.Where(game.HasPlayersWith(player.NameEqualFold(userName)))
+	}
+	if seasonLabel != "" {
+		gameQuery = gameQuery.Where(game.SeasonLabelEQ(seasonLabel))
 	}
 
 	games, err := gameQuery.
@@ -1066,6 +1253,9 @@ func ListGames(c *fiber.Ctx) error {
 	totalQuery := database.Client.Game.Query()
 	if userName != "" {
 		totalQuery = totalQuery.Where(game.HasPlayersWith(player.NameEqualFold(userName)))
+	}
+	if seasonLabel != "" {
+		totalQuery = totalQuery.Where(game.SeasonLabelEQ(seasonLabel))
 	}
 	total, err := totalQuery.Count(ctx)
 	if err != nil {
@@ -1089,8 +1279,51 @@ func ListGames(c *fiber.Ctx) error {
 		"limit":                 limit,
 		"offset":                offset,
 		"user_name":             userName,
+		"season_label":          seasonLabel,
 		"reliability_summaries": buildReliabilitySummaryMap(games),
 		"analysis_statuses":     analysisStatuses,
+	})
+}
+
+// ListReplayFileHashes returns a compact hash set for idempotent bulk upload tools.
+func ListReplayFileHashes(c *fiber.Ctx) error {
+	ctx := c.Context()
+
+	files, err := database.Client.ReplayFile.
+		Query().
+		WithGame().
+		All(ctx)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to fetch replay file hashes",
+			"details": err.Error(),
+		})
+	}
+
+	hashes := make([]string, 0, len(files))
+	replayFiles := make([]fiber.Map, 0, len(files))
+	for _, file := range files {
+		hash := strings.TrimSpace(file.FileHash)
+		if hash == "" {
+			continue
+		}
+		hashes = append(hashes, hash)
+		gameID := 0
+		if file.Edges.Game != nil {
+			gameID = file.Edges.Game.ID
+		}
+		replayFiles = append(replayFiles, fiber.Map{
+			"file_hash": hash,
+			"filename":  file.Filename,
+			"game_id":   gameID,
+		})
+	}
+	sort.Strings(hashes)
+
+	return c.JSON(fiber.Map{
+		"count":        len(hashes),
+		"hashes":       hashes,
+		"replay_files": replayFiles,
 	})
 }
 
@@ -1127,6 +1360,144 @@ func GetGame(c *fiber.Ctx) error {
 		"game":               buildGameResponseDTO(g),
 		"reliability_m_of_n": reliabilityMofN(g.UploadCount, g.PlayerCount),
 		"reliability":        reliabilityText(g.UploadCount, g.PlayerCount),
+	})
+}
+
+// ListSeasons returns distinct seasons with lightweight records.
+func ListSeasons(c *fiber.Ctx) error {
+	ctx := c.Context()
+	current, err := getCurrentSeason(ctx)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to fetch current season",
+			"details": err.Error(),
+		})
+	}
+
+	games, err := database.Client.Game.Query().
+		Where(game.SeasonLabelNotNil()).
+		WithPlayers().
+		Order(ent.Asc(game.FieldSeasonNo), ent.Asc(game.FieldStartTime), ent.Asc(game.FieldCreatedAt)).
+		All(ctx)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to fetch seasons",
+			"details": err.Error(),
+		})
+	}
+
+	type seasonSummary struct {
+		SeasonLabel string            `json:"season_label"`
+		SeasonNo    *int              `json:"season_no,omitempty"`
+		Games       int               `json:"games"`
+		WinsByTeam  map[string]int    `json:"wins_by_team"`
+		GameIDs     []int             `json:"game_ids"`
+		GamesData   []gameResponseDTO `json:"games_data"`
+	}
+
+	summaries := make([]*seasonSummary, 0)
+	byLabel := make(map[string]*seasonSummary)
+	for _, g := range games {
+		if g.SeasonLabel == nil || strings.TrimSpace(*g.SeasonLabel) == "" {
+			continue
+		}
+		label := strings.TrimSpace(*g.SeasonLabel)
+		summary := byLabel[label]
+		if summary == nil {
+			summary = &seasonSummary{
+				SeasonLabel: label,
+				SeasonNo:    g.SeasonNo,
+				WinsByTeam:  map[string]int{},
+				GameIDs:     []int{},
+				GamesData:   []gameResponseDTO{},
+			}
+			byLabel[label] = summary
+			summaries = append(summaries, summary)
+		}
+		summary.Games += 1
+		summary.GameIDs = append(summary.GameIDs, g.ID)
+		summary.GamesData = append(summary.GamesData, buildGameResponseDTO(g))
+		if g.WinnerTeam > 0 {
+			summary.WinsByTeam[strconv.Itoa(int(g.WinnerTeam))] += 1
+		}
+	}
+
+	return c.JSON(fiber.Map{
+		"current": fiber.Map{
+			"season_label": current.SeasonLabel,
+			"season_no":    current.SeasonNo,
+		},
+		"seasons": summaries,
+		"total":   len(summaries),
+	})
+}
+
+// SetCurrentSeason sets the default season applied to future uploads.
+func SetCurrentSeason(c *fiber.Ctx) error {
+	var req seasonRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "invalid season request",
+			"details": err.Error(),
+		})
+	}
+	current, err := setCurrentSeason(c.Context(), req)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "failed to set current season",
+			"details": err.Error(),
+		})
+	}
+	return c.JSON(fiber.Map{
+		"message":      "current season updated",
+		"season_label": current.SeasonLabel,
+		"season_no":    current.SeasonNo,
+	})
+}
+
+// SetGameSeason updates one existing game's season metadata.
+func SetGameSeason(c *fiber.Ctx) error {
+	ctx := c.Context()
+	id, err := c.ParamsInt("id")
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid game ID",
+		})
+	}
+	var req seasonRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "invalid season request",
+			"details": err.Error(),
+		})
+	}
+	label := strings.TrimSpace(req.SeasonLabel)
+	if label == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "season_label is required",
+		})
+	}
+	if req.SeasonNo == nil {
+		req.SeasonNo = inferSeasonNo(label)
+	}
+	g, err := database.Client.Game.UpdateOneID(id).
+		SetSeasonLabel(label).
+		SetNillableSeasonNo(req.SeasonNo).
+		Save(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": "Game not found",
+			})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to update game season",
+			"details": err.Error(),
+		})
+	}
+	return c.JSON(fiber.Map{
+		"message": "game season updated",
+		"game":    buildGameResponseDTO(g),
 	})
 }
 
@@ -1394,6 +1765,12 @@ func DeleteGame(c *fiber.Ctx) error {
 	if _, err = tx.ReplayFile.Delete().Where(replayfile.HasGameWith(game.IDEQ(id))).Exec(ctx); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to delete replay files",
+			"details": err.Error(),
+		})
+	}
+	if _, err = tx.GameAnalysis.Delete().Where(gameanalysis.GameIDEQ(id)).Exec(ctx); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to delete game analysis",
 			"details": err.Error(),
 		})
 	}

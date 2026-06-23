@@ -208,11 +208,11 @@ describe("dashboard page", () => {
     expect(queryButton).toHaveClass("transition-all");
     expect(screen.queryByText(/^Win Rate Progress$/i)).not.toBeInTheDocument();
     expect(screen.getByText(DASHBOARD_FIXTURE.playerStats.favoriteRaceLabel)).toHaveClass("text-amber-400");
-    expect(screen.getByText(/^CURRENT_USER:$/i).nextElementSibling).toHaveTextContent(DASHBOARD_FIXTURE.currentUser);
+    expect(screen.getByText(/^CURRENT_USER:$/i).nextElementSibling).toHaveTextContent("성우");
     expect(playerStatsQueryLabel.parentElement).toHaveClass("p-5");
     expect(playerStatsQueryLabel.parentElement).toHaveStyle({
-      backgroundColor: "#0d1833",
-      border: "1px solid rgba(34,211,238,0.1)"
+      backgroundColor: "#192234",
+      border: "1px solid rgba(148,163,184,0.16)"
     });
     expect(replayUploadLabel.compareDocumentPosition(playerStatsQueryLabel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(playerStatsQueryLabel.compareDocumentPosition(recentGamesLabel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -227,8 +227,8 @@ describe("dashboard page", () => {
     const winRateStatLabel = winRateStatValue.previousElementSibling;
 
     expect(winRateStatLabel?.parentElement).toHaveStyle({
-      backgroundColor: "#0a1428",
-      border: "1px solid rgba(255,255,255,0.06)"
+      backgroundColor: "#202c40",
+      border: "1px solid rgba(226,232,240,0.1)"
     });
     expect(winRateStatValue).toHaveStyle({ color: "#22d3ee" });
     expect(container.querySelector('label[for="replay-file"]')).toHaveStyle({
@@ -237,8 +237,8 @@ describe("dashboard page", () => {
     });
     expect(container.querySelector('label[for="replay-file"] svg')).toHaveClass("text-cyan-400");
     expect(within(screen.getByTestId("dashboard-upload-result")).getByText(/^READY$/i).parentElement).toHaveStyle({
-      backgroundColor: "#0a1428",
-      border: "1px solid rgba(255,255,255,0.05)"
+      backgroundColor: "#1e293b",
+      border: "1px solid rgba(226,232,240,0.08)"
     });
     expect(screen.getByLabelText(/플레이어 이름 입력/i)).toHaveStyle({
       backgroundColor: "#0a1428",
@@ -250,9 +250,9 @@ describe("dashboard page", () => {
       border: "1px solid rgba(34,211,238,0.3)"
     });
     expect(screen.getByText(/^CURRENT_USER:$/i).nextElementSibling).toHaveStyle({
-      backgroundColor: "rgba(34,211,238,0.1)",
-      color: "#22d3ee",
-      border: "1px solid rgba(34,211,238,0.2)"
+      backgroundColor: "rgba(103,190,207,0.12)",
+      color: "#bae6f0",
+      border: "1px solid rgba(103,190,207,0.24)"
     });
     expect(screen.getByText(/^CURRENT_USER:$/i).nextElementSibling).not.toHaveClass("tracking-wider");
     expect(screen.getByText(/^PLAYER$/i).nextElementSibling?.querySelector("span")).toHaveStyle({
@@ -638,7 +638,7 @@ describe("dashboard page", () => {
       expect(within(screen.getByTestId("dashboard-upload-result")).getByText("ANALYZE_OK: 1/1 files")).toBeInTheDocument();
     });
     expect(screen.getByLabelText(/플레이어 선택/i)).toHaveValue("3x3_GG");
-    expect(screen.getByText(/^CURRENT_USER:$/i).nextElementSibling).toHaveTextContent("3x3_GG");
+    expect(screen.getByText(/^CURRENT_USER:$/i).nextElementSibling).toHaveTextContent("성우");
     expect(screen.queryByText(/^READY$/i)).not.toBeInTheDocument();
   });
 
@@ -689,7 +689,7 @@ describe("dashboard page", () => {
 
     fireEvent.change(screen.getByLabelText(/플레이어 선택/i), { target: { value: "3x3_GG" } });
 
-    expect(screen.getByText(/^CURRENT_USER:$/i).nextElementSibling).toHaveTextContent("3x3_GG");
+    expect(screen.getByText(/^CURRENT_USER:$/i).nextElementSibling).toHaveTextContent("성우");
     expect(screen.getByLabelText(/플레이어 선택/i)).toHaveValue("3x3_GG");
     expect(screen.getByRole("button", { name: /upload_with_selected_user/i })).toBeEnabled();
 
@@ -965,7 +965,7 @@ describe("dashboard page", () => {
     );
     expect(await screen.findByText(/analysis completed/i)).toBeInTheDocument();
     expect(screen.getAllByText(/common players/i)).not.toHaveLength(0);
-    expect(screen.getByRole("option", { name: "3x3_GG" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "성우" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /upload_with_selected_user/i })).toBeEnabled();
   });
 
@@ -1218,13 +1218,13 @@ describe("dashboard page", () => {
 
     vi.useRealTimers();
 
-    expect(await screen.findByRole("option", { name: "3x3_smwoo" })).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: "성민" })).toBeInTheDocument();
 
     await act(async () => {
       fireEvent.keyDown(queryInput, { key: "Enter", code: "Enter", charCode: 13 });
     });
 
-    expect(await screen.findAllByText("3x3_smwoo")).not.toHaveLength(0);
+    expect(await screen.findAllByText("성민")).not.toHaveLength(0);
     expect(screen.getByText("TERRAN")).toBeInTheDocument();
     expect(await screen.findAllByText("70.4%")).not.toHaveLength(0);
     expect(screen.getByLabelText(/플레이어 선택/i)).toHaveValue("3x3_smwoo");
@@ -1551,7 +1551,7 @@ describe("dashboard page", () => {
       await Promise.resolve();
     });
 
-    expect(screen.getByRole("option", { name: "3x3_smwoo" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "성민" })).toBeInTheDocument();
 
     await act(async () => {
       resolveFirst?.(
@@ -1752,7 +1752,7 @@ describe("dashboard page", () => {
     expect(within(vizShell).getByText(/hint row/i)).toBeInTheDocument();
     expect(within(vizShell).getByText(/tech-event info row/i)).toBeInTheDocument();
     expect(within(vizShell).getByText(/summary area/i)).toBeInTheDocument();
-    expect(within(vizShell).getByText(/3x3_GG, 3x3_mh, 3x3_smwoo/i)).toBeInTheDocument();
+    expect(within(vizShell).getByText(/성우 \+ 민혁 \+ 성민/i)).toBeInTheDocument();
     expect(within(vizShell).getAllByText(/5\/6 \| stable/i).length).toBeGreaterThan(0);
 
     fireEvent.click(within(vizShell).getByRole("button", { name: "Tech" }));

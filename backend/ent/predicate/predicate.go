@@ -9,6 +9,9 @@ import (
 // AnalyzerRaceMatchup is the predicate function for analyzerracematchup builders.
 type AnalyzerRaceMatchup func(*sql.Selector)
 
+// AppSetting is the predicate function for appsetting builders.
+type AppSetting func(*sql.Selector)
+
 // Game is the predicate function for game builders.
 type Game func(*sql.Selector)
 

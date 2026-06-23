@@ -79,6 +79,8 @@ export interface ApiGameSummary {
   game_length?: number;
   winner_team?: number;
   start_time?: string;
+  season_label?: string | null;
+  season_no?: number | null;
   edges?: {
     players?: ApiGamePlayer[];
   };
@@ -88,6 +90,24 @@ export interface ApiGamesListResponse {
   total?: number;
   games?: ApiGameSummary[];
   analysis_statuses?: Record<string, string>;
+}
+
+export interface ApiSeasonSummary {
+  season_label?: string;
+  season_no?: number | null;
+  games?: number;
+  wins_by_team?: Record<string, number>;
+  game_ids?: number[];
+  games_data?: ApiGameSummary[];
+}
+
+export interface ApiSeasonsResponse {
+  current?: {
+    season_label?: string | null;
+    season_no?: number | null;
+  };
+  total?: number;
+  seasons?: ApiSeasonSummary[];
 }
 
 export interface ApiGetGameResponse {

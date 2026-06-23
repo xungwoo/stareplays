@@ -2,6 +2,7 @@
 
 import { RaceBadge } from "@/components/shared/race-badge";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { displayPlayerName } from "@/lib/utils/player-display";
 import type { VaultGame, VaultPlayer } from "@/types/vault";
 
 type VaultResultBadge = "WINNER" | "LOSER" | "DRAW" | "INVALID";
@@ -109,7 +110,7 @@ function TeamCell({
       {players.map((player) => (
         <div key={player.name} className="flex items-center gap-1 text-[11px] font-mono">
           <RaceBadge race={player.race} />
-          <span className={player.isCurrentUser ? "text-cyan-300" : "text-slate-400"}>{player.name}</span>
+          <span className={player.isCurrentUser ? "text-cyan-300" : "text-slate-400"} title={player.name}>{displayPlayerName(player.name)}</span>
           {player.isCurrentUser ? <span className="text-[9px] text-cyan-500">YOU</span> : null}
           <span className="ml-auto text-slate-600">
             A:{player.apm} E:{player.eapm}

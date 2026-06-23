@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Fragment, type ChangeEvent, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { CheckCircle, ChevronDown, LoaderCircle, Upload } from "lucide-react";
+import { CheckCircle, LoaderCircle, Upload } from "lucide-react";
 
 import { ErrorState } from "@/components/shared/error-state";
 import { LoadingState } from "@/components/shared/loading-state";
@@ -18,6 +18,7 @@ import { VAULT_GAMES_FIXTURE } from "@/lib/fixtures/vault";
 import { CYAN_PANEL_STYLE, INNER_PANEL_STRONG_STYLE, INNER_PANEL_STYLE } from "@/lib/constants/ui-styles";
 import { buildApiUrl } from "@/lib/api/url";
 import { buildCurrentUserSessionDocumentCookie } from "@/lib/utils/current-user-session";
+import { displayLineupName, displayPlayerName } from "@/lib/utils/player-display";
 import { getStartGridBoard } from "@/lib/utils/start-grid-board";
 import { formatStartTime } from "@/lib/utils/format";
 import type {
@@ -347,8 +348,6 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
   const pathname = usePathname();
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
-  const [pendingCommonPlayers, setPendingCommonPlayers] = useState<string[]>([]);
-  const [selectedPlayer, setSelectedPlayer] = useState("");
   const [currentUser, setCurrentUser] = useState(model.currentUser);
   const [previewState, setPreviewState] = useState<DashboardActionStatus>("idle");
   const [previewSummary, setPreviewSummary] = useState<DashboardPreviewSummary | null>(null);
@@ -388,13 +387,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
   const selectedFile = selectedFiles[0] ?? null;
   const record = `${playerStats.wins}-${playerStats.losses}-${playerStats.draws}`;
   const currentUserNormalized = currentUser.trim();
-  const selectablePlayers = previewSummary
-    ? previewSummary.commonPlayers
-    : [...new Set([selectedPlayer, ...model.uploadCandidates].filter(Boolean))];
-  const uploadReady =
-    pendingFiles.length > 0 &&
-    Boolean(currentUserNormalized) &&
-    pendingCommonPlayers.some((player) => player.trim().toLowerCase() === currentUserNormalized.toLowerCase());
+  const uploadReady = pendingFiles.length > 0;
   const selectedGame = selectedGameId != null ? recentGames.find((game) => game.id === selectedGameId) ?? null : null;
   const selectedGameDetail = selectedGameId != null ? gameDetailById[selectedGameId] ?? null : null;
   const selectedGameDetailState = selectedGameId != null ? gameDetailStateById[selectedGameId] ?? "idle" : "idle";
@@ -502,7 +495,6 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
     }
 
     setQueryName(restoredUser);
-    setSelectedPlayer(restoredUser);
     persistCurrentUser(restoredUser, { refresh: true });
   }, [currentUser]);
 
@@ -606,20 +598,10 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
     setPreviewState("idle");
     setPreviewSummary(null);
     setPendingFiles([]);
-    setPendingCommonPlayers([]);
     setUploadState("idle");
     setUploadErrorMessage(null);
     setUploadSummary(null);
     setUploadStatusMessage("READY");
-    setSelectedPlayer("");
-  }
-
-  function handlePlayerSelection(nextPlayer: string) {
-    setSelectedPlayer(nextPlayer);
-    if (nextPlayer.trim()) {
-      appendSystemLog(`SELECT_USER: ${nextPlayer}`);
-      persistCurrentUser(nextPlayer);
-    }
   }
 
   async function handlePreview() {
@@ -645,24 +627,8 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
       setPreviewSummary(summary);
       setPreviewState("success");
       setPendingFiles(selectedFiles);
-      setPendingCommonPlayers(summary.commonPlayers);
       setUploadStatusMessage(`ANALYZE_OK: ${summary.successCount}/${summary.totalFiles} files`);
       appendSystemLog(`ANALYZE_OK: ${summary.successCount}/${summary.totalFiles} files`);
-
-      const normalizedCurrentUser = currentUser.trim().toLowerCase();
-      const matchedCurrentUser = normalizedCurrentUser
-        ? summary.commonPlayers.find((player) => player.trim().toLowerCase() === normalizedCurrentUser)
-        : null;
-
-      if (matchedCurrentUser) {
-        setSelectedPlayer(matchedCurrentUser);
-      } else if (!currentUser.trim() && summary.commonPlayers.length === 1) {
-        const preferredPlayer = summary.commonPlayers[0];
-        setSelectedPlayer(preferredPlayer);
-        persistCurrentUser(preferredPlayer, { preserveUploadTerminal: true });
-      } else {
-        setSelectedPlayer("");
-      }
     } catch (error) {
       if (previewRequestRef.current !== requestId) {
         return;
@@ -675,16 +641,6 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
   }
 
   async function handleUpload() {
-    const normalizedCurrentUser = currentUser.trim();
-
-    if (!normalizedCurrentUser) {
-      setUploadState("error");
-      setUploadErrorMessage("select user first (simple login)");
-      setUploadStatusMessage("UPLOAD_FAIL: select user first (simple login)");
-      appendSystemLog("UPLOAD_FAIL: select user first (simple login)");
-      return;
-    }
-
     if (pendingFiles.length === 0) {
       setUploadState("error");
       setUploadErrorMessage("analyze replay first");
@@ -693,49 +649,33 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
       return;
     }
 
-    if (pendingCommonPlayers.length === 0) {
-      setUploadState("error");
-      setUploadErrorMessage("no common participant across analyzed files");
-      setUploadStatusMessage("UPLOAD_FAIL: no common participant across analyzed files");
-      appendSystemLog("UPLOAD_FAIL: no common participant across analyzed files");
-      return;
-    }
-
-    const isCurrentUserCommon = pendingCommonPlayers.some(
-      (player) => player.trim().toLowerCase() === normalizedCurrentUser.toLowerCase()
-    );
-
-    if (!isCurrentUserCommon) {
-      setUploadState("error");
-      setUploadErrorMessage(`'${normalizedCurrentUser}' is not a common participant in current analyzed files`);
-      setUploadStatusMessage(`UPLOAD_FAIL: '${normalizedCurrentUser}' is not a common participant in current analyzed files`);
-      appendSystemLog(`UPLOAD_FAIL: '${normalizedCurrentUser}' is not a common participant in current analyzed files`);
-      return;
-    }
-
     const requestId = ++uploadRequestRef.current;
     setUploadState("submitting");
     setUploadErrorMessage(null);
     setUploadSummary(null);
-    setUploadStatusMessage(`UPLOADING ${pendingFiles.length} FILE(S) AS ${normalizedCurrentUser}...`);
-    appendSystemLog(`UPLOAD_START: ${normalizedCurrentUser}`);
+    setUploadStatusMessage(`UPLOADING ${pendingFiles.length} FILE(S)...`);
+    appendSystemLog("UPLOAD_START: auto uploader");
 
     try {
-      const result = (await submitReplayUpload(pendingFiles, normalizedCurrentUser, { fetchImpl: fetch })) as ApiReplayUploadResponse;
+      const result = (await submitReplayUpload(pendingFiles, { fetchImpl: fetch })) as ApiReplayUploadResponse;
       if (uploadRequestRef.current !== requestId) {
         return;
       }
-      const summary = createUploadSummary(result, normalizedCurrentUser);
+      const summary = createUploadSummary(result, currentUser.trim());
       setUploadSummary(summary);
       setUploadState("success");
       setUploadErrorMessage(null);
       setUploadStatusMessage("UPLOAD_DONE: check terminal log");
       appendSystemLog("UPLOAD_DONE: check terminal log");
-      persistCurrentUser(normalizedCurrentUser, { refresh: true });
+      if (currentUser.trim()) {
+        persistCurrentUser(currentUser.trim(), { refresh: true });
+      }
       if (summary.uploadedGameId != null) {
         setSelectedGameId(summary.uploadedGameId);
       }
-      void loadRecentGames(normalizedCurrentUser, "UPLOAD_REFRESH", 1);
+      if (currentUser.trim()) {
+        void loadRecentGames(currentUser.trim(), "UPLOAD_REFRESH", 1);
+      }
     } catch (error) {
       if (uploadRequestRef.current !== requestId) {
         return;
@@ -797,7 +737,6 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
     setQueryError(null);
     appendSystemLog(`QUERY_PLAYER: ${normalized}`);
     persistCurrentUser(normalized, { refresh: true });
-    setSelectedPlayer(normalized);
 
     try {
       const result = await fetchBrowserApiJson<ApiPlayerStatsResponse>(
@@ -895,37 +834,6 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
               {previewState === "submitting" ? "ANALYZING..." : "ANALYZE_REPLAY"}
             </button>
 
-            <div className="mt-4" data-testid="dashboard-upload-user-block">
-              <p className={SECTION_LABEL}>Selected_User (Simple_Login)</p>
-              <p className="mb-3 text-[10px] font-mono text-slate-600">플레이어 선택 (Simple Login)</p>
-              <div className="relative">
-                <select
-                  value={selectedPlayer}
-                  onChange={(event) => handlePlayerSelection(event.target.value)}
-                  className="w-full appearance-none rounded-lg px-4 py-2.5 text-sm font-mono pr-10 focus:outline-none transition-all"
-                  style={{ backgroundColor: "#0a1428", border: "1px solid rgba(255,255,255,0.1)", color: "#94a3b8" }}
-                  aria-label="플레이어 선택"
-                >
-                  <option value="">{model.uploadPlaceholder}</option>
-                  {selectablePlayers.map((candidate) => (
-                    <option key={candidate} value={candidate}>
-                      {candidate}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-3 top-3 h-4 w-4 text-slate-500" />
-              </div>
-              <div className="mt-2 flex items-center gap-2">
-                <span className="text-[10px] font-mono text-slate-600">CURRENT_USER:</span>
-                <span
-                  className="rounded px-2 py-0.5 text-[10px] font-mono font-bold"
-                  style={{ backgroundColor: "rgba(34,211,238,0.1)", color: "#22d3ee", border: "1px solid rgba(34,211,238,0.2)" }}
-                >
-                  {currentUser}
-                </span>
-              </div>
-            </div>
-
             <button
               type="button"
               onClick={handleUpload}
@@ -937,7 +845,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
                 border: uploadReady ? "1px solid rgba(45,212,191,0.3)" : "1px solid rgba(255,255,255,0.05)"
               }}
             >
-              {uploadState === "submitting" ? "UPLOADING..." : "UPLOAD_WITH_SELECTED_USER"}
+              {uploadState === "submitting" ? "UPLOADING..." : "UPLOAD_AUTO_3X3_ONLY"}
             </button>
 
             <div
@@ -1095,7 +1003,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
                     <p className="text-[10px] text-slate-500 font-mono tracking-widest mb-1">PLAYER</p>
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-xl font-bold" style={{ color: "#22d3ee" }}>
-                        {playerStats.name}
+                        {displayPlayerName(playerStats.name)}
                       </span>
                       <RaceBadge race={playerStats.favoriteRace} size="md" />
                     </div>
@@ -1218,7 +1126,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
                               {ourTeam.map((player) => (
                                 <div key={`${game.id}-our-${player.name}`} className="flex items-center gap-1 text-[11px]">
                                   <RaceBadge race={player.race} />
-                                  <span className={player.isCurrentUser ? "text-cyan-300" : "text-slate-300"}>{player.name}</span>
+                                  <span className={player.isCurrentUser ? "text-cyan-300" : "text-slate-300"} title={player.name}>{displayPlayerName(player.name)}</span>
                                   {player.isCurrentUser ? <span className="text-[9px] text-cyan-500">YOU</span> : null}
                                   <span className="ml-auto text-slate-600">A:{player.apm} E:{player.eapm}</span>
                                 </div>
@@ -1231,7 +1139,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
                               {enemyTeam.map((player) => (
                                 <div key={`${game.id}-enemy-${player.name}`} className="flex items-center gap-1 text-[11px]">
                                   <RaceBadge race={player.race} />
-                                  <span className="text-slate-300">{player.name}</span>
+                                  <span className="text-slate-300" title={player.name}>{displayPlayerName(player.name)}</span>
                                   <span className="ml-auto text-slate-600">A:{player.apm} E:{player.eapm}</span>
                                 </div>
                               ))}
@@ -1276,7 +1184,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
                                                 <div className="flex items-center justify-between gap-2">
                                                   <div className="flex items-center gap-1.5">
                                                     <RaceBadge race={leftEntry.player.race} />
-                                                    <span className="text-[11px] font-mono text-slate-200">{leftEntry.player.name}</span>
+                                                    <span className="text-[11px] font-mono text-slate-200" title={leftEntry.player.name}>{displayPlayerName(leftEntry.player.name)}</span>
                                                   </div>
                                                   <ResultBadge result={leftEntry.result} />
                                                 </div>
@@ -1312,7 +1220,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
                                                 <div className="flex items-center justify-between gap-2">
                                                   <div className="flex items-center gap-1.5">
                                                     <RaceBadge race={rightEntry.player.race} />
-                                                    <span className="text-[11px] font-mono text-slate-200">{rightEntry.player.name}</span>
+                                                    <span className="text-[11px] font-mono text-slate-200" title={rightEntry.player.name}>{displayPlayerName(rightEntry.player.name)}</span>
                                                   </div>
                                                   <ResultBadge result={rightEntry.result} />
                                                 </div>
@@ -1405,7 +1313,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
 
                                     <div className="rounded-lg px-3 py-3 text-[11px] font-mono text-slate-300" style={INNER_PANEL_STRONG_STYLE}>
                                       <p className={SECTION_LABEL}>legend row</p>
-                                      <p>{selectedGame.winnerTeam.map((player) => player.name).join(", ")}</p>
+                                      <p>{displayLineupName(selectedGame.winnerTeam.map((player) => player.name))}</p>
                                     </div>
 
                                     <div className="rounded-lg px-3 py-3 text-[11px] font-mono text-slate-300" style={INNER_PANEL_STRONG_STYLE}>

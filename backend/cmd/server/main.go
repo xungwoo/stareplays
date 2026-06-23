@@ -86,10 +86,14 @@ func main() {
 	api := app.Group("/api/v1")
 
 	// 게임 관련 라우트
-	api.Get("/games", handlers.ListGames)                // 게임 목록 조회
-	api.Get("/games/:id", handlers.GetGame)              // 게임 상세 조회
-	api.Get("/games/:id/detail", handlers.GetGameDetail) // 게임 시각화 데이터
+	api.Get("/games", handlers.ListGames)                               // 게임 목록 조회
+	api.Get("/games/replay-file-hashes", handlers.ListReplayFileHashes) // 업로드 중복 확인용 hash 목록
+	api.Get("/games/:id", handlers.GetGame)                             // 게임 상세 조회
+	api.Get("/games/:id/detail", handlers.GetGameDetail)                // 게임 시각화 데이터
 	api.Get("/games/:id/analyzer", handlers.GetGameAnalyzer)
+	api.Put("/games/:id/season", handlers.SetGameSeason)
+	api.Get("/seasons", handlers.ListSeasons)
+	api.Put("/seasons/current", handlers.SetCurrentSeason)
 	if !envBool("DISABLE_LOCAL_PARSE", false) {
 		api.Post("/games/parse", handlers.ParseLocalReplay) // 로컬 파일 파싱 (dev)
 	} else {

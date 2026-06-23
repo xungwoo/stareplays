@@ -8,6 +8,7 @@ import { ResultBadge } from "@/components/shared/status-badge";
 import { CYAN_PANEL_STYLE, INNER_PANEL_STYLE } from "@/lib/constants/ui-styles";
 import { getOrderedGamePlayers } from "@/lib/utils/analyzer-player-order";
 import { getPlayerColor } from "@/lib/utils/player-colors";
+import { displayPlayerName } from "@/lib/utils/player-display";
 import type { AnalyzerGameInsight, AnalyzerPageModel, TimelineEvent } from "@/types/analyzer";
 
 const CARD_STYLE = CYAN_PANEL_STYLE;
@@ -213,7 +214,7 @@ function APMTab({
                 border: `1px solid ${hidden ? "rgba(248,113,113,0.22)" : "rgba(34,211,238,0.18)"}`
               }}
             >
-              {hidden ? "SHOW" : "HIDE"} {name}
+              {hidden ? "SHOW" : "HIDE"} {displayPlayerName(name)}
             </button>
           );
         })}
@@ -276,7 +277,7 @@ function EconomyTab({
               <tr key={player.name} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                 <td className="px-3 py-2">
                   <button type="button" onClick={() => onSelect(player.name)} className="text-left text-cyan-300 hover:text-cyan-200">
-                    {player.name}
+                    {displayPlayerName(player.name)}
                   </button>
                 </td>
                 <td className="px-3 py-2 text-slate-300">{player.apm}</td>
@@ -294,7 +295,7 @@ function EconomyTab({
           <div className="space-y-2">
             <div className="flex justify-between">
               <span className="text-slate-500">PLAYER</span>
-              <span className="text-slate-200">{selected.name}</span>
+              <span className="text-slate-200">{displayPlayerName(selected.name)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500">INPUT EFFICIENCY</span>
@@ -330,7 +331,7 @@ function ProductionTab({
           <div className="space-y-2">
             <div className="flex justify-between">
               <span className="text-slate-500">PLAYER</span>
-              <span className="text-slate-200">{selected.name}</span>
+              <span className="text-slate-200">{displayPlayerName(selected.name)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500">PRODUCTION</span>
@@ -362,7 +363,7 @@ function ProductionTab({
               <tr key={player.name} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                 <td className="px-3 py-2">
                   <button type="button" onClick={() => onSelect(player.name)} className="text-left text-cyan-300 hover:text-cyan-200">
-                    {player.name}
+                    {displayPlayerName(player.name)}
                   </button>
                 </td>
                 <td className="px-3 py-2 text-slate-300">{player.production}</td>
@@ -440,7 +441,7 @@ function TechTab({
               <tr key={player.name} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                 <td className="px-3 py-2">
                   <button type="button" onClick={() => onSelect(player.name)} className="text-left text-cyan-300 hover:text-cyan-200">
-                    {player.name}
+                    {displayPlayerName(player.name)}
                   </button>
                 </td>
                 <td className="px-3 py-2 text-slate-300">{total}</td>
@@ -476,7 +477,7 @@ function CombatTab({
           <div className="space-y-2">
             <div className="flex justify-between">
               <span className="text-slate-500">PLAYER</span>
-              <span className="text-slate-200">{selected.name}</span>
+              <span className="text-slate-200">{displayPlayerName(selected.name)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500">APM / EAPM</span>
@@ -510,7 +511,7 @@ function CombatTab({
               <tr key={player.name} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                 <td className="px-3 py-2">
                   <button type="button" onClick={() => onSelect(player.name)} className="text-left text-cyan-300 hover:text-cyan-200">
-                    {player.name}
+                    {displayPlayerName(player.name)}
                   </button>
                 </td>
                 <td className="px-3 py-2 text-slate-300">{player.apm}</td>

@@ -6,6 +6,11 @@ interface ActionOptions {
   fetchImpl?: typeof fetch;
 }
 
+interface ReplayUploadOptions extends ActionOptions {
+  seasonLabel?: string;
+  seasonNo?: number;
+}
+
 function getErrorStatusPrefix(response: Response): string {
   return `${response.status}${response.statusText ? ` ${response.statusText}` : ""}`;
 }
@@ -106,12 +111,16 @@ export async function previewReplayUpload(files: File[], options: ActionOptions 
 
 export async function submitReplayUpload(
   files: File[],
-  uploaderName: string,
-  options: ActionOptions = {}
+  options: ReplayUploadOptions = {}
 ): Promise<unknown> {
   const formData = new FormData();
   appendReplayFiles(formData, files);
-  formData.append("uploader_name", uploaderName);
+  if (options.seasonLabel?.trim()) {
+    formData.append("season_label", options.seasonLabel.trim());
+  }
+  if (options.seasonNo != null) {
+    formData.append("season_no", String(options.seasonNo));
+  }
 
   return fetchApiActionJson("/api/v1/games/upload", options, {
     method: "POST",

@@ -284,6 +284,53 @@ func (_u *GameUpdate) AddWinnerTeam(v int8) *GameUpdate {
 	return _u
 }
 
+// SetSeasonLabel sets the "season_label" field.
+func (_u *GameUpdate) SetSeasonLabel(v string) *GameUpdate {
+	_u.mutation.SetSeasonLabel(v)
+	return _u
+}
+
+// SetNillableSeasonLabel sets the "season_label" field if the given value is not nil.
+func (_u *GameUpdate) SetNillableSeasonLabel(v *string) *GameUpdate {
+	if v != nil {
+		_u.SetSeasonLabel(*v)
+	}
+	return _u
+}
+
+// ClearSeasonLabel clears the value of the "season_label" field.
+func (_u *GameUpdate) ClearSeasonLabel() *GameUpdate {
+	_u.mutation.ClearSeasonLabel()
+	return _u
+}
+
+// SetSeasonNo sets the "season_no" field.
+func (_u *GameUpdate) SetSeasonNo(v int) *GameUpdate {
+	_u.mutation.ResetSeasonNo()
+	_u.mutation.SetSeasonNo(v)
+	return _u
+}
+
+// SetNillableSeasonNo sets the "season_no" field if the given value is not nil.
+func (_u *GameUpdate) SetNillableSeasonNo(v *int) *GameUpdate {
+	if v != nil {
+		_u.SetSeasonNo(*v)
+	}
+	return _u
+}
+
+// AddSeasonNo adds value to the "season_no" field.
+func (_u *GameUpdate) AddSeasonNo(v int) *GameUpdate {
+	_u.mutation.AddSeasonNo(v)
+	return _u
+}
+
+// ClearSeasonNo clears the value of the "season_no" field.
+func (_u *GameUpdate) ClearSeasonNo() *GameUpdate {
+	_u.mutation.ClearSeasonNo()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *GameUpdate) SetUpdatedAt(v time.Time) *GameUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -549,6 +596,21 @@ func (_u *GameUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AddedWinnerTeam(); ok {
 		_spec.AddField(game.FieldWinnerTeam, field.TypeUint8, value)
+	}
+	if value, ok := _u.mutation.SeasonLabel(); ok {
+		_spec.SetField(game.FieldSeasonLabel, field.TypeString, value)
+	}
+	if _u.mutation.SeasonLabelCleared() {
+		_spec.ClearField(game.FieldSeasonLabel, field.TypeString)
+	}
+	if value, ok := _u.mutation.SeasonNo(); ok {
+		_spec.SetField(game.FieldSeasonNo, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedSeasonNo(); ok {
+		_spec.AddField(game.FieldSeasonNo, field.TypeInt, value)
+	}
+	if _u.mutation.SeasonNoCleared() {
+		_spec.ClearField(game.FieldSeasonNo, field.TypeInt)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(game.FieldUpdatedAt, field.TypeTime, value)
@@ -973,6 +1035,53 @@ func (_u *GameUpdateOne) AddWinnerTeam(v int8) *GameUpdateOne {
 	return _u
 }
 
+// SetSeasonLabel sets the "season_label" field.
+func (_u *GameUpdateOne) SetSeasonLabel(v string) *GameUpdateOne {
+	_u.mutation.SetSeasonLabel(v)
+	return _u
+}
+
+// SetNillableSeasonLabel sets the "season_label" field if the given value is not nil.
+func (_u *GameUpdateOne) SetNillableSeasonLabel(v *string) *GameUpdateOne {
+	if v != nil {
+		_u.SetSeasonLabel(*v)
+	}
+	return _u
+}
+
+// ClearSeasonLabel clears the value of the "season_label" field.
+func (_u *GameUpdateOne) ClearSeasonLabel() *GameUpdateOne {
+	_u.mutation.ClearSeasonLabel()
+	return _u
+}
+
+// SetSeasonNo sets the "season_no" field.
+func (_u *GameUpdateOne) SetSeasonNo(v int) *GameUpdateOne {
+	_u.mutation.ResetSeasonNo()
+	_u.mutation.SetSeasonNo(v)
+	return _u
+}
+
+// SetNillableSeasonNo sets the "season_no" field if the given value is not nil.
+func (_u *GameUpdateOne) SetNillableSeasonNo(v *int) *GameUpdateOne {
+	if v != nil {
+		_u.SetSeasonNo(*v)
+	}
+	return _u
+}
+
+// AddSeasonNo adds value to the "season_no" field.
+func (_u *GameUpdateOne) AddSeasonNo(v int) *GameUpdateOne {
+	_u.mutation.AddSeasonNo(v)
+	return _u
+}
+
+// ClearSeasonNo clears the value of the "season_no" field.
+func (_u *GameUpdateOne) ClearSeasonNo() *GameUpdateOne {
+	_u.mutation.ClearSeasonNo()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *GameUpdateOne) SetUpdatedAt(v time.Time) *GameUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
@@ -1268,6 +1377,21 @@ func (_u *GameUpdateOne) sqlSave(ctx context.Context) (_node *Game, err error) {
 	}
 	if value, ok := _u.mutation.AddedWinnerTeam(); ok {
 		_spec.AddField(game.FieldWinnerTeam, field.TypeUint8, value)
+	}
+	if value, ok := _u.mutation.SeasonLabel(); ok {
+		_spec.SetField(game.FieldSeasonLabel, field.TypeString, value)
+	}
+	if _u.mutation.SeasonLabelCleared() {
+		_spec.ClearField(game.FieldSeasonLabel, field.TypeString)
+	}
+	if value, ok := _u.mutation.SeasonNo(); ok {
+		_spec.SetField(game.FieldSeasonNo, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedSeasonNo(); ok {
+		_spec.AddField(game.FieldSeasonNo, field.TypeInt, value)
+	}
+	if _u.mutation.SeasonNoCleared() {
+		_spec.ClearField(game.FieldSeasonNo, field.TypeInt)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(game.FieldUpdatedAt, field.TypeTime, value)

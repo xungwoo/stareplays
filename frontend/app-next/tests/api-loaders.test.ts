@@ -3,6 +3,7 @@ import { buildCurrentUserSessionCookie } from "@/lib/utils/current-user-session"
 import { loadAnalyzerPageModel } from "@/lib/loaders/analyzer";
 import { loadDashboardPageModel } from "@/lib/loaders/dashboard";
 import { loadRankingsPageModel } from "@/lib/loaders/rankings";
+import { loadTeamAnalysisPageModel } from "@/lib/loaders/team-analysis";
 import { loadVaultPageModel } from "@/lib/loaders/vault";
 
 function createJsonResponse(payload: unknown) {
@@ -198,6 +199,72 @@ describe("api loaders", () => {
     expect(model.raceCompositions[0]?.teamA).toEqual(["P", "P", "T"]);
     expect(model.summary[0]?.value).toBe("43");
     expect(model.summary[1]?.value).toBe("2");
+  });
+
+  it("loads the team analysis dashboard from official season games", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+
+      if (url.includes("/api/v1/seasons")) {
+        return createJsonResponse({
+          total: 1,
+          seasons: [
+            {
+              season_label: "시즌1",
+              season_no: 1,
+              games: 1,
+              games_data: [
+                {
+                  id: 88,
+                  map_name: "Team Arena",
+                  winner_team: 1,
+                  game_length: 900,
+                  start_time: "2026-03-22T00:05:48Z",
+                  edges: {
+                    players: [
+                      { name: "3x3_GG", race: "P", team: 1, apm: 180, eapm: 150 },
+                      { name: "3x3_mh", race: "T", team: 1, apm: 170, eapm: 140 },
+                      { name: "3x3_smwoo", race: "P", team: 1, apm: 220, eapm: 190 },
+                      { name: "3x3_Kiyong", race: "Z", team: 2, apm: 160, eapm: 130 },
+                      { name: "3x3_pil", race: "P", team: 2, apm: 140, eapm: 110 },
+                      { name: "3x3_syntax", race: "T", team: 2, apm: 200, eapm: 170 }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        });
+      }
+
+      if (url.includes("/api/v1/games?limit=100&offset=0")) {
+        return createJsonResponse({
+          total: 0,
+          games: []
+        });
+      }
+
+      throw new Error(`Unexpected url: ${url}`);
+    });
+
+    const model = await loadTeamAnalysisPageModel({
+      fetchImpl: fetchMock,
+      apiBaseUrl: "http://127.0.0.1:3000"
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:3000/api/v1/seasons",
+      expect.objectContaining({
+        next: expect.objectContaining({ revalidate: 300 })
+      })
+    );
+    expect(model.summary.gamesAnalyzed).toBe(1);
+    expect(model.summary.playersTracked).toBe(6);
+    expect(model.players.map((player) => player.name)).toEqual(expect.arrayContaining(["성우", "민혁", "성민", "기용", "필균", "명진"]));
+    expect(model.summary.topLineup).not.toContain("3x3_");
+    expect(model.chartData.ratingComparison.length).toBe(6);
+    expect(model.chartData.apmLeaderboard.map((player) => player.name).join(", ")).not.toContain("3x3_");
+    expect(model.chartData.apmLeaderboard.map((player) => player.name)).toEqual(expect.arrayContaining(["성우", "민혁", "성민", "기용", "필균", "명진"]));
   });
 
   it("prefers the current user cookie before fixture fallback in the rankings loader", async () => {

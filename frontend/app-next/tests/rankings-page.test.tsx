@@ -58,18 +58,18 @@ describe("rankings page", () => {
 
     await user.click(avgApmButton);
     expect(avgApmButton).toHaveTextContent("▼");
-    expectDocumentOrder(screen.getByText("3x3_smwoo"), screen.getByText("3x3_GG"));
+    expectDocumentOrder(screen.getByText("성민"), screen.getByText("성우"));
 
     await user.click(avgApmButton);
     expect(avgApmButton).toHaveTextContent("▲");
-    expectDocumentOrder(screen.getByText("3x3_GG"), screen.getByText("3x3_smwoo"));
+    expectDocumentOrder(screen.getByText("성우"), screen.getByText("성민"));
 
     await user.click(screen.getByRole("button", { name: /race_composition_winrate/i }));
     expect(screen.getByRole("heading", { name: /race_composition_winrate \(3v3\)/i })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /rankings_3v3/i }));
     expect(screen.getByRole("button", { name: /avg apm/i })).toHaveTextContent("▲");
-    expectDocumentOrder(screen.getByText("3x3_GG"), screen.getByText("3x3_smwoo"));
+    expectDocumentOrder(screen.getByText("성우"), screen.getByText("성민"));
   });
 
   it("sorts win rate and race composition ties with the legacy tie-break cascade", async () => {
@@ -107,7 +107,7 @@ describe("rankings page", () => {
   it("highlights the current user row with legacy semantics", () => {
     render(<RankingsPage model={createModel()} />);
 
-    const currentUserRow = screen.getByText("3x3_GG").closest("div[style]");
+    const currentUserRow = screen.getByText("성우").closest("div[style]");
     expect(screen.getByText("YOU")).toBeInTheDocument();
     expect(currentUserRow).toHaveStyle({ backgroundColor: "rgba(255, 255, 255, 0.4)" });
   });
@@ -177,6 +177,6 @@ describe("rankings page", () => {
     await user.click(screen.getByRole("button", { name: /rankings_3v3/i }));
 
     expect(screen.getByRole("button", { name: /avg eapm/i })).toHaveTextContent("▼");
-    expectDocumentOrder(screen.getByText("3x3_smwoo"), screen.getByText("3x3_GG"));
+    expectDocumentOrder(screen.getByText("성민"), screen.getByText("성우"));
   });
 });

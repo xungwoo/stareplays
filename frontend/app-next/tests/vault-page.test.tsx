@@ -405,15 +405,15 @@ describe("vault page", () => {
       color: "#94a3b8"
     });
     expect(container.querySelector(".rounded-xl.overflow-hidden")).toHaveStyle({
-      backgroundColor: "#0d1833",
-      border: "1px solid rgba(34,211,238,0.1)"
+      backgroundColor: "#192234",
+      border: "1px solid rgba(148,163,184,0.16)"
     });
     expect(screen.getByTestId("vault-inline-detail-row")).toHaveStyle({
       borderColor: "rgba(34, 211, 238, 0.12)"
     });
     expect(screen.getByText(/^범례를 클릭하면 플레이어 라인이 강조됩니다\.$/).parentElement).toHaveStyle({
-      backgroundColor: "#0a1428",
-      border: "1px solid rgba(255,255,255,0.05)"
+      backgroundColor: "#1e293b",
+      border: "1px solid rgba(226,232,240,0.08)"
     });
     expect(getGameIdCell(9).closest("tr")).toHaveStyle({
       borderColor: "rgba(255,255,255,0.05)"
@@ -1146,8 +1146,8 @@ describe("vault page", () => {
     const rightColumn = screen.getByTestId("vault-start-grid-right");
     const centerCard = screen.getAllByText("13:55")[1].parentElement;
 
-    expect(within(leftColumn).getAllByTestId("start-grid-player-name").map((node) => node.textContent)).toEqual(["3x3_Kiyong", "3x3_syntax", "3x3_mh"]);
-    expect(within(rightColumn).getAllByTestId("start-grid-player-name").map((node) => node.textContent)).toEqual(["3x3_GG", "3x3_smwoo", "3x3_pil"]);
+    expect(within(leftColumn).getAllByTestId("start-grid-player-name").map((node) => node.textContent)).toEqual(["기용", "명진", "민혁"]);
+    expect(within(rightColumn).getAllByTestId("start-grid-player-name").map((node) => node.textContent)).toEqual(["성우", "성민", "필균"]);
     expect(centerCard?.textContent?.replace(/\s+/g, "")).toContain("PPPvsPZP");
   });
 
