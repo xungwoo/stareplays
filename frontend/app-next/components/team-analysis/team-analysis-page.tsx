@@ -14,6 +14,8 @@ import {
   YAxis
 } from "recharts";
 
+import { PlayerBadge, PlayerBadgeGroup } from "@/components/shared/player-badge";
+import { RaceCompositionBadges } from "@/components/shared/race-badge";
 import type { TeamAnalysisInsightCard, TeamAnalysisPageModel, TeamAnalysisPlayer, TeamAnalysisPlayerPentagon } from "@/types/team-analysis";
 
 const surfaceStyle = {
@@ -219,7 +221,6 @@ function PentagonChart({ chart, selectedPlayerName }: { chart: TeamAnalysisPlaye
             );
           })}
           {visiblePlayers.map((player) => {
-            const tone = metricAccents[player.tone];
             const points = player.axes.map((axis, index) => pentagonPoint(index, axis.value)).map((point) => `${point.x},${point.y}`).join(" ");
 
             return (
@@ -227,8 +228,8 @@ function PentagonChart({ chart, selectedPlayerName }: { chart: TeamAnalysisPlaye
                 key={player.name}
                 data-testid="player-radar-polygon"
                 points={points}
-                fill={`${tone.border}24`}
-                stroke={tone.border}
+                fill={`${player.color}24`}
+                stroke={player.color}
                 strokeWidth="2"
                 opacity="0.72"
               />
@@ -260,7 +261,6 @@ function PlayerPentagonSection({ charts }: { charts: TeamAnalysisPlayerPentagon[
           전체 선수 보기
         </button>
         {legendPlayers.map((player) => {
-          const tone = metricAccents[player.tone];
           const active = selectedPlayerName === player.name;
 
           return (
@@ -271,12 +271,12 @@ function PlayerPentagonSection({ charts }: { charts: TeamAnalysisPlayerPentagon[
               aria-label={`${player.name} 선택`}
               className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-semibold transition hover:bg-slate-900/70"
               style={{
-                backgroundColor: active ? tone.tile : "rgba(2,6,23,0.38)",
-                borderColor: active ? `${tone.border}cc` : "rgba(51,65,85,0.9)",
-                color: active ? tone.text : "#cbd5e1"
+                backgroundColor: active ? `${player.color}22` : "rgba(2,6,23,0.38)",
+                borderColor: active ? `${player.color}cc` : "rgba(51,65,85,0.9)",
+                color: active ? player.color : "#cbd5e1"
               }}
             >
-              <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: tone.border }} />
+              <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: player.color }} />
               <span className="truncate">{player.name}</span>
             </button>
           );
@@ -329,7 +329,7 @@ function RaceCompositionChart({ model }: { model: TeamAnalysisPageModel }) {
           <BarChart data={model.chartData.raceComposition.slice(0, 8)} layout="vertical" margin={{ left: 16 }}>
             <CartesianGrid stroke="rgba(148,163,184,0.18)" horizontal={false} />
             <XAxis type="number" domain={[0, 100]} tick={{ fill: "#cbd5e1", fontSize: 11 }} axisLine={false} tickLine={false} />
-            <YAxis type="category" dataKey="composition" tick={{ fill: "#e2e8f0", fontSize: 12, fontWeight: 700 }} axisLine={false} tickLine={false} width={44} />
+            <YAxis type="category" dataKey="composition" tick={{ fill: "#e2e8f0", fontSize: 12, fontWeight: 700 }} axisLine={false} tickLine={false} width={48} />
             <Tooltip
               cursor={{ fill: "rgba(52,211,153,0.12)" }}
               formatter={(value) => [`${value}%`, "승률"]}
@@ -354,7 +354,7 @@ function PlayerInsightCard({ player }: { player: TeamAnalysisPlayer }) {
     <article className="rounded-lg p-4" style={{ ...subtleSurfaceStyle, borderColor: `${metricAccents[winTone].border}33` }}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="break-all text-sm font-semibold text-slate-100">{player.name}</h3>
+          <PlayerBadge name={player.name} />
           <div className="mt-2 flex flex-wrap gap-2">
             <Badge accent={winTone}>{player.wins}-{player.losses}</Badge>
             <Badge accent="violet">TS #{player.trueSkillRank}</Badge>
@@ -482,14 +482,14 @@ function PlayerMatrix({ players }: { players: TeamAnalysisPlayer[] }) {
         <tbody className="divide-y divide-slate-800">
           {sortedPlayers.map((player) => (
             <tr key={player.name} data-testid="team-analysis-player-row" className="bg-slate-950/40 transition-colors hover:bg-slate-800/70">
-              <td className="px-3 py-3 font-semibold text-slate-100">{player.name}</td>
+              <td className="px-3 py-3"><PlayerBadge name={player.name} /></td>
               <td className="px-3 py-3 text-slate-400">{player.wins}-{player.losses}</td>
               <td className="px-3 py-3"><Badge accent={winRateTone(player.winRate)}>{formatPercent(player.winRate)}</Badge></td>
               <td className="px-3 py-3 text-slate-400">#{player.apmRank} / {player.averageApm}</td>
               <td className="px-3 py-3 text-cyan-200">#{player.bradleyTerryRank} / {player.bradleyTerry}</td>
               <td className="px-3 py-3 text-violet-200">#{player.trueSkillRank} / {player.trueSkill}</td>
-              <td className="px-3 py-3"><Badge accent="emerald">{player.strength}</Badge></td>
-              <td className="px-3 py-3"><Badge accent="amber">{player.weakness}</Badge></td>
+              <td className="px-3 py-3 text-xs text-slate-300">{player.strength}</td>
+              <td className="px-3 py-3 text-xs text-slate-300">{player.weakness}</td>
             </tr>
           ))}
         </tbody>
@@ -529,7 +529,7 @@ export function TeamAnalysisPage({ model }: { model: TeamAnalysisPageModel }) {
         <div className="mb-4 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
           <MetricCard label="추적 조합" value={String(model.summary.lineupsTracked)} hint={model.summary.topLineup} icon={BarChart3} accent="violet" />
           <MetricCard label="최고 선수" value={model.summary.topPlayer} hint="보수적 TrueSkill 기준 1위" icon={BrainCircuit} accent="emerald" />
-          <MetricCard label="최강 종족" value={model.summary.strongestComposition} hint="관측 승률이 가장 높은 종족 조합" icon={Gauge} accent="amber" />
+          <MetricCard label="최강 종족" value={model.summary.strongestComposition} hint="최소 표본을 통과한 종족 조합만 반영" icon={Gauge} accent="amber" />
           <MetricCard label="평점 모델" value="BT + TS" hint="Bradley-Terry와 TrueSkill 병행" icon={Activity} accent="rose" />
         </div>
 
@@ -562,8 +562,8 @@ export function TeamAnalysisPage({ model }: { model: TeamAnalysisPageModel }) {
               {model.lineups.slice(0, 7).map((lineup) => (
                 <div key={lineup.players.join("-")} className="rounded-lg p-3 transition-colors hover:bg-slate-800/70" style={subtleSurfaceStyle}>
                   <div className="flex items-start justify-between gap-3">
-                    <p className="text-sm font-semibold text-slate-100">{lineup.players.join(" + ")}</p>
-                    <Badge accent="amber">{lineup.composition}</Badge>
+                    <PlayerBadgeGroup names={lineup.players} compact />
+                    <RaceCompositionBadges composition={lineup.composition} />
                   </div>
                   <div className="mt-3 flex items-center justify-between text-xs text-slate-300">
                     <Badge accent={winRateTone(lineup.winRate)}>{lineup.wins}-{lineup.losses} / {formatPercent(lineup.winRate)}</Badge>
@@ -576,7 +576,7 @@ export function TeamAnalysisPage({ model }: { model: TeamAnalysisPageModel }) {
                 <div className="grid gap-2">
                   {model.insights.duos.slice(0, 5).map((duo) => (
                     <div key={duo.players.join("-")} className="flex items-center justify-between gap-3 rounded-md px-3 py-2 text-xs" style={subtleSurfaceStyle}>
-                      <span className="break-all font-medium text-slate-200">{duo.players.join(" + ")}</span>
+                      <PlayerBadgeGroup names={duo.players} compact />
                       <Badge accent={winRateTone(duo.winRate)}>{duo.wins}-{duo.losses} / {formatPercent(duo.winRate)}</Badge>
                     </div>
                   ))}

@@ -13,6 +13,7 @@ import {
   YAxis
 } from "recharts";
 
+import { PlayerBadge, PlayerBadgeGroup } from "@/components/shared/player-badge";
 import type { SeasonAnalysisPageModel } from "@/lib/adapters/season-analysis";
 
 function formatPercent(value: number) {
@@ -149,7 +150,7 @@ function TrendChart({
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
         {visibleSeries.map((series) => (
-          <span key={series.name} className="inline-flex items-center gap-1.5 rounded bg-slate-950/60 px-2 py-1 text-xs font-semibold text-slate-200">
+          <span key={series.name} className="inline-flex items-center gap-1.5 rounded border bg-slate-950/60 px-2 py-1 text-xs font-semibold" style={{ borderColor: `${series.color}66`, color: series.color }}>
             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: series.color }} />
             {series.name}
           </span>
@@ -181,7 +182,7 @@ function PlayerStandings({ model }: { model: SeasonAnalysisPageModel }) {
           <tbody className="divide-y divide-slate-800">
             {model.playerStandings.map((player) => (
               <tr key={player.name} className="bg-slate-950/30 transition hover:bg-slate-800/70">
-                <td className="px-3 py-3 font-semibold text-slate-100">{player.name}</td>
+                <td className="px-3 py-3"><PlayerBadge name={player.name} /></td>
                 <td className="px-3 py-3 text-slate-300">{player.games}</td>
                 <td className="px-3 py-3 text-slate-300">{player.wins}-{player.losses}</td>
                 <td className="px-3 py-3 font-semibold text-cyan-100">{formatPercent(player.winRate)}</td>
@@ -222,8 +223,8 @@ function GameRecords({ model }: { model: SeasonAnalysisPageModel }) {
                 <td className="px-3 py-3 text-slate-500">{index + 1}</td>
                 <td className="px-3 py-3 font-semibold text-cyan-100">{game.seasonLabel}</td>
                 <td className="px-3 py-3 text-slate-400">{game.startTime}</td>
-                <td className="px-3 py-3 font-semibold text-emerald-100">{game.winnerLabel}</td>
-                <td className="px-3 py-3 text-slate-300">{game.loserLabel}</td>
+                <td className="px-3 py-3"><PlayerBadgeGroup names={game.winner} compact /></td>
+                <td className="px-3 py-3"><PlayerBadgeGroup names={game.loser} compact /></td>
                 <td className="px-3 py-3 text-slate-400">{game.mapName}</td>
                 <td className="px-3 py-3 text-slate-400">{game.durationMinutes}분</td>
               </tr>

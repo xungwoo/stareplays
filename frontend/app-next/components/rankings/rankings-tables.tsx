@@ -4,6 +4,7 @@ import Link from "next/link";
 import { RefreshCw, TrendingUp, Users } from "lucide-react";
 
 import { Panel } from "@/components/shared/panel";
+import { PlayerBadge } from "@/components/shared/player-badge";
 import { RaceBadge, RaceGroup } from "@/components/shared/race-badge";
 import { SectionAccent } from "@/components/shared/section-accent";
 import { CYAN_PANEL_STYLE, CYAN_SECTION_DIVIDER_STYLE, INNER_PANEL_STYLE } from "@/lib/constants/ui-styles";
@@ -112,6 +113,7 @@ export function RankingsTable({
 }) {
   const sortedRankings = sortRankings(model.rankings, sortBy, sortDesc);
   const rankingsError = model.rankingsError?.trim();
+  const qualifiedGames = Math.max(...model.rankings.map((row) => row.games), 0);
 
   return (
     <div>
@@ -119,7 +121,7 @@ export function RankingsTable({
         <div className="flex items-center gap-3">
           <SectionAccent />
           <h2 className="text-sm font-mono font-bold uppercase tracking-widest text-slate-200">Rankings_3v3</h2>
-          <span className="text-[10px] font-mono text-slate-600">TEAM_SIZE: 3V3 | QUALIFIED_GAMES: 43 | ROWS: {sortedRankings.length}</span>
+          <span className="text-[10px] font-mono text-slate-600">TEAM_SIZE: 3V3 | QUALIFIED_GAMES: {qualifiedGames} | ROWS: {sortedRankings.length}</span>
           <span className="rounded px-2 py-1 text-[10px] font-mono font-bold" style={{ backgroundColor: "rgba(34,211,238,0.08)", color: "#22d3ee", border: "1px solid rgba(34,211,238,0.18)" }}>
             CURRENT_USER: {displayPlayerName(currentUser)}
           </span>
@@ -190,9 +192,7 @@ export function RankingsTable({
 
               <div className="flex items-center gap-2">
                 <RaceBadge race={player.favoriteRace} size="md" />
-                <span className="text-sm font-mono font-semibold" style={{ color: "#e2e8f0" }}>
-                  {displayPlayerName(player.user)}
-                </span>
+                <PlayerBadge name={displayPlayerName(player.user)} compact />
                 {player.isCurrentUser ? (
                   <span className="rounded px-1.5 py-0.5 text-[9px] font-mono font-bold" style={{ backgroundColor: "rgba(34,211,238,0.15)", color: "#22d3ee", border: "1px solid rgba(34,211,238,0.3)" }}>
                     YOU
@@ -223,12 +223,11 @@ export function RankingsTable({
       </div>
 
       <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        {[
-          { label: "Total Games", value: "43", icon: TrendingUp, color: "#22d3ee" },
-          { label: "Total Players", value: "6", icon: Users, color: "#a78bfa" },
-          { label: "Highest APM", value: "214.7", icon: TrendingUp, color: "#f59e0b" },
-          { label: "Top Win Rate", value: "55.8%", icon: TrendingUp, color: "#34d399" }
-        ].map(({ label, value, icon: Icon, color }) => (
+        {model.summary.map(({ label, value, accent }) => {
+          const Icon = label === "Total Players" ? Users : TrendingUp;
+          const color = accent === "violet" ? "#a78bfa" : accent === "amber" ? "#f59e0b" : accent === "emerald" ? "#34d399" : "#22d3ee";
+
+          return (
           <Panel key={label} variant="cyan" className="rounded-xl p-4">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-[10px] font-mono tracking-widest text-slate-500">{label}</span>
@@ -238,7 +237,8 @@ export function RankingsTable({
               {value}
             </span>
           </Panel>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -259,7 +259,8 @@ export function RaceCompositionTable({
 }) {
   const raceCompositionsError = model.raceCompositionsError?.trim();
   const sortedRaceCompositions = raceCompositionsError ? [] : sortRaceCompositions(model.raceCompositions, sortBy, sortDesc);
-  const raceMeta = raceCompositionsError ? `ERROR_LOAD_ANALYZER: ${raceCompositionsError}` : `TEAM_SIZE: 3v3 | QUALIFIED_GAMES: 48 | ROWS: ${sortedRaceCompositions.length}`;
+  const raceGames = sortedRaceCompositions.reduce((max, row) => Math.max(max, row.games), 0);
+  const raceMeta = raceCompositionsError ? `ERROR_LOAD_ANALYZER: ${raceCompositionsError}` : `TEAM_SIZE: 3v3 | MAX_MATCHUP_GAMES: ${raceGames} | ROWS: ${sortedRaceCompositions.length}`;
 
   return (
     <div>

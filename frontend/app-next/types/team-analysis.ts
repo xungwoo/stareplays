@@ -6,6 +6,7 @@ export interface TeamAnalysisRaceStat {
   wins: number;
   losses: number;
   winRate: number;
+  qualified: boolean;
 }
 
 export interface TeamAnalysisPlayer {
@@ -67,6 +68,7 @@ export interface TeamAnalysisPlayerPentagon {
   players: Array<{
     name: string;
     tone: "cyan" | "violet" | "emerald" | "amber" | "rose";
+    color: string;
     axes: Array<{
       label: string;
       value: number;
@@ -80,6 +82,8 @@ export interface TeamAnalysisRaceComposition {
   wins: number;
   losses: number;
   winRate: number;
+  qualified: boolean;
+  note: string;
 }
 
 export interface TeamAnalysisRecentMatch {

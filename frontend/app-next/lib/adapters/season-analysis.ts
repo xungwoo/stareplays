@@ -1,4 +1,5 @@
 import { formatStartTime } from "@/lib/utils/format";
+import { getPlayerColor } from "@/lib/utils/player-colors";
 import { displayLineupName, displayPlayerName, displayPlayerNames } from "@/lib/utils/player-display";
 import type { ApiGamePlayer, ApiGameSummary, ApiSeasonsResponse } from "@/types/api";
 
@@ -104,7 +105,6 @@ type NormalizedGame = {
   }>;
 };
 
-const trendColors = ["#67becf", "#65be96", "#9d8bcb", "#daa555", "#da7070", "#7da4d6"];
 const mvpWeights = {
   winRate: 0.35,
   wins: 0.2,
@@ -341,9 +341,9 @@ function buildSeasonSummaries(seasonsResponse?: ApiSeasonsResponse | null): Seas
 
 function buildTrendData(players: SeasonPlayerStanding[], games: NormalizedGame[]) {
   const topPlayers = players.slice(0, 6);
-  const trendSeries = topPlayers.map((player, index) => ({
+  const trendSeries = topPlayers.map((player) => ({
     name: player.name,
-    color: trendColors[index % trendColors.length]
+    color: getPlayerColor(player.name)
   }));
   const trendPoints = games.map((game, index) => {
     const point: Record<string, number | string> = {

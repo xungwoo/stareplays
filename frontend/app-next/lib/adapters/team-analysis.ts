@@ -1,5 +1,6 @@
 import { VAULT_GAMES_FIXTURE } from "@/lib/fixtures/vault";
 import { formatStartTime, getRaceLetter } from "@/lib/utils/format";
+import { getPlayerColor } from "@/lib/utils/player-colors";
 import { displayLineupName, displayPlayerName, displayPlayerNames } from "@/lib/utils/player-display";
 import type { ApiGamePlayer, ApiGameSummary, ApiGamesListResponse } from "@/types/api";
 import type { RaceCode } from "@/types/common";
@@ -45,6 +46,12 @@ type PlayerAccumulator = {
 
 const INITIAL_TRUESKILL_MU = 25;
 const INITIAL_TRUESKILL_SIGMA = 8.333;
+const MIN_PLAYER_RACE_GAMES = 3;
+const MIN_LINEUP_GAMES = 3;
+
+function minCompositionGames(matches: NormalizedMatch[]): number {
+  return Math.max(3, Math.ceil(matches.length * 0.05));
+}
 
 function toNumber(value: unknown, fallback = 0): number {
   const candidate = Number(value);
@@ -311,17 +318,28 @@ function raceStatsFrom(accumulator: PlayerAccumulator): TeamAnalysisRaceStat[] {
       games: stat.games,
       wins: stat.wins,
       losses: stat.losses,
-      winRate: winRate(stat.wins, stat.games)
+      winRate: winRate(stat.wins, stat.games),
+      qualified: stat.games >= MIN_PLAYER_RACE_GAMES
     }))
     .sort((left, right) => right.games - left.games || left.race.localeCompare(right.race));
 }
 
 function bestRaceFrom(stats: TeamAnalysisRaceStat[]): RaceCode {
-  return [...stats].sort((left, right) => right.winRate - left.winRate || right.games - left.games || left.race.localeCompare(right.race))[0]?.race ?? "P";
+  const qualified = stats.filter((stat) => stat.qualified);
+  return [...(qualified.length > 0 ? qualified : stats)].sort((left, right) => right.winRate - left.winRate || right.games - left.games || left.race.localeCompare(right.race))[0]?.race ?? "P";
 }
 
 function worstRaceFrom(stats: TeamAnalysisRaceStat[]): RaceCode {
-  return [...stats].sort((left, right) => left.winRate - right.winRate || right.games - left.games || left.race.localeCompare(right.race))[0]?.race ?? "P";
+  const qualified = stats.filter((stat) => stat.qualified);
+  return [...(qualified.length > 0 ? qualified : stats)].sort((left, right) => left.winRate - right.winRate || right.games - left.games || left.race.localeCompare(right.race))[0]?.race ?? "P";
+}
+
+function raceStrengthLabel(stats: TeamAnalysisRaceStat[], race: RaceCode): string {
+  const stat = stats.find((candidate) => candidate.race === race);
+  if (!stat) return `${race} 데이터 없음`;
+
+  const suffix = stat.qualified ? "" : ` / 표본 ${stat.games}경기`;
+  return `${race} ${formatPercentValue(stat.winRate)}${suffix}`;
 }
 
 function rankPlayers(players: TeamAnalysisPlayer[], key: keyof Pick<TeamAnalysisPlayer, "averageApm" | "bradleyTerry" | "trueSkill">) {
@@ -375,8 +393,8 @@ function buildPlayers(matches: NormalizedMatch[]): TeamAnalysisPlayer[] {
       trueSkillRank: 0,
       bestRace,
       worstRace,
-      strength: `${bestRace} ${winRate(raceStats.find((stat) => stat.race === bestRace)?.wins ?? 0, raceStats.find((stat) => stat.race === bestRace)?.games ?? 0)}%`,
-      weakness: `${worstRace} ${winRate(raceStats.find((stat) => stat.race === worstRace)?.wins ?? 0, raceStats.find((stat) => stat.race === worstRace)?.games ?? 0)}%`,
+      strength: raceStrengthLabel(raceStats, bestRace),
+      weakness: raceStrengthLabel(raceStats, worstRace),
       raceStats,
       bestPartners: partnerWins
     };
@@ -412,6 +430,7 @@ function buildLineups(matches: NormalizedMatch[]): TeamAnalysisLineup[] {
 
 function buildRaceCompositions(matches: NormalizedMatch[]): TeamAnalysisRaceComposition[] {
   const compositions = new Map<string, { composition: string; games: number; wins: number; losses: number }>();
+  const minGames = minCompositionGames(matches);
 
   matches.forEach((match) => {
     updateComposition(compositions, match.winner, true);
@@ -421,9 +440,11 @@ function buildRaceCompositions(matches: NormalizedMatch[]): TeamAnalysisRaceComp
   return Array.from(compositions.values())
     .map((composition) => ({
       ...composition,
-      winRate: winRate(composition.wins, composition.games)
+      winRate: winRate(composition.wins, composition.games),
+      qualified: composition.games >= minGames,
+      note: composition.games >= minGames ? `${composition.games}경기 표본` : `표본 부족 (${composition.games}/${minGames})`
     }))
-    .sort((left, right) => right.winRate - left.winRate || right.games - left.games || left.composition.localeCompare(right.composition));
+    .sort((left, right) => Number(right.qualified) - Number(left.qualified) || right.winRate - left.winRate || right.games - left.games || left.composition.localeCompare(right.composition));
 }
 
 function buildDuos(matches: NormalizedMatch[]): TeamAnalysisDuo[] {
@@ -476,6 +497,14 @@ function normalizeMetric(value: number, values: number[]): number {
   return round(((value - min) / (max - min)) * 100, 1);
 }
 
+function normalizeMetricBand(value: number, values: number[], floor = 35, ceiling = 96): number {
+  const normalized = normalizeMetric(value, values);
+  if (normalized === 0) return floor;
+  if (normalized === 100) return ceiling;
+
+  return round(floor + (normalized / 100) * (ceiling - floor), 1);
+}
+
 function raceFlexScore(player: TeamAnalysisPlayer): number {
   const raceWinRates = player.raceStats.map((stat) => stat.winRate);
   const raceCountScore = (player.raceStats.length / 3) * 55;
@@ -486,7 +515,11 @@ function raceFlexScore(player: TeamAnalysisPlayer): number {
 }
 
 function raceCapabilityScore(player: TeamAnalysisPlayer, race: RaceCode): number {
-  return player.raceStats.find((stat) => stat.race === race)?.winRate ?? 0;
+  const stat = player.raceStats.find((candidate) => candidate.race === race);
+  if (!stat) return 0;
+  if (stat.qualified) return stat.winRate;
+
+  return round(stat.winRate * (stat.games / MIN_PLAYER_RACE_GAMES), 1);
 }
 
 function buildPlayerPentagons(players: TeamAnalysisPlayer[]): TeamAnalysisPlayerPentagon[] {
@@ -506,11 +539,12 @@ function buildPlayerPentagons(players: TeamAnalysisPlayer[]): TeamAnalysisPlayer
       players: topPlayers.map((player, index) => ({
         name: player.name,
         tone: tones[index % tones.length],
+        color: getPlayerColor(player.name),
         axes: [
           { label: "승률", value: player.winRate },
-          { label: "BT", value: normalizeMetric(player.bradleyTerry, btValues) },
-          { label: "TrueSkill", value: normalizeMetric(player.trueSkill, tsValues) },
-          { label: "주종", value: Math.max(...player.raceStats.map((stat) => stat.winRate), 0) },
+          { label: "BT", value: normalizeMetricBand(player.bradleyTerry, btValues) },
+          { label: "TrueSkill", value: normalizeMetricBand(player.trueSkill, tsValues) },
+          { label: "주종", value: Math.max(...player.raceStats.filter((stat) => stat.qualified).map((stat) => stat.winRate), player.winRate) },
           { label: "궁합", value: Math.min(100, round(player.bestPartners.length * 42 + player.winRate * 0.16, 1)) }
         ]
       }))
@@ -522,6 +556,7 @@ function buildPlayerPentagons(players: TeamAnalysisPlayer[]): TeamAnalysisPlayer
       players: topPlayers.map((player, index) => ({
         name: player.name,
         tone: tones[index % tones.length],
+        color: getPlayerColor(player.name),
         axes: [
           { label: "프로토스", value: raceCapabilityScore(player, "P") },
           { label: "저그", value: raceCapabilityScore(player, "Z") },
@@ -538,11 +573,12 @@ function buildPlayerPentagons(players: TeamAnalysisPlayer[]): TeamAnalysisPlayer
       players: topPlayers.map((player, index) => ({
         name: player.name,
         tone: tones[index % tones.length],
+        color: getPlayerColor(player.name),
         axes: [
-          { label: "APM", value: normalizeMetric(player.averageApm, apmValues) },
-          { label: "EAPM", value: normalizeMetric(player.averageEapm, eapmValues) },
+          { label: "APM", value: normalizeMetricBand(player.averageApm, apmValues) },
+          { label: "EAPM", value: normalizeMetricBand(player.averageEapm, eapmValues) },
           { label: "명령효율", value: player.commandEfficiency },
-          { label: "생산능력", value: normalizeMetric(player.productionAbility, productionValues) },
+          { label: "생산능력", value: normalizeMetricBand(player.productionAbility, productionValues) },
           { label: "템포안정", value: player.tempoStability }
         ]
       }))
@@ -559,16 +595,17 @@ function makeInsightCard(card: TeamAnalysisInsightCard): TeamAnalysisInsightCard
 }
 
 function buildInsights(players: TeamAnalysisPlayer[], lineups: TeamAnalysisLineup[], raceCompositions: TeamAnalysisRaceComposition[], duos: TeamAnalysisDuo[]): TeamAnalysisPageModel["insights"] {
-  const bestLineup = lineups[0] ?? null;
-  const worstLineup = [...lineups].filter((lineup) => lineup.games > 0).sort((left, right) => left.winRate - right.winRate || right.games - left.games)[0] ?? null;
-  const bestDuo = duos[0] ?? null;
+  const qualifiedLineups = lineups.filter((lineup) => lineup.games >= MIN_LINEUP_GAMES);
+  const bestLineup = qualifiedLineups[0] ?? lineups[0] ?? null;
+  const worstLineup = [...(qualifiedLineups.length > 0 ? qualifiedLineups : lineups)].filter((lineup) => lineup.games > 0).sort((left, right) => left.winRate - right.winRate || right.games - left.games)[0] ?? null;
+  const bestDuo = duos.find((duo) => duo.games >= MIN_LINEUP_GAMES) ?? duos[0] ?? null;
   const randomReadyPlayer = [...players].sort((left, right) => right.raceStats.length - left.raceStats.length || right.winRate - left.winRate || right.averageApm - left.averageApm)[0] ?? null;
   const randomRiskPlayer = [...players].sort((left, right) => {
     const leftWorst = Math.min(...left.raceStats.map((stat) => stat.winRate));
     const rightWorst = Math.min(...right.raceStats.map((stat) => stat.winRate));
     return leftWorst - rightWorst || left.winRate - right.winRate || right.raceStats.length - left.raceStats.length;
   })[0] ?? null;
-  const bestRace = raceCompositions[0] ?? null;
+  const bestRace = raceCompositions.find((composition) => composition.qualified) ?? raceCompositions[0] ?? null;
   const tempoLeader = [...players].sort((left, right) => right.tempoStability - left.tempoStability || right.averageEapm - left.averageEapm)[0] ?? null;
   const productionLeader = [...players].sort((left, right) => right.productionAbility - left.productionAbility || right.commandEfficiency - left.commandEfficiency)[0] ?? null;
   const retryLineup = [...lineups].filter((lineup) => lineup.games >= 2 && lineup.losses > 0).sort((left, right) => right.wins - left.wins || right.winRate - left.winRate)[0] ?? null;
@@ -625,8 +662,8 @@ function buildInsights(players: TeamAnalysisPlayer[], lineups: TeamAnalysisLineu
         id: "race-comp",
         label: "종족 체급",
         title: `종족 조합 체급: ${bestRace.composition}`,
-        body: `${bestRace.games}경기 표본에서 ${bestRace.wins}-${bestRace.losses}, 승률 ${formatPercentValue(bestRace.winRate)}입니다. 이건 손맛도 손맛인데 종족 조합 자체가 살짝 어깨를 펴고 있습니다.`,
-        tone: "emerald"
+        body: `${bestRace.note}에서 ${bestRace.wins}-${bestRace.losses}, 승률 ${formatPercentValue(bestRace.winRate)}입니다. 표본 기준을 통과한 조합만 “최강” 후보로 보고, 부족한 조합은 참고 기록으로만 둡니다.`,
+        tone: bestRace.qualified ? "emerald" : "amber"
       })
       : null,
     tempoLeader
@@ -699,7 +736,7 @@ export function createTeamAnalysisPageModel({ gamesResponse }: { gamesResponse?:
   }));
   const topPlayer = displayPlayers[0]?.name ?? "NO_DATA";
   const topLineup = displayLineups[0]?.players.join(" + ") ?? "NO_DATA";
-  const strongestComposition = raceCompositions[0]?.composition ?? "NO_DATA";
+  const strongestComposition = raceCompositions.find((composition) => composition.qualified)?.composition ?? "표본 부족";
 
   return {
     summary: {

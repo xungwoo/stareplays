@@ -1,6 +1,6 @@
 import type { RaceCode } from "@/types/common";
 
-const raceStyles: Record<RaceCode, { backgroundColor: string; color: string; border: string }> = {
+export const raceStyles: Record<RaceCode, { backgroundColor: string; color: string; border: string }> = {
   P: {
     backgroundColor: "rgba(245, 158, 11, 0.2)",
     color: "#fcd34d",
@@ -33,6 +33,24 @@ export function RaceGroup({ races }: { races: RaceCode[] }) {
     <span className="inline-flex items-center gap-0.5">
       {races.map((race, index) => (
         <RaceBadge key={`${race}-${index}`} race={race} />
+      ))}
+    </span>
+  );
+}
+
+export function RaceCompositionBadges({ composition, size = "sm" }: { composition: string; size?: "sm" | "md" }) {
+  const races = composition
+    .split("")
+    .filter((race): race is RaceCode => race === "P" || race === "T" || race === "Z");
+
+  if (races.length === 0) {
+    return <span className="text-xs font-semibold text-slate-500">NO_DATA</span>;
+  }
+
+  return (
+    <span className="inline-flex items-center gap-0.5" aria-label={composition}>
+      {races.map((race, index) => (
+        <RaceBadge key={`${race}-${index}`} race={race} size={size} />
       ))}
     </span>
   );

@@ -4,7 +4,13 @@ const KNOWN_PLAYER_COLORS: Record<string, string> = {
   "3x3_smwoo": "#34d399",
   "3x3_Kiyong": "#f87171",
   "3x3_pil": "#a78bfa",
-  "3x3_syntax": "#fb923c"
+  "3x3_syntax": "#fb923c",
+  "성우": "#22d3ee",
+  "민혁": "#f59e0b",
+  "성민": "#34d399",
+  "기용": "#f87171",
+  "필균": "#a78bfa",
+  "명진": "#fb923c"
 };
 
 const FALLBACK_PLAYER_PALETTE = [
@@ -42,3 +48,12 @@ export function getPlayerColor(name: string | undefined): string {
   return FALLBACK_PLAYER_PALETTE[hashPlayerName(normalized) % FALLBACK_PLAYER_PALETTE.length];
 }
 
+export function getPlayerChipStyle(name: string | undefined) {
+  const color = getPlayerColor(name);
+
+  return {
+    color,
+    backgroundColor: `${color}1f`,
+    borderColor: `${color}66`
+  };
+}

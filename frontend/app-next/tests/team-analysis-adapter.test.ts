@@ -90,8 +90,8 @@ describe("team analysis adapter", () => {
       bestRace: "T"
     });
     expect(alpha?.raceStats).toEqual([
-      { race: "P", games: 1, wins: 0, losses: 1, winRate: 0 },
-      { race: "T", games: 1, wins: 1, losses: 0, winRate: 100 }
+      { race: "P", games: 1, wins: 0, losses: 1, winRate: 0, qualified: false },
+      { race: "T", games: 1, wins: 1, losses: 0, winRate: 100, qualified: false }
     ]);
     expect(alpha?.apmRank).toBe(1);
     expect(alpha?.bradleyTerry).not.toBe(1000);
