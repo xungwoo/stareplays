@@ -1,6 +1,238 @@
 # StaReplays
 
-StarCraft: Brood War replay 파싱/저장 API 서버입니다.
+StarCraft: Brood War replay를 업로드하고, 3x3 시즌 전적과 팀 매치업을 분석하는 웹 대시보드입니다.
+
+이 저장소는 운영 API, replay 분석 worker, snapshot job, Next.js 대시보드, MCP 로컬 커넥터를 함께 관리합니다. 새로 참여하는 동료는 아래 순서로 보면 전체 구조를 빠르게 잡을 수 있습니다.
+
+1. 제품 화면은 `frontend/app-next`에서 확인합니다.
+2. API와 데이터 저장 규칙은 `backend`에서 확인합니다.
+3. 주기 집계는 `ranking-job`, `analyzer-job` snapshot을 기준으로 확인합니다.
+4. 개인 Claude/Codex 연동은 `mcp/stareplays-mcp`에서 확인합니다.
+
+## 제공 기능
+
+### Replay 수집과 분석
+
+- Brood War `.rep` 파일 업로드와 replay 메타 파싱
+- 3x3 공식전 기준 게임/플레이어/종족/팀 정보 저장
+- 3x3이 아닌 플레이어가 포함된 게임은 시즌 분석 대상에서 제외
+- 동일 게임 다중 업로드 기반 reliability 모델 (`m/N`)
+- Replay 원본 bucket 저장 후 비동기 analyzer worker 큐잉
+- analyzer 결과 기반 APM/EAPM, 생산력, 빌드/타임라인, 품질 리포트 조회
+
+### 웹 대시보드
+
+- `/` Dashboard: 최근 게임, 주요 지표, 업로드 진입점
+- `/vault`: 게임 목록과 상세 replay 분석 뷰
+- `/analyzer`: 선택 게임의 분석 결과, 피지컬/전투/생산 관련 지표
+- `/rankings`: snapshot 기반 3v3 랭킹과 종족 조합 승률
+- `/team-analysis`: 시즌/전체 3x3 팀 매치업 분석 대시보드
+- `/seasons`: 시즌별 전적, 플레이어 승패/승률 추이, 경기 목록
+
+### 팀 전적 인사이트
+
+- Bradley-Terry, TrueSkill 기반 선수 역량 비교
+- 승패 감각, 종족 역량, replay 피지컬 오각형
+- 플레이어별 고정 컬러 뱃지와 종족별 고정 컬러 조합 뱃지
+- BEST/위험 조합, duo 궁합, 강점/약점 insight card
+- 표본이 부족한 종족 조합은 “최강” 판정에서 제외하거나 별도 표기
+
+### LLM/MCP 연동
+
+- `/api/team-analysis/raw`로 팀 분석 raw data 제공
+- `mcp/stareplays-mcp`를 통해 Claude Desktop 또는 Codex에서 raw data를 도구처럼 조회
+- API key 없이 로컬 MCP connector가 개인 LLM 클라이언트와 웹 데이터를 이어주는 구조
+
+## 시스템 구조
+
+```text
+Browser
+  -> stareplays-next (Next.js dashboard)
+       -> stareplays API
+
+stareplays API (Fiber)
+  -> Postgres
+  -> replay-bucket
+  -> pg_notify(replay_analysis_jobs)
+
+replay_analyzer worker
+  -> Postgres LISTEN/NOTIFY + poll fallback
+  -> replay-bucket replay 다운로드
+  -> replay_analyzer/openbw 실행
+  -> game_analyses 결과 저장
+
+ranking-job
+  -> ranking_3v3 snapshot 재생성
+
+analyzer-job
+  -> analyzer_race_matchups snapshot 재생성
+```
+
+핵심 원칙:
+
+- 웹 화면은 API 실시간 전수 집계가 아니라 snapshot과 page model을 읽습니다.
+- 무거운 집계는 cron job이 snapshot 테이블로 재생성합니다.
+- replay analyzer는 업로드 요청 경로와 분리된 worker에서 비동기로 처리합니다.
+- 시즌/팀 분석은 3x3 공식전 데이터만 소스로 사용합니다.
+
+## 주요 디렉터리
+
+| 경로 | 역할 |
+| --- | --- |
+| `frontend/app-next` | 운영 Next.js 대시보드 |
+| `frontend/web` | legacy static UI. 동작 참고용으로 유지 |
+| `backend/cmd/server` | Fiber API 서버 |
+| `backend/cmd/ranking-job` | 3v3 랭킹 snapshot 생성 |
+| `backend/cmd/analyzer-job` | 종족 조합 승률 snapshot 생성 |
+| `backend/cmd/replay-analyzer-worker` | replay analyzer worker |
+| `backend/ent/schema` | Postgres schema 정의 |
+| `backend/internal/api/handlers` | HTTP API handler |
+| `backend/internal/services` | ranking/analyzer/migration 서비스 로직 |
+| `mcp/stareplays-mcp` | Claude/Codex MCP 로컬 커넥터 |
+| `scripts` | 로컬 서버/worker/stack 실행 스크립트 |
+| `docs` | 구조, 명세, 작업 기록 |
+
+## 로컬 개발 빠른 시작
+
+### 1. API 서버
+
+```bash
+cd backend
+go run ./cmd/server
+```
+
+기본 API URL은 `http://127.0.0.1:3000/api/v1`입니다.
+
+### 2. Next 대시보드
+
+```bash
+cd frontend/app-next
+npm install
+cp .env.example .env.local
+npm run dev
+```
+
+`.env.local`의 기본 API 주소:
+
+```env
+NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:3000
+```
+
+Next dev 서버는 `http://127.0.0.1:3100`에서 실행됩니다.
+
+### 3. 로컬 전체 스택
+
+업로드, bucket 저장, analyzer worker까지 같이 점검하려면:
+
+```bash
+./scripts/start_local_stack.sh
+./scripts/status_local_stack.sh
+```
+
+중지:
+
+```bash
+./scripts/stop_local_stack.sh
+```
+
+## 검증 명령
+
+프런트:
+
+```bash
+cd frontend/app-next
+npm test
+npm run typecheck
+npm run build
+```
+
+백엔드:
+
+```bash
+cd backend
+go test ./...
+```
+
+변경 범위가 좁아도 최소한 관련 테스트, typecheck, production build는 통과시킨 뒤 main에 올립니다.
+
+## 운영 배포
+
+운영은 Railway production environment를 사용합니다.
+
+| Railway service | 소스/빌드 | 역할 |
+| --- | --- | --- |
+| `stareplays-next` | `frontend/app-next`, `frontend/app-next/railway.toml` | 운영 웹 대시보드 |
+| `stareplays` | `backend/Dockerfile.api`, `railway.api.toml` | 공개 API |
+| `ranking-job` | `backend/cmd/ranking-job`, `railway.ranking.toml` | 랭킹 snapshot cron/job |
+| `analyzer-job` | `backend/cmd/analyzer-job`, `railway.analyzer.toml` | 종족 조합 snapshot cron/job |
+| `replay_analyzer` | `backend/Dockerfile.replay-analyzer-worker` | replay analyzer worker |
+| `Postgres` | Railway managed Postgres | 영속 저장소 |
+
+### 프런트 수동 배포
+
+main에 변경을 푸시한 뒤 Next 앱만 배포할 때:
+
+```bash
+railway up frontend/app-next \
+  --path-as-root \
+  --service stareplays-next \
+  --environment production \
+  --message "Deploy dashboard update"
+```
+
+임시 worktree에서 배포할 때는 project id를 명시합니다.
+
+```bash
+railway up /path/to/repo/frontend/app-next \
+  --path-as-root \
+  --project 838683d6-9fb8-41d6-ad8a-1075e4d00196 \
+  --environment production \
+  --service stareplays-next \
+  --message "Deploy dashboard update"
+```
+
+배포 확인:
+
+```bash
+railway status --json | jq -r '.environments.edges[].node.serviceInstances.edges[].node | select(.serviceName=="stareplays-next") | .latestDeployment.status'
+curl -I https://stareplays-next-production.up.railway.app/team-analysis
+curl -I https://stareplays-next-production.up.railway.app/seasons
+curl -I https://stareplays-next-production.up.railway.app/rankings
+```
+
+### API/worker/job 배포
+
+API, job, worker는 서비스별 Railway 설정이 다릅니다. 해당 서비스만 지정해서 배포하고, API schema나 snapshot 로직을 건드렸다면 운영 데이터 확인까지 같이 합니다.
+
+```bash
+railway up backend --service stareplays --environment production
+railway up backend --service ranking-job --environment production
+railway up backend --service analyzer-job --environment production
+```
+
+worker는 replay analyzer/openbw 의존성이 있으므로 Dockerfile과 Railway env를 함께 확인해야 합니다.
+
+## 데이터와 시즌 운영 메모
+
+- 시즌 페이지와 팀 분석 페이지는 같은 3x3 공식전 소스를 바라봐야 합니다.
+- 랭킹은 `ranking_3v3` snapshot 기준이므로 업로드 직후에는 job 실행 전까지 경기 수가 잠시 뒤처질 수 있습니다.
+- 종족 조합 인사이트는 표본 수가 낮은 조합을 과대표현하지 않도록 최소 표본 기준을 둡니다.
+- 플레이어 표기는 앱 전반에서 한국어 별칭을 우선 사용합니다.
+  - `3x3_mh`: 민혁
+  - `3x3_smwoo`: 성민
+  - `3x3_Kiyong`: 기용
+  - `3x3_syntax`: 명진
+  - `3x3_pil`: 필균
+  - `3x3_GG`: 성우
+
+## 개발 규칙
+
+- main이 운영 배포 기준입니다.
+- 기능 변경은 작은 단위로 커밋하고, 변경 이유와 검증 결과를 커밋 메시지에 남깁니다.
+- 사용자-facing 분석 수치에는 hardcoded 운영 값 대신 API/model 값을 사용합니다.
+- UI에서 플레이어/종족을 반복 표기할 때는 공용 `PlayerBadge`, `RaceBadge`, `RaceCompositionBadges`를 우선 사용합니다.
+- 새 dependency는 꼭 필요할 때만 추가합니다.
+- legacy UI는 동작/표현 참고용으로 볼 수 있지만, 새 화면은 `frontend/app-next`에서 일관된 디자인 시스템으로 구현합니다.
 
 ## 문서
 
@@ -24,8 +256,9 @@ StarCraft: Brood War replay 파싱/저장 API 서버입니다.
 
 ## 프런트 상태
 
-- legacy `frontend/web` 동작을 기준으로 한 Next App Router 프런트는 `frontend/app-next`에 있습니다.
-- 현재 `Dashboard / Vault / Analyzer / Rankings`의 주요 legacy behavior parity가 복원된 상태입니다.
+- 운영 프런트는 Next App Router 기반 `frontend/app-next`입니다.
+- legacy `frontend/web`은 동작과 표현을 참고하기 위한 parity 기준으로 유지합니다.
+- 현재 `Dashboard / Vault / Analyzer / Rankings / Team Analysis / Seasons`의 주요 화면이 Next 앱에 구성되어 있습니다.
 - `currentUser`는 query 우선, cookie 보조, Dashboard의 `localStorage` 복원을 함께 사용합니다.
 - analyzer status는 polling 없이 수동 refresh 기준입니다.
 - `Vault -> Analyzer`는 `gameId` deep-link를 유지합니다.
