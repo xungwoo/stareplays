@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, Cpu, Database, Trophy } from "lucide-react";
+import { Activity, BarChart3, CalendarDays, Cpu, Database, Trophy } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 
@@ -8,6 +8,8 @@ import { NAVIGATION_ITEMS } from "@/lib/constants/navigation";
 
 const navigationIcons = {
   activity: Activity,
+  calendar: CalendarDays,
+  chart: BarChart3,
   database: Database,
   cpu: Cpu,
   trophy: Trophy

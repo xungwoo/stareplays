@@ -7,6 +7,7 @@ import { Panel } from "@/components/shared/panel";
 import { RaceBadge, RaceGroup } from "@/components/shared/race-badge";
 import { SectionAccent } from "@/components/shared/section-accent";
 import { CYAN_PANEL_STYLE, CYAN_SECTION_DIVIDER_STYLE, INNER_PANEL_STYLE } from "@/lib/constants/ui-styles";
+import { displayPlayerName } from "@/lib/utils/player-display";
 import type { RankingRow, RaceCompositionRow, RankingsPageModel } from "@/types/rankings";
 
 const CARD_STYLE = CYAN_PANEL_STYLE;
@@ -120,7 +121,7 @@ export function RankingsTable({
           <h2 className="text-sm font-mono font-bold uppercase tracking-widest text-slate-200">Rankings_3v3</h2>
           <span className="text-[10px] font-mono text-slate-600">TEAM_SIZE: 3V3 | QUALIFIED_GAMES: 43 | ROWS: {sortedRankings.length}</span>
           <span className="rounded px-2 py-1 text-[10px] font-mono font-bold" style={{ backgroundColor: "rgba(34,211,238,0.08)", color: "#22d3ee", border: "1px solid rgba(34,211,238,0.18)" }}>
-            CURRENT_USER: {currentUser}
+            CURRENT_USER: {displayPlayerName(currentUser)}
           </span>
         </div>
         <Link
@@ -190,7 +191,7 @@ export function RankingsTable({
               <div className="flex items-center gap-2">
                 <RaceBadge race={player.favoriteRace} size="md" />
                 <span className="text-sm font-mono font-semibold" style={{ color: "#e2e8f0" }}>
-                  {player.user}
+                  {displayPlayerName(player.user)}
                 </span>
                 {player.isCurrentUser ? (
                   <span className="rounded px-1.5 py-0.5 text-[9px] font-mono font-bold" style={{ backgroundColor: "rgba(34,211,238,0.15)", color: "#22d3ee", border: "1px solid rgba(34,211,238,0.3)" }}>

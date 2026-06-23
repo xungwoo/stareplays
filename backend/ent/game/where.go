@@ -115,6 +115,16 @@ func WinnerTeam(v uint8) predicate.Game {
 	return predicate.Game(sql.FieldEQ(FieldWinnerTeam, v))
 }
 
+// SeasonLabel applies equality check predicate on the "season_label" field. It's identical to SeasonLabelEQ.
+func SeasonLabel(v string) predicate.Game {
+	return predicate.Game(sql.FieldEQ(FieldSeasonLabel, v))
+}
+
+// SeasonNo applies equality check predicate on the "season_no" field. It's identical to SeasonNoEQ.
+func SeasonNo(v int) predicate.Game {
+	return predicate.Game(sql.FieldEQ(FieldSeasonNo, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.Game {
 	return predicate.Game(sql.FieldEQ(FieldCreatedAt, v))
@@ -798,6 +808,131 @@ func WinnerTeamLT(v uint8) predicate.Game {
 // WinnerTeamLTE applies the LTE predicate on the "winner_team" field.
 func WinnerTeamLTE(v uint8) predicate.Game {
 	return predicate.Game(sql.FieldLTE(FieldWinnerTeam, v))
+}
+
+// SeasonLabelEQ applies the EQ predicate on the "season_label" field.
+func SeasonLabelEQ(v string) predicate.Game {
+	return predicate.Game(sql.FieldEQ(FieldSeasonLabel, v))
+}
+
+// SeasonLabelNEQ applies the NEQ predicate on the "season_label" field.
+func SeasonLabelNEQ(v string) predicate.Game {
+	return predicate.Game(sql.FieldNEQ(FieldSeasonLabel, v))
+}
+
+// SeasonLabelIn applies the In predicate on the "season_label" field.
+func SeasonLabelIn(vs ...string) predicate.Game {
+	return predicate.Game(sql.FieldIn(FieldSeasonLabel, vs...))
+}
+
+// SeasonLabelNotIn applies the NotIn predicate on the "season_label" field.
+func SeasonLabelNotIn(vs ...string) predicate.Game {
+	return predicate.Game(sql.FieldNotIn(FieldSeasonLabel, vs...))
+}
+
+// SeasonLabelGT applies the GT predicate on the "season_label" field.
+func SeasonLabelGT(v string) predicate.Game {
+	return predicate.Game(sql.FieldGT(FieldSeasonLabel, v))
+}
+
+// SeasonLabelGTE applies the GTE predicate on the "season_label" field.
+func SeasonLabelGTE(v string) predicate.Game {
+	return predicate.Game(sql.FieldGTE(FieldSeasonLabel, v))
+}
+
+// SeasonLabelLT applies the LT predicate on the "season_label" field.
+func SeasonLabelLT(v string) predicate.Game {
+	return predicate.Game(sql.FieldLT(FieldSeasonLabel, v))
+}
+
+// SeasonLabelLTE applies the LTE predicate on the "season_label" field.
+func SeasonLabelLTE(v string) predicate.Game {
+	return predicate.Game(sql.FieldLTE(FieldSeasonLabel, v))
+}
+
+// SeasonLabelContains applies the Contains predicate on the "season_label" field.
+func SeasonLabelContains(v string) predicate.Game {
+	return predicate.Game(sql.FieldContains(FieldSeasonLabel, v))
+}
+
+// SeasonLabelHasPrefix applies the HasPrefix predicate on the "season_label" field.
+func SeasonLabelHasPrefix(v string) predicate.Game {
+	return predicate.Game(sql.FieldHasPrefix(FieldSeasonLabel, v))
+}
+
+// SeasonLabelHasSuffix applies the HasSuffix predicate on the "season_label" field.
+func SeasonLabelHasSuffix(v string) predicate.Game {
+	return predicate.Game(sql.FieldHasSuffix(FieldSeasonLabel, v))
+}
+
+// SeasonLabelIsNil applies the IsNil predicate on the "season_label" field.
+func SeasonLabelIsNil() predicate.Game {
+	return predicate.Game(sql.FieldIsNull(FieldSeasonLabel))
+}
+
+// SeasonLabelNotNil applies the NotNil predicate on the "season_label" field.
+func SeasonLabelNotNil() predicate.Game {
+	return predicate.Game(sql.FieldNotNull(FieldSeasonLabel))
+}
+
+// SeasonLabelEqualFold applies the EqualFold predicate on the "season_label" field.
+func SeasonLabelEqualFold(v string) predicate.Game {
+	return predicate.Game(sql.FieldEqualFold(FieldSeasonLabel, v))
+}
+
+// SeasonLabelContainsFold applies the ContainsFold predicate on the "season_label" field.
+func SeasonLabelContainsFold(v string) predicate.Game {
+	return predicate.Game(sql.FieldContainsFold(FieldSeasonLabel, v))
+}
+
+// SeasonNoEQ applies the EQ predicate on the "season_no" field.
+func SeasonNoEQ(v int) predicate.Game {
+	return predicate.Game(sql.FieldEQ(FieldSeasonNo, v))
+}
+
+// SeasonNoNEQ applies the NEQ predicate on the "season_no" field.
+func SeasonNoNEQ(v int) predicate.Game {
+	return predicate.Game(sql.FieldNEQ(FieldSeasonNo, v))
+}
+
+// SeasonNoIn applies the In predicate on the "season_no" field.
+func SeasonNoIn(vs ...int) predicate.Game {
+	return predicate.Game(sql.FieldIn(FieldSeasonNo, vs...))
+}
+
+// SeasonNoNotIn applies the NotIn predicate on the "season_no" field.
+func SeasonNoNotIn(vs ...int) predicate.Game {
+	return predicate.Game(sql.FieldNotIn(FieldSeasonNo, vs...))
+}
+
+// SeasonNoGT applies the GT predicate on the "season_no" field.
+func SeasonNoGT(v int) predicate.Game {
+	return predicate.Game(sql.FieldGT(FieldSeasonNo, v))
+}
+
+// SeasonNoGTE applies the GTE predicate on the "season_no" field.
+func SeasonNoGTE(v int) predicate.Game {
+	return predicate.Game(sql.FieldGTE(FieldSeasonNo, v))
+}
+
+// SeasonNoLT applies the LT predicate on the "season_no" field.
+func SeasonNoLT(v int) predicate.Game {
+	return predicate.Game(sql.FieldLT(FieldSeasonNo, v))
+}
+
+// SeasonNoLTE applies the LTE predicate on the "season_no" field.
+func SeasonNoLTE(v int) predicate.Game {
+	return predicate.Game(sql.FieldLTE(FieldSeasonNo, v))
+}
+
+// SeasonNoIsNil applies the IsNil predicate on the "season_no" field.
+func SeasonNoIsNil() predicate.Game {
+	return predicate.Game(sql.FieldIsNull(FieldSeasonNo))
+}
+
+// SeasonNoNotNil applies the NotNil predicate on the "season_no" field.
+func SeasonNoNotNil() predicate.Game {
+	return predicate.Game(sql.FieldNotNull(FieldSeasonNo))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

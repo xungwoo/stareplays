@@ -149,12 +149,6 @@ describe("dashboard page", () => {
     previewReplayUploadMock.mockReset();
     submitReplayUploadMock.mockReset();
     vi.restoreAllMocks();
-    submitReplayUploadMock.mockResolvedValue({
-      game: {
-        id: 88,
-        map_name: "Polypoid"
-      }
-    });
     globalThis.__TEST_ROUTER__.push.mockReset();
     globalThis.__TEST_ROUTER__.replace.mockReset();
     globalThis.__TEST_ROUTER__.refresh.mockReset();
@@ -214,11 +208,11 @@ describe("dashboard page", () => {
     expect(queryButton).toHaveClass("transition-all");
     expect(screen.queryByText(/^Win Rate Progress$/i)).not.toBeInTheDocument();
     expect(screen.getByText(DASHBOARD_FIXTURE.playerStats.favoriteRaceLabel)).toHaveClass("text-amber-400");
-    expect(screen.getByText(/^CURRENT_USER:$/i).nextElementSibling).toHaveTextContent(DASHBOARD_FIXTURE.currentUser);
+    expect(screen.getByText(/^CURRENT_USER:$/i).nextElementSibling).toHaveTextContent("성우");
     expect(playerStatsQueryLabel.parentElement).toHaveClass("p-5");
     expect(playerStatsQueryLabel.parentElement).toHaveStyle({
-      backgroundColor: "#0d1833",
-      border: "1px solid rgba(34,211,238,0.1)"
+      backgroundColor: "#192234",
+      border: "1px solid rgba(148,163,184,0.16)"
     });
     expect(replayUploadLabel.compareDocumentPosition(playerStatsQueryLabel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(playerStatsQueryLabel.compareDocumentPosition(recentGamesLabel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -233,8 +227,8 @@ describe("dashboard page", () => {
     const winRateStatLabel = winRateStatValue.previousElementSibling;
 
     expect(winRateStatLabel?.parentElement).toHaveStyle({
-      backgroundColor: "#0a1428",
-      border: "1px solid rgba(255,255,255,0.06)"
+      backgroundColor: "#202c40",
+      border: "1px solid rgba(226,232,240,0.1)"
     });
     expect(winRateStatValue).toHaveStyle({ color: "#22d3ee" });
     expect(container.querySelector('label[for="replay-file"]')).toHaveStyle({
@@ -243,8 +237,8 @@ describe("dashboard page", () => {
     });
     expect(container.querySelector('label[for="replay-file"] svg')).toHaveClass("text-cyan-400");
     expect(within(screen.getByTestId("dashboard-upload-result")).getByText(/^READY$/i).parentElement).toHaveStyle({
-      backgroundColor: "#0a1428",
-      border: "1px solid rgba(255,255,255,0.05)"
+      backgroundColor: "#1e293b",
+      border: "1px solid rgba(226,232,240,0.08)"
     });
     expect(screen.getByLabelText(/플레이어 이름 입력/i)).toHaveStyle({
       backgroundColor: "#0a1428",
@@ -256,9 +250,9 @@ describe("dashboard page", () => {
       border: "1px solid rgba(34,211,238,0.3)"
     });
     expect(screen.getByText(/^CURRENT_USER:$/i).nextElementSibling).toHaveStyle({
-      backgroundColor: "rgba(34,211,238,0.1)",
-      color: "#22d3ee",
-      border: "1px solid rgba(34,211,238,0.2)"
+      backgroundColor: "rgba(103,190,207,0.12)",
+      color: "#bae6f0",
+      border: "1px solid rgba(103,190,207,0.24)"
     });
     expect(screen.getByText(/^CURRENT_USER:$/i).nextElementSibling).not.toHaveClass("tracking-wider");
     expect(screen.getByText(/^PLAYER$/i).nextElementSibling?.querySelector("span")).toHaveStyle({
@@ -274,15 +268,17 @@ describe("dashboard page", () => {
 
     const uploadLabel = screen.getByText("Replay_Upload");
     const fileInputLabel = container.querySelector('label[for="replay-file"]');
-    const analyzeButton = screen.getByRole("button", { name: /analyze & upload/i });
+    const analyzeButton = screen.getByRole("button", { name: /analyze_replay/i });
     const selectedUserBlock = container.querySelector('[data-testid="dashboard-upload-user-block"]');
+    const uploadButton = screen.getByRole("button", { name: /upload_with_selected_user/i });
     const previewSummary = container.querySelector('[data-testid="dashboard-preview-summary"]');
     const uploadResult = container.querySelector('[data-testid="dashboard-upload-result"]');
 
     expect(uploadLabel.compareDocumentPosition(fileInputLabel as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect((fileInputLabel as Node).compareDocumentPosition(analyzeButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(analyzeButton.compareDocumentPosition(selectedUserBlock as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect((selectedUserBlock as Node).compareDocumentPosition(previewSummary as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect((selectedUserBlock as Node).compareDocumentPosition(uploadButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(uploadButton.compareDocumentPosition(previewSummary as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect((previewSummary as Node).compareDocumentPosition(uploadResult as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
@@ -586,7 +582,7 @@ describe("dashboard page", () => {
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /analyze & upload/i }));
+      fireEvent.click(screen.getByRole("button", { name: /analyze_replay/i }));
     });
 
     expect((await screen.findAllByText(/ANALYZE_OK: 1\/1 files/i)).length).toBeGreaterThan(0);
@@ -635,16 +631,14 @@ describe("dashboard page", () => {
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /analyze & upload/i }));
+      fireEvent.click(screen.getByRole("button", { name: /analyze_replay/i }));
     });
 
     await waitFor(() => {
-      expect(within(screen.getByTestId("dashboard-upload-result")).getByText("UPLOAD_DONE: check terminal log")).toBeInTheDocument();
+      expect(within(screen.getByTestId("dashboard-upload-result")).getByText("ANALYZE_OK: 1/1 files")).toBeInTheDocument();
     });
     expect(screen.getByLabelText(/플레이어 선택/i)).toHaveValue("3x3_GG");
-    expect(screen.getByText(/^CURRENT_USER:$/i).nextElementSibling).toBeEmptyDOMElement();
-    expect(globalThis.__TEST_ROUTER__.replace).not.toHaveBeenCalledWith("/?currentUser=3x3_GG");
-    expect(document.cookie).not.toContain("current_user=3x3_GG");
+    expect(screen.getByText(/^CURRENT_USER:$/i).nextElementSibling).toHaveTextContent("성우");
     expect(screen.queryByText(/^READY$/i)).not.toBeInTheDocument();
   });
 
@@ -685,33 +679,25 @@ describe("dashboard page", () => {
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /analyze & upload/i }));
+      fireEvent.click(screen.getByRole("button", { name: /analyze_replay/i }));
     });
 
     expect(screen.getByText(/^CURRENT_USER:$/i).nextElementSibling).toHaveTextContent("legacy_bad_user");
     expect(screen.getByLabelText(/플레이어 선택/i)).toHaveValue("");
-    expect(screen.getByRole("button", { name: /analyze & upload/i })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /upload_with_selected_user/i })).toBeDisabled();
     expect(submitReplayUploadMock).not.toHaveBeenCalled();
 
     fireEvent.change(screen.getByLabelText(/플레이어 선택/i), { target: { value: "3x3_GG" } });
 
-    expect(screen.getByText(/^CURRENT_USER:$/i).nextElementSibling).toHaveTextContent("legacy_bad_user");
+    expect(screen.getByText(/^CURRENT_USER:$/i).nextElementSibling).toHaveTextContent("성우");
     expect(screen.getByLabelText(/플레이어 선택/i)).toHaveValue("3x3_GG");
-    submitReplayUploadMock.mockResolvedValueOnce({
-      game: {
-        id: 88,
-        map_name: "Destination"
-      }
-    });
+    expect(screen.getByRole("button", { name: /upload_with_selected_user/i })).toBeEnabled();
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /analyze & upload/i }));
+      fireEvent.click(screen.getByRole("button", { name: /upload_with_selected_user/i }));
     });
 
     expect(submitReplayUploadMock).toHaveBeenCalledWith([expect.objectContaining({ name: "mismatch.rep" })], "3x3_GG", expect.any(Object));
-    expect(screen.getByRole("link", { name: /open replay vault/i })).toHaveAttribute("href", "/vault?currentUser=legacy_bad_user");
-    expect(screen.getByRole("link", { name: /open analyzer/i })).toHaveAttribute("href", "/analyzer?currentUser=legacy_bad_user&gameId=88");
-    expect(globalThis.__TEST_ROUTER__.replace).not.toHaveBeenCalledWith("/?currentUser=3x3_GG");
   });
 
   it("invalidates pending upload analysis when the replay file changes", async () => {
@@ -743,11 +729,11 @@ describe("dashboard page", () => {
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /analyze & upload/i }));
+      fireEvent.click(screen.getByRole("button", { name: /analyze_replay/i }));
     });
 
     expect(screen.getAllByText(/common players: 3x3_GG/i)).not.toHaveLength(0);
-    expect(submitReplayUploadMock).toHaveBeenCalledWith([expect.objectContaining({ name: "first.rep" })], "3x3_GG", expect.any(Object));
+    expect(screen.getByRole("button", { name: /upload_with_selected_user/i })).toBeEnabled();
 
     fireEvent.change(document.querySelector("#replay-file") as HTMLInputElement, {
       target: {
@@ -755,10 +741,12 @@ describe("dashboard page", () => {
       }
     });
 
+    expect(screen.getByRole("button", { name: /upload_with_selected_user/i })).toBeDisabled();
     expect(within(screen.getByTestId("dashboard-preview-summary")).getByText("NO_PREVIEW")).toBeInTheDocument();
     expect(screen.getByTestId("dashboard-upload-result")).toHaveTextContent("READY");
     expect(screen.queryByText(/common players: 3x3_GG/i)).not.toBeInTheDocument();
     expect(screen.queryByText("first.rep")).not.toBeInTheDocument();
+    expect(submitReplayUploadMock).not.toHaveBeenCalled();
   });
 
   it("ignores stale preview results when the replay file changes before preview resolves", async () => {
@@ -774,7 +762,7 @@ describe("dashboard page", () => {
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /analyze & upload/i }));
+      fireEvent.click(screen.getByRole("button", { name: /analyze_replay/i }));
     });
 
     fireEvent.change(document.querySelector("#replay-file") as HTMLInputElement, {
@@ -805,6 +793,7 @@ describe("dashboard page", () => {
 
     expect(within(screen.getByTestId("dashboard-preview-summary")).getByText("NO_PREVIEW")).toBeInTheDocument();
     expect(screen.getByTestId("dashboard-upload-result")).toHaveTextContent("READY");
+    expect(screen.getByRole("button", { name: /upload_with_selected_user/i })).toBeDisabled();
     expect(screen.getByText("second.rep")).toBeInTheDocument();
     expect(screen.queryByText("first.rep")).not.toBeInTheDocument();
   });
@@ -840,7 +829,11 @@ describe("dashboard page", () => {
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /analyze & upload/i }));
+      fireEvent.click(screen.getByRole("button", { name: /analyze_replay/i }));
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /upload_with_selected_user/i }));
     });
 
     fireEvent.change(document.querySelector("#replay-file") as HTMLInputElement, {
@@ -897,10 +890,16 @@ describe("dashboard page", () => {
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /analyze & upload/i }));
+      fireEvent.click(screen.getByRole("button", { name: /analyze_replay/i }));
     });
 
-    expect(screen.getAllByRole("button", { name: /uploading/i }).every((button) => button.hasAttribute("disabled"))).toBe(true);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /upload_with_selected_user/i }));
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /analyze_replay/i }));
+    });
 
     await act(async () => {
       uploadDeferred.resolve({
@@ -912,15 +911,15 @@ describe("dashboard page", () => {
       await uploadDeferred.promise;
     });
 
-    expect(within(screen.getByTestId("dashboard-upload-result")).getByText("UPLOAD_DONE: check terminal log")).toBeInTheDocument();
-    expect(screen.getByTestId("dashboard-preview-summary")).toHaveTextContent("uploaded game: #101 - Polypoid");
+    expect(within(screen.getByTestId("dashboard-upload-result")).getByText("ANALYZE_OK: 1/1 files")).toBeInTheDocument();
+    expect(screen.queryByText(/uploaded game: #101/i)).not.toBeInTheDocument();
   });
 
   it("updates the upload module when a replay file is selected and analyzed", async () => {
     render(<DashboardPage model={DASHBOARD_FIXTURE} />);
 
     const fileInput = document.querySelector("#replay-file") as HTMLInputElement;
-    const analyzeButton = screen.getByRole("button", { name: /analyze & upload/i });
+    const analyzeButton = screen.getByRole("button", { name: /analyze_replay/i });
 
     expect(analyzeButton).toBeDisabled();
     expect(analyzeButton).toHaveClass("transition-all", "duration-200");
@@ -966,58 +965,8 @@ describe("dashboard page", () => {
     );
     expect(await screen.findByText(/analysis completed/i)).toBeInTheDocument();
     expect(screen.getAllByText(/common players/i)).not.toHaveLength(0);
-    expect(screen.getByRole("option", { name: "3x3_GG" })).toBeInTheDocument();
-    expect(submitReplayUploadMock).toHaveBeenCalledWith([expect.objectContaining({ name: "test-game.rep" })], "3x3_GG", expect.any(Object));
-  });
-
-  it("analyzes and uploads the replay from the dashboard primary upload button", async () => {
-    render(<DashboardPage model={DASHBOARD_FIXTURE} />);
-
-    previewReplayUploadMock.mockResolvedValue({
-      success_count: 1,
-      total_files: 1,
-      preview_candidates: ["3x3_GG"],
-      results: [
-        {
-          ok: true,
-          filename: "combined.rep",
-          preview: {
-            map_name: "Polypoid",
-            start_time: "2026-03-23T01:23:45Z",
-            player_count: 6,
-            parsed_players: ["3x3_GG"]
-          }
-        }
-      ]
-    });
-    submitReplayUploadMock.mockResolvedValue({
-      game: {
-        id: 88,
-        map_name: "Polypoid"
-      }
-    });
-
-    fireEvent.change(document.querySelector("#replay-file") as HTMLInputElement, {
-      target: {
-        files: [new File(["mock replay"], "combined.rep", { type: "application/octet-stream" })]
-      }
-    });
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /analyze & upload/i }));
-    });
-
-    expect(previewReplayUploadMock).toHaveBeenCalledWith(
-      [expect.objectContaining({ name: "combined.rep" })],
-      expect.any(Object)
-    );
-    expect(submitReplayUploadMock).toHaveBeenCalledWith(
-      [expect.objectContaining({ name: "combined.rep" })],
-      "3x3_GG",
-      expect.any(Object)
-    );
-    expect(screen.getByTestId("dashboard-upload-result")).toHaveTextContent("UPLOAD_DONE: check terminal log");
-    expect(screen.getByTestId("dashboard-preview-summary")).toHaveTextContent("uploaded game: #88 - Polypoid");
+    expect(screen.getByRole("option", { name: "성우" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /upload_with_selected_user/i })).toBeEnabled();
   });
 
   it("ignores stale upload results when currentUser changes while upload is in flight", async () => {
@@ -1110,7 +1059,11 @@ describe("dashboard page", () => {
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /analyze & upload/i }));
+      fireEvent.click(screen.getByRole("button", { name: /analyze_replay/i }));
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /upload_with_selected_user/i }));
     });
 
     fireEvent.change(screen.getByLabelText(/플레이어 이름 입력/i), { target: { value: "3x3_new" } });
@@ -1168,7 +1121,11 @@ describe("dashboard page", () => {
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /analyze & upload/i }));
+      fireEvent.click(screen.getByRole("button", { name: /analyze_replay/i }));
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /upload_with_selected_user/i }));
     });
 
     expect(submitReplayUploadMock).toHaveBeenCalledWith(
@@ -1183,9 +1140,9 @@ describe("dashboard page", () => {
     expect(screen.getByTestId("dashboard-preview-summary")).toHaveTextContent("uploaded game: #88 - Polypoid");
     expect(screen.getByRole("link", { name: /open replay vault/i })).toHaveAttribute("href", "/vault?currentUser=3x3_GG");
     expect(screen.getByRole("link", { name: /open analyzer/i })).toHaveAttribute("href", "/analyzer?currentUser=3x3_GG&gameId=88");
-    expect(document.cookie).not.toContain("current_user=3x3_GG");
-    expect(globalThis.__TEST_ROUTER__.replace).not.toHaveBeenCalledWith("/?currentUser=3x3_GG");
-    expect(globalThis.__TEST_ROUTER__.refresh).not.toHaveBeenCalled();
+    expect(document.cookie).toContain("current_user=3x3_GG");
+    expect(globalThis.__TEST_ROUTER__.replace).toHaveBeenCalledWith("/?currentUser=3x3_GG");
+    expect(globalThis.__TEST_ROUTER__.refresh).toHaveBeenCalled();
   });
 
   it("debounces player suggestions for 280ms and triggers query on Enter", async () => {
@@ -1261,13 +1218,13 @@ describe("dashboard page", () => {
 
     vi.useRealTimers();
 
-    expect(await screen.findByRole("option", { name: "3x3_smwoo" })).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: "성민" })).toBeInTheDocument();
 
     await act(async () => {
       fireEvent.keyDown(queryInput, { key: "Enter", code: "Enter", charCode: 13 });
     });
 
-    expect(await screen.findAllByText("3x3_smwoo")).not.toHaveLength(0);
+    expect(await screen.findAllByText("성민")).not.toHaveLength(0);
     expect(screen.getByText("TERRAN")).toBeInTheDocument();
     expect(await screen.findAllByText("70.4%")).not.toHaveLength(0);
     expect(screen.getByLabelText(/플레이어 선택/i)).toHaveValue("3x3_smwoo");
@@ -1594,7 +1551,7 @@ describe("dashboard page", () => {
       await Promise.resolve();
     });
 
-    expect(screen.getByRole("option", { name: "3x3_smwoo" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "성민" })).toBeInTheDocument();
 
     await act(async () => {
       resolveFirst?.(
@@ -1795,7 +1752,7 @@ describe("dashboard page", () => {
     expect(within(vizShell).getByText(/hint row/i)).toBeInTheDocument();
     expect(within(vizShell).getByText(/tech-event info row/i)).toBeInTheDocument();
     expect(within(vizShell).getByText(/summary area/i)).toBeInTheDocument();
-    expect(within(vizShell).getByText(/3x3_GG, 3x3_mh, 3x3_smwoo/i)).toBeInTheDocument();
+    expect(within(vizShell).getByText(/성우 \+ 민혁 \+ 성민/i)).toBeInTheDocument();
     expect(within(vizShell).getAllByText(/5\/6 \| stable/i).length).toBeGreaterThan(0);
 
     fireEvent.click(within(vizShell).getByRole("button", { name: "Tech" }));

@@ -53,6 +53,20 @@ var (
 			},
 		},
 	}
+	// AppSettingsColumns holds the columns for the "app_settings" table.
+	AppSettingsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "key", Type: field.TypeString, Unique: true},
+		{Name: "value", Type: field.TypeString, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// AppSettingsTable holds the schema information for the "app_settings" table.
+	AppSettingsTable = &schema.Table{
+		Name:       "app_settings",
+		Columns:    AppSettingsColumns,
+		PrimaryKey: []*schema.Column{AppSettingsColumns[0]},
+	}
 	// GamesColumns holds the columns for the "games" table.
 	GamesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -68,6 +82,8 @@ var (
 		{Name: "player_count", Type: field.TypeInt, Default: 0},
 		{Name: "upload_count", Type: field.TypeInt, Default: 1},
 		{Name: "winner_team", Type: field.TypeUint8, Default: 0},
+		{Name: "season_label", Type: field.TypeString, Nullable: true},
+		{Name: "season_no", Type: field.TypeInt, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 	}
@@ -333,6 +349,7 @@ var (
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		AnalyzerRaceMatchupsTable,
+		AppSettingsTable,
 		GamesTable,
 		GameAnalysesTable,
 		GameDetailsTable,

@@ -8,6 +8,8 @@ export interface LoaderOptions {
   currentUserCookie?: string;
   selectedGameId?: number;
   fetchImpl?: typeof fetch;
+  cache?: RequestCache;
+  revalidateSeconds?: number;
 }
 
 export function resolveCurrentUser(currentUser?: string, currentUserCookie?: string): string {
@@ -16,11 +18,21 @@ export function resolveCurrentUser(currentUser?: string, currentUserCookie?: str
 
 export async function fetchApiJson<T>(path: string, options: LoaderOptions = {}): Promise<T> {
   const fetchImpl = options.fetchImpl ?? fetch;
-  const response = await fetchImpl(buildApiUrl(path, options.apiBaseUrl), {
+  const revalidateSeconds = options.revalidateSeconds;
+  const init: RequestInit & { next?: { revalidate?: number } } = {
     headers: {
       accept: "application/json"
-    },
-    cache: "no-store"
+    }
+  };
+
+  if (revalidateSeconds != null) {
+    init.next = { revalidate: revalidateSeconds };
+  } else {
+    init.cache = options.cache ?? "no-store";
+  }
+
+  const response = await fetchImpl(buildApiUrl(path, options.apiBaseUrl), {
+    ...init
   });
 
   if (!response.ok) {

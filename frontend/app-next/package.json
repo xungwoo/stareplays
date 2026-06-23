@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "NEXT_DIST_DIR=.next-dev next dev -p 3100",
     "build": "NEXT_DIST_DIR=.next-prod next build",
-    "start": "NEXT_DIST_DIR=.next-prod next start -p 3100",
+    "start": "NEXT_DIST_DIR=.next-prod next start -p ${PORT:-3100}",
     "preview": "NEXT_DIST_DIR=.next-prod next start -p 3201",
     "test": "vitest run",
     "test:watch": "vitest",

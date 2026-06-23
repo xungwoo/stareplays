@@ -49,6 +49,14 @@ func (Game) Fields() []ent.Field {
 		field.Uint8("winner_team").
 			Default(0).
 			Comment("Computed.WinnerTeam"),
+		field.String("season_label").
+			Optional().
+			Nillable().
+			Comment("Season label used by team analysis, e.g. 시즌1"),
+		field.Int("season_no").
+			Optional().
+			Nillable().
+			Comment("Numeric season number used for ordering"),
 		field.Time("created_at").
 			Default(time.Now).
 			Immutable(),

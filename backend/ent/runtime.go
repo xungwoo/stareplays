@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/xungwoo/stareplays/ent/analyzerracematchup"
+	"github.com/xungwoo/stareplays/ent/appsetting"
 	"github.com/xungwoo/stareplays/ent/game"
 	"github.com/xungwoo/stareplays/ent/gameanalysis"
 	"github.com/xungwoo/stareplays/ent/player"
@@ -71,6 +72,22 @@ func init() {
 	analyzerracematchup.DefaultUpdatedAt = analyzerracematchupDescUpdatedAt.Default.(func() time.Time)
 	// analyzerracematchup.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	analyzerracematchup.UpdateDefaultUpdatedAt = analyzerracematchupDescUpdatedAt.UpdateDefault.(func() time.Time)
+	appsettingFields := schema.AppSetting{}.Fields()
+	_ = appsettingFields
+	// appsettingDescKey is the schema descriptor for key field.
+	appsettingDescKey := appsettingFields[0].Descriptor()
+	// appsetting.KeyValidator is a validator for the "key" field. It is called by the builders before save.
+	appsetting.KeyValidator = appsettingDescKey.Validators[0].(func(string) error)
+	// appsettingDescCreatedAt is the schema descriptor for created_at field.
+	appsettingDescCreatedAt := appsettingFields[2].Descriptor()
+	// appsetting.DefaultCreatedAt holds the default value on creation for the created_at field.
+	appsetting.DefaultCreatedAt = appsettingDescCreatedAt.Default.(func() time.Time)
+	// appsettingDescUpdatedAt is the schema descriptor for updated_at field.
+	appsettingDescUpdatedAt := appsettingFields[3].Descriptor()
+	// appsetting.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	appsetting.DefaultUpdatedAt = appsettingDescUpdatedAt.Default.(func() time.Time)
+	// appsetting.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	appsetting.UpdateDefaultUpdatedAt = appsettingDescUpdatedAt.UpdateDefault.(func() time.Time)
 	gameFields := schema.Game{}.Fields()
 	_ = gameFields
 	// gameDescHost is the schema descriptor for host field.
@@ -90,11 +107,11 @@ func init() {
 	// game.DefaultWinnerTeam holds the default value on creation for the winner_team field.
 	game.DefaultWinnerTeam = gameDescWinnerTeam.Default.(uint8)
 	// gameDescCreatedAt is the schema descriptor for created_at field.
-	gameDescCreatedAt := gameFields[12].Descriptor()
+	gameDescCreatedAt := gameFields[14].Descriptor()
 	// game.DefaultCreatedAt holds the default value on creation for the created_at field.
 	game.DefaultCreatedAt = gameDescCreatedAt.Default.(func() time.Time)
 	// gameDescUpdatedAt is the schema descriptor for updated_at field.
-	gameDescUpdatedAt := gameFields[13].Descriptor()
+	gameDescUpdatedAt := gameFields[15].Descriptor()
 	// game.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	game.DefaultUpdatedAt = gameDescUpdatedAt.Default.(func() time.Time)
 	// game.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

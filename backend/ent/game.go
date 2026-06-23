@@ -43,6 +43,10 @@ type Game struct {
 	UploadCount int `json:"upload_count,omitempty"`
 	// Computed.WinnerTeam
 	WinnerTeam uint8 `json:"winner_team,omitempty"`
+	// Season label used by team analysis, e.g. 시즌1
+	SeasonLabel *string `json:"season_label,omitempty"`
+	// Numeric season number used for ordering
+	SeasonNo *int `json:"season_no,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -113,9 +117,9 @@ func (*Game) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case game.FieldID, game.FieldMapWidth, game.FieldMapHeight, game.FieldGameLength, game.FieldPlayerCount, game.FieldUploadCount, game.FieldWinnerTeam:
+		case game.FieldID, game.FieldMapWidth, game.FieldMapHeight, game.FieldGameLength, game.FieldPlayerCount, game.FieldUploadCount, game.FieldWinnerTeam, game.FieldSeasonNo:
 			values[i] = new(sql.NullInt64)
-		case game.FieldHost, game.FieldMapName, game.FieldGameType, game.FieldGameSpeed, game.FieldTitle:
+		case game.FieldHost, game.FieldMapName, game.FieldGameType, game.FieldGameSpeed, game.FieldTitle, game.FieldSeasonLabel:
 			values[i] = new(sql.NullString)
 		case game.FieldStartTime, game.FieldCreatedAt, game.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -211,6 +215,20 @@ func (_m *Game) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field winner_team", values[i])
 			} else if value.Valid {
 				_m.WinnerTeam = uint8(value.Int64)
+			}
+		case game.FieldSeasonLabel:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field season_label", values[i])
+			} else if value.Valid {
+				_m.SeasonLabel = new(string)
+				*_m.SeasonLabel = value.String
+			}
+		case game.FieldSeasonNo:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field season_no", values[i])
+			} else if value.Valid {
+				_m.SeasonNo = new(int)
+				*_m.SeasonNo = int(value.Int64)
 			}
 		case game.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -315,6 +333,16 @@ func (_m *Game) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("winner_team=")
 	builder.WriteString(fmt.Sprintf("%v", _m.WinnerTeam))
+	builder.WriteString(", ")
+	if v := _m.SeasonLabel; v != nil {
+		builder.WriteString("season_label=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.SeasonNo; v != nil {
+		builder.WriteString("season_no=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

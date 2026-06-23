@@ -2,7 +2,8 @@
 
 import { RaceBadge } from "@/components/shared/race-badge";
 import { ResultBadge } from "@/components/shared/status-badge";
-import { CYAN_PANEL_STYLE } from "@/lib/constants/ui-styles";
+import { CYAN_PANEL_STYLE, INNER_PANEL_STRONG_STYLE } from "@/lib/constants/ui-styles";
+import { displayPlayerName } from "@/lib/utils/player-display";
 import { getStartGridBoard } from "@/lib/utils/start-grid-board";
 import type { AnalyzerPageModel } from "@/types/analyzer";
 
@@ -32,7 +33,7 @@ function SummaryStripPlayer({
       <div className="flex items-center gap-2">
         <RaceBadge race={race} size="md" />
         <span data-testid="start-grid-player-name" className="text-sm font-mono font-semibold text-slate-200">
-          {name}
+          {displayPlayerName(name)}
         </span>
         {isCurrentUser ? <span className="text-[10px] font-mono text-cyan-400">[YOU]</span> : null}
       </div>
@@ -50,13 +51,13 @@ export function AnalyzerSummaryStrip({ game }: { game: AnalyzerPageModel["select
         <p className="text-[10px] font-mono tracking-widest text-slate-500">GAME SUMMARY STRIP</p>
       </div>
 
-      <div className="grid grid-cols-3 gap-px" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+      <div className="grid grid-cols-3 gap-px" style={{ backgroundColor: "rgba(226,232,240,0.08)" }}>
         {[
           { label: "MAP", value: game.map },
           { label: "PLAY TIME", value: game.playTime },
           { label: "START", value: game.startTime }
         ].map(({ label, value }) => (
-          <div key={label} className="px-4 py-2.5" style={{ backgroundColor: "#0d1833" }}>
+          <div key={label} className="px-4 py-2.5" style={INNER_PANEL_STRONG_STYLE}>
             <p className="text-[10px] font-mono text-slate-600">{label}:</p>
             <p className="text-xs font-mono text-slate-300">{value}</p>
           </div>

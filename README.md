@@ -9,6 +9,7 @@ StarCraft: Brood War replay 파싱/저장 API 서버입니다.
 - Next 프런트 현재 구조/legacy parity 상태: `docs/frontend-next-architecture.md`
 - 완료된 작업 기록/검증 runbook: `docs/histories/`
 - 상세 API 예시(보조 문서): `API_USAGE.md`
+- Claude/Codex MCP 로컬 커넥터 설치: `mcp/stareplays-mcp/README.md`
 
 ## 핵심 기능
 
@@ -132,6 +133,21 @@ cd backend && go run ./cmd/server
 ```bash
 make run
 ```
+
+## Claude/Codex MCP 로컬 커넥터
+
+Stareplays 팀 분석 raw data를 개인 Claude/Codex에서 MCP 도구처럼 조회하려면 아래 가이드를 참고하세요.
+
+- 설치 가이드: `mcp/stareplays-mcp/README.md`
+- 운영 raw endpoint: `https://stareplays-next-production.up.railway.app/api/team-analysis/raw`
+
+빠른 설치:
+
+```bash
+node mcp/stareplays-mcp/bin/stareplays-mcp-install.mjs --client both --api-base-url https://stareplays-next-production.up.railway.app
+```
+
+설치 후 Claude Desktop 또는 Codex를 재시작하면 `get_team_analysis_raw`, `get_team_analysis_prompt_bundle`, `analyze_team_matchups`를 사용할 수 있습니다.
 
 ### 로컬 서버 운영 규칙 (필수)
 

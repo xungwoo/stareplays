@@ -64,8 +64,8 @@ describe("analyzer page", () => {
       color: "#22d3ee"
     });
     expect(container.querySelector(".recharts-responsive-container")?.parentElement).toHaveStyle({
-      backgroundColor: "#0a1428",
-      border: "1px solid rgba(255,255,255,0.05)"
+      backgroundColor: "#1e293b",
+      border: "1px solid rgba(226,232,240,0.08)"
     });
 
     expect(screen.getByRole("button", { name: /^Prev$/i })).toHaveStyle({
@@ -79,12 +79,12 @@ describe("analyzer page", () => {
       borderTop: "1px solid rgba(255,255,255,0.05)"
     });
     expect(screen.getByText(/replay_analyzer_status/i).parentElement).toHaveStyle({
-      backgroundColor: "#0a1428",
-      border: "1px solid rgba(255,255,255,0.06)"
+      backgroundColor: "#202c40",
+      border: "1px solid rgba(226,232,240,0.1)"
     });
     expect(screen.getByText(/^PLAYER DEEP DIVE$/i).parentElement).toHaveStyle({
-      backgroundColor: "#0d1833",
-      border: "1px solid rgba(34,211,238,0.1)"
+      backgroundColor: "#192234",
+      border: "1px solid rgba(148,163,184,0.16)"
     });
     const highlightedPlayTime = screen
       .getAllByText(/\d+:\d+/)
@@ -96,7 +96,7 @@ describe("analyzer page", () => {
       borderBottom: "1px solid rgba(255,255,255,0.05)"
     });
     expect(screen.getByText(/^MAP:$/i).parentElement?.parentElement).toHaveStyle({
-      backgroundColor: "rgba(255,255,255,0.06)"
+      backgroundColor: "rgba(226,232,240,0.08)"
     });
   });
 
@@ -251,9 +251,9 @@ describe("analyzer page", () => {
     expect(screen.getByRole("button", { name: /all players/i })).toBeInTheDocument();
     expect(screen.getByText(/^all players$/i, { selector: "p" })).toBeInTheDocument();
     expect(screen.getByText(/^key player$/i)).toBeInTheDocument();
-    expect(screen.getAllByText(model.selectedGame.keyPlayer ?? "").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("성우").length).toBeGreaterThan(0);
     expect(screen.getByText(/^worst impact$/i)).toBeInTheDocument();
-    expect(screen.getAllByText(model.selectedGame.worstPlayer ?? "").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("필균").length).toBeGreaterThan(0);
 
     rerender(
       <AnalyzerPlayerDeepDive
@@ -346,7 +346,7 @@ describe("analyzer page", () => {
     await user.click(timelineEvent);
 
     const deepDive = screen.getByText(/^PLAYER DEEP DIVE$/i).parentElement as HTMLElement;
-    expect(within(deepDive).getByRole("button", { name: /3x3_gg/i })).toBeInTheDocument();
+    expect(within(deepDive).getByRole("button", { name: /성우/i })).toBeInTheDocument();
     expect(within(deepDive).getByText(/^PLAYER READ$/i)).toBeInTheDocument();
 
     await user.click(timelineEvent);
@@ -361,17 +361,17 @@ describe("analyzer page", () => {
 
     await user.click(screen.getByRole("button", { name: /^apm$/i }));
 
-    const hidePlayerButton = screen.getByRole("button", { name: /^hide 3x3_gg$/i });
+    const hidePlayerButton = screen.getByRole("button", { name: /^hide 성우$/i });
     await user.click(hidePlayerButton);
-    expect(screen.getByRole("button", { name: /^show 3x3_gg$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^show 성우$/i })).toBeInTheDocument();
 
     const deepDive = screen.getByText(/^PLAYER DEEP DIVE$/i).parentElement as HTMLElement;
-    await user.click(within(deepDive).getByRole("button", { name: /3x3_gg/i }));
+    await user.click(within(deepDive).getByRole("button", { name: /성우/i }));
     expect(within(deepDive).getByText(/^PLAYER READ$/i)).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /^show 3x3_gg$/i }));
+    await user.click(screen.getByRole("button", { name: /^show 성우$/i }));
     expect(within(deepDive).getByText(/^All Players$/i, { selector: "p" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^hide 3x3_gg$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^hide 성우$/i })).toBeInTheDocument();
   });
 
   it("resets the match-flow timeline pager when a different game is selected", async () => {
@@ -409,7 +409,7 @@ describe("analyzer page", () => {
     const user = userEvent.setup();
     const deepDive = screen.getByText(/^PLAYER DEEP DIVE$/i).parentElement as HTMLElement;
 
-    await user.click(within(deepDive).getByRole("button", { name: /3x3_gg/i }));
+    await user.click(within(deepDive).getByRole("button", { name: /성우/i }));
 
     expect(within(deepDive).getByText(/^APM$/i)).toBeInTheDocument();
     expect(within(deepDive).getByText(/^PRODUCTION$/i)).toBeInTheDocument();
@@ -479,12 +479,12 @@ describe("analyzer page", () => {
     const user = userEvent.setup();
     const deepDive = screen.getByText(/^PLAYER DEEP DIVE$/i).parentElement as HTMLElement;
 
-    await user.click(within(deepDive).getByRole("button", { name: /3x3_gg/i }));
+    await user.click(within(deepDive).getByRole("button", { name: /성우/i }));
     expect(within(deepDive).getByText(/^APM$/i)).toBeInTheDocument();
 
     await user.click(screen.getByText(/^#47$/i));
     expect(within(deepDive).getByText(/^APM$/i)).toBeInTheDocument();
-    expect(within(deepDive).getByRole("button", { name: /3x3_gg/i })).toHaveStyle({
+    expect(within(deepDive).getByRole("button", { name: /성우/i })).toHaveStyle({
       backgroundColor: "rgba(34,211,238,0.08)"
     });
   });
@@ -947,8 +947,8 @@ describe("analyzer page", () => {
     const leftColumn = screen.getByTestId("analyzer-start-grid-left");
     const rightColumn = screen.getByTestId("analyzer-start-grid-right");
 
-    expect(within(leftColumn).getAllByTestId("start-grid-player-name").map((node) => node.textContent)).toEqual(["3x3_Kiyong", "3x3_syntax", "3x3_mh"]);
-    expect(within(rightColumn).getAllByTestId("start-grid-player-name").map((node) => node.textContent)).toEqual(["3x3_GG", "3x3_smwoo", "3x3_pil"]);
+    expect(within(leftColumn).getAllByTestId("start-grid-player-name").map((node) => node.textContent)).toEqual(["기용", "명진", "민혁"]);
+    expect(within(rightColumn).getAllByTestId("start-grid-player-name").map((node) => node.textContent)).toEqual(["성우", "성민", "필균"]);
   });
 
   it("renders the extracted summary strip with the same start-grid layout and metadata", () => {
@@ -958,19 +958,19 @@ describe("analyzer page", () => {
 
     expect(screen.getByText(/^GAME SUMMARY STRIP$/i)).toBeInTheDocument();
     expect(screen.getByText(/^MAP:$/i).parentElement).toHaveStyle({
-      backgroundColor: "#0d1833"
+      backgroundColor: "#202c40"
     });
     expect(screen.getByText(/^PLAY TIME:$/i).parentElement).toHaveStyle({
-      backgroundColor: "#0d1833"
+      backgroundColor: "#202c40"
     });
     expect(screen.getByText(/^START:$/i).parentElement).toHaveStyle({
-      backgroundColor: "#0d1833"
+      backgroundColor: "#202c40"
     });
 
     const leftColumn = screen.getByTestId("analyzer-start-grid-left");
     const rightColumn = screen.getByTestId("analyzer-start-grid-right");
 
-    expect(within(leftColumn).getAllByTestId("start-grid-player-name").map((node) => node.textContent)).toEqual(["3x3_Kiyong", "3x3_syntax", "3x3_mh"]);
-    expect(within(rightColumn).getAllByTestId("start-grid-player-name").map((node) => node.textContent)).toEqual(["3x3_GG", "3x3_smwoo", "3x3_pil"]);
+    expect(within(leftColumn).getAllByTestId("start-grid-player-name").map((node) => node.textContent)).toEqual(["기용", "명진", "민혁"]);
+    expect(within(rightColumn).getAllByTestId("start-grid-player-name").map((node) => node.textContent)).toEqual(["성우", "성민", "필균"]);
   });
 });

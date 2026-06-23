@@ -21,6 +21,18 @@ func (f AnalyzerRaceMatchupFunc) Mutate(ctx context.Context, m ent.Mutation) (en
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AnalyzerRaceMatchupMutation", m)
 }
 
+// The AppSettingFunc type is an adapter to allow the use of ordinary
+// function as AppSetting mutator.
+type AppSettingFunc func(context.Context, *ent.AppSettingMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f AppSettingFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.AppSettingMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AppSettingMutation", m)
+}
+
 // The GameFunc type is an adapter to allow the use of ordinary
 // function as Game mutator.
 type GameFunc func(context.Context, *ent.GameMutation) (ent.Value, error)

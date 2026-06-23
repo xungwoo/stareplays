@@ -176,6 +176,34 @@ func (_c *GameCreate) SetNillableWinnerTeam(v *uint8) *GameCreate {
 	return _c
 }
 
+// SetSeasonLabel sets the "season_label" field.
+func (_c *GameCreate) SetSeasonLabel(v string) *GameCreate {
+	_c.mutation.SetSeasonLabel(v)
+	return _c
+}
+
+// SetNillableSeasonLabel sets the "season_label" field if the given value is not nil.
+func (_c *GameCreate) SetNillableSeasonLabel(v *string) *GameCreate {
+	if v != nil {
+		_c.SetSeasonLabel(*v)
+	}
+	return _c
+}
+
+// SetSeasonNo sets the "season_no" field.
+func (_c *GameCreate) SetSeasonNo(v int) *GameCreate {
+	_c.mutation.SetSeasonNo(v)
+	return _c
+}
+
+// SetNillableSeasonNo sets the "season_no" field if the given value is not nil.
+func (_c *GameCreate) SetNillableSeasonNo(v *int) *GameCreate {
+	if v != nil {
+		_c.SetSeasonNo(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *GameCreate) SetCreatedAt(v time.Time) *GameCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -430,6 +458,14 @@ func (_c *GameCreate) createSpec() (*Game, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.WinnerTeam(); ok {
 		_spec.SetField(game.FieldWinnerTeam, field.TypeUint8, value)
 		_node.WinnerTeam = value
+	}
+	if value, ok := _c.mutation.SeasonLabel(); ok {
+		_spec.SetField(game.FieldSeasonLabel, field.TypeString, value)
+		_node.SeasonLabel = &value
+	}
+	if value, ok := _c.mutation.SeasonNo(); ok {
+		_spec.SetField(game.FieldSeasonNo, field.TypeInt, value)
+		_node.SeasonNo = &value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(game.FieldCreatedAt, field.TypeTime, value)

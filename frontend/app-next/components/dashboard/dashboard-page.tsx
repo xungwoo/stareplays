@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Fragment, type ChangeEvent, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { CheckCircle, ChevronDown, LoaderCircle, Upload } from "lucide-react";
+import { CheckCircle, LoaderCircle, Upload } from "lucide-react";
 
 import { ErrorState } from "@/components/shared/error-state";
 import { LoadingState } from "@/components/shared/loading-state";
@@ -18,6 +18,7 @@ import { VAULT_GAMES_FIXTURE } from "@/lib/fixtures/vault";
 import { CYAN_PANEL_STYLE, INNER_PANEL_STRONG_STYLE, INNER_PANEL_STYLE } from "@/lib/constants/ui-styles";
 import { buildApiUrl } from "@/lib/api/url";
 import { buildCurrentUserSessionDocumentCookie } from "@/lib/utils/current-user-session";
+import { displayLineupName, displayPlayerName } from "@/lib/utils/player-display";
 import { getStartGridBoard } from "@/lib/utils/start-grid-board";
 import { formatStartTime } from "@/lib/utils/format";
 import type {
@@ -162,15 +163,6 @@ function createPreviewSummary(result: ApiReplayPreviewResponse): DashboardPrevie
   };
 }
 
-function findMatchingPlayer(players: string[], playerName: string): string | null {
-  const normalized = playerName.trim().toLowerCase();
-  if (!normalized) {
-    return null;
-  }
-
-  return players.find((player) => player.trim().toLowerCase() === normalized) ?? null;
-}
-
 function formatPreviewItemLine(item: DashboardPreviewSummary["items"][number]): string {
   const base = item.ok ? `OK ${item.filename}` : `FAIL ${item.filename}`;
 
@@ -310,29 +302,17 @@ function extractUploadedGame(result: ApiReplayUploadResponse): { id: number | nu
   };
 }
 
-function withCurrentUserParam(path: string, currentUser: string, extraParams?: Record<string, string | number>): string {
-  const params = new URLSearchParams();
-  const normalizedCurrentUser = currentUser.trim();
-
-  if (normalizedCurrentUser) {
-    params.set("currentUser", normalizedCurrentUser);
-  }
-  Object.entries(extraParams ?? {}).forEach(([key, value]) => {
-    params.set(key, String(value));
-  });
-
-  const query = params.toString();
-  return query ? `${path}?${query}` : path;
-}
-
 function createUploadSummary(result: ApiReplayUploadResponse, currentUser: string): DashboardUploadSummary {
   const uploaded = extractUploadedGame(result);
+  const currentUserParam = encodeURIComponent(currentUser);
 
   return {
     uploadedGameId: uploaded.id,
     uploadedMapName: uploaded.mapName,
-    vaultHref: withCurrentUserParam("/vault", currentUser),
-    analyzerHref: withCurrentUserParam("/analyzer", currentUser, uploaded.id ? { gameId: uploaded.id } : undefined)
+    vaultHref: `/vault?currentUser=${currentUserParam}`,
+    analyzerHref: uploaded.id
+      ? `/analyzer?currentUser=${currentUserParam}&gameId=${uploaded.id}`
+      : `/analyzer?currentUser=${currentUserParam}`
   };
 }
 
@@ -367,7 +347,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
   const router = useRouter();
   const pathname = usePathname();
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [selectedPlayer, setSelectedPlayer] = useState("");
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [currentUser, setCurrentUser] = useState(model.currentUser);
   const [previewState, setPreviewState] = useState<DashboardActionStatus>("idle");
   const [previewSummary, setPreviewSummary] = useState<DashboardPreviewSummary | null>(null);
@@ -406,9 +386,8 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
 
   const selectedFile = selectedFiles[0] ?? null;
   const record = `${playerStats.wins}-${playerStats.losses}-${playerStats.draws}`;
-  const selectablePlayers = previewSummary
-    ? previewSummary.commonPlayers
-    : [...new Set([selectedPlayer, ...model.uploadCandidates].filter(Boolean))];
+  const currentUserNormalized = currentUser.trim();
+  const uploadReady = pendingFiles.length > 0;
   const selectedGame = selectedGameId != null ? recentGames.find((game) => game.id === selectedGameId) ?? null : null;
   const selectedGameDetail = selectedGameId != null ? gameDetailById[selectedGameId] ?? null : null;
   const selectedGameDetailState = selectedGameId != null ? gameDetailStateById[selectedGameId] ?? "idle" : "idle";
@@ -516,7 +495,6 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
     }
 
     setQueryName(restoredUser);
-    setSelectedPlayer(restoredUser);
     persistCurrentUser(restoredUser, { refresh: true });
   }, [currentUser]);
 
@@ -619,70 +597,84 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
     setSelectedFiles(nextFiles);
     setPreviewState("idle");
     setPreviewSummary(null);
+    setPendingFiles([]);
     setUploadState("idle");
     setUploadErrorMessage(null);
     setUploadSummary(null);
     setUploadStatusMessage("READY");
-    setSelectedPlayer("");
   }
 
-  function handlePlayerSelection(nextPlayer: string) {
-    setSelectedPlayer(nextPlayer);
-    if (nextPlayer.trim()) {
-      appendSystemLog(`SELECT_USER: ${nextPlayer}`);
+  async function handlePreview() {
+    if (selectedFiles.length === 0) {
+      return;
+    }
+
+    const requestId = ++previewRequestRef.current;
+    uploadRequestRef.current += 1;
+    setPreviewState("submitting");
+    setUploadState("idle");
+    setUploadErrorMessage(null);
+    setUploadSummary(null);
+    setUploadStatusMessage(`ANALYZING ${selectedFiles.length} FILE(S)...`);
+    appendSystemLog(`ANALYZE_REPLAY: ${selectedFiles.length} file(s)`);
+
+    try {
+      const result = (await previewReplayUpload(selectedFiles, { fetchImpl: fetch })) as ApiReplayPreviewResponse;
+      if (previewRequestRef.current !== requestId) {
+        return;
+      }
+      const summary = createPreviewSummary(result);
+      setPreviewSummary(summary);
+      setPreviewState("success");
+      setPendingFiles(selectedFiles);
+      setUploadStatusMessage(`ANALYZE_OK: ${summary.successCount}/${summary.totalFiles} files`);
+      appendSystemLog(`ANALYZE_OK: ${summary.successCount}/${summary.totalFiles} files`);
+    } catch (error) {
+      if (previewRequestRef.current !== requestId) {
+        return;
+      }
+      const message = error instanceof Error ? error.message : "preview failed";
+      setPreviewState("error");
+      setUploadStatusMessage(`ANALYZE_FAIL: ${message}`);
+      appendSystemLog(`ANALYZE_FAIL: ${message}`);
     }
   }
 
-  function applyPreviewSummary(summary: DashboardPreviewSummary) {
-    setPreviewSummary(summary);
-    setPreviewState("success");
-    setUploadStatusMessage(`ANALYZE_OK: ${summary.successCount}/${summary.totalFiles} files`);
-    appendSystemLog(`ANALYZE_OK: ${summary.successCount}/${summary.totalFiles} files`);
-
-    const matchedSelectedPlayer = findMatchingPlayer(summary.commonPlayers, selectedPlayer);
-
-    if (matchedSelectedPlayer) {
-      setSelectedPlayer(matchedSelectedPlayer);
-      return matchedSelectedPlayer;
+  async function handleUpload() {
+    if (pendingFiles.length === 0) {
+      setUploadState("error");
+      setUploadErrorMessage("analyze replay first");
+      setUploadStatusMessage("UPLOAD_FAIL: analyze replay first");
+      appendSystemLog("UPLOAD_FAIL: analyze replay first");
+      return;
     }
 
-    const matchedCurrentUser = findMatchingPlayer(summary.commonPlayers, currentUser);
-
-    if (matchedCurrentUser) {
-      setSelectedPlayer(matchedCurrentUser);
-      return matchedCurrentUser;
-    }
-
-    if (!currentUser.trim() && summary.commonPlayers.length === 1) {
-      const preferredPlayer = summary.commonPlayers[0];
-      setSelectedPlayer(preferredPlayer);
-      return preferredPlayer;
-    }
-
-    setSelectedPlayer("");
-    return null;
-  }
-
-  async function submitAnalyzedReplay(files: File[], uploaderName: string, requestId: number) {
+    const requestId = ++uploadRequestRef.current;
     setUploadState("submitting");
     setUploadErrorMessage(null);
     setUploadSummary(null);
-    setUploadStatusMessage(`UPLOADING ${files.length} FILE(S) AS ${uploaderName}...`);
-    appendSystemLog(`UPLOAD_START: ${uploaderName}`);
+    setUploadStatusMessage(`UPLOADING ${pendingFiles.length} FILE(S)...`);
+    appendSystemLog("UPLOAD_START: auto uploader");
 
     try {
-      const result = (await submitReplayUpload(files, uploaderName, { fetchImpl: fetch })) as ApiReplayUploadResponse;
+      const result = (await submitReplayUpload(pendingFiles, { fetchImpl: fetch })) as ApiReplayUploadResponse;
       if (uploadRequestRef.current !== requestId) {
         return;
       }
-      const summary = createUploadSummary(result, currentUser);
+      const summary = createUploadSummary(result, currentUser.trim());
       setUploadSummary(summary);
       setUploadState("success");
       setUploadErrorMessage(null);
       setUploadStatusMessage("UPLOAD_DONE: check terminal log");
       appendSystemLog("UPLOAD_DONE: check terminal log");
+      if (currentUser.trim()) {
+        persistCurrentUser(currentUser.trim(), { refresh: true });
+      }
       if (summary.uploadedGameId != null) {
         setSelectedGameId(summary.uploadedGameId);
+      }
+      if (currentUser.trim()) {
+        void loadRecentGames(currentUser.trim(), "UPLOAD_REFRESH", 1);
       }
     } catch (error) {
       if (uploadRequestRef.current !== requestId) {
@@ -693,58 +685,6 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
       setUploadErrorMessage(message);
       setUploadStatusMessage(`UPLOAD_FAIL: ${message}`);
       appendSystemLog(`UPLOAD_FAIL: ${message}`);
-    }
-  }
-
-  async function handleAnalyzeAndUpload() {
-    if (selectedFiles.length === 0 || previewState === "submitting" || uploadState === "submitting") {
-      return;
-    }
-
-    const files = selectedFiles;
-    const previewRequestId = ++previewRequestRef.current;
-    const uploadRequestId = ++uploadRequestRef.current;
-    setPreviewState("submitting");
-    setUploadState("idle");
-    setUploadErrorMessage(null);
-    setUploadSummary(null);
-    setUploadStatusMessage(`ANALYZING ${files.length} FILE(S)...`);
-    appendSystemLog(`ANALYZE_REPLAY: ${files.length} file(s)`);
-
-    try {
-      const result = (await previewReplayUpload(files, { fetchImpl: fetch })) as ApiReplayPreviewResponse;
-      if (previewRequestRef.current !== previewRequestId || uploadRequestRef.current !== uploadRequestId) {
-        return;
-      }
-
-      const summary = createPreviewSummary(result);
-      const uploaderName = applyPreviewSummary(summary);
-
-      if (!uploaderName) {
-        setUploadState("error");
-        if (summary.commonPlayers.length === 0) {
-          setUploadErrorMessage("no common participant across analyzed files");
-          setUploadStatusMessage("UPLOAD_FAIL: no common participant across analyzed files");
-          appendSystemLog("UPLOAD_FAIL: no common participant across analyzed files");
-        } else {
-          setUploadErrorMessage("select user first (simple login)");
-          setUploadStatusMessage("UPLOAD_FAIL: select user first (simple login)");
-          appendSystemLog("UPLOAD_FAIL: select user first (simple login)");
-        }
-        return;
-      }
-
-      await submitAnalyzedReplay(files, uploaderName, uploadRequestId);
-    } catch (error) {
-      if (previewRequestRef.current !== previewRequestId || uploadRequestRef.current !== uploadRequestId) {
-        return;
-      }
-      const message = error instanceof Error ? error.message : "preview failed";
-      setPreviewState("error");
-      setUploadState("error");
-      setUploadErrorMessage(message);
-      setUploadStatusMessage(`ANALYZE_FAIL: ${message}`);
-      appendSystemLog(`ANALYZE_FAIL: ${message}`);
     }
   }
 
@@ -797,7 +737,6 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
     setQueryError(null);
     appendSystemLog(`QUERY_PLAYER: ${normalized}`);
     persistCurrentUser(normalized, { refresh: true });
-    setSelectedPlayer(normalized);
 
     try {
       const result = await fetchBrowserApiJson<ApiPlayerStatsResponse>(
@@ -883,8 +822,8 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
 
             <button
               type="button"
-              onClick={handleAnalyzeAndUpload}
-              disabled={selectedFiles.length === 0 || previewState === "submitting" || uploadState === "submitting"}
+              onClick={handlePreview}
+              disabled={selectedFiles.length === 0 || previewState === "submitting"}
               className="mt-4 w-full py-3 rounded-lg text-sm font-mono font-bold tracking-widest transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
               style={{
                 background: selectedFiles.length > 0 ? "linear-gradient(90deg, #0891b2, #1d4ed8)" : "#1e293b",
@@ -892,39 +831,22 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
                 border: selectedFiles.length > 0 ? "1px solid rgba(34,211,238,0.3)" : "1px solid rgba(255,255,255,0.05)"
               }}
             >
-              {previewState === "submitting" ? "ANALYZING..." : uploadState === "submitting" ? "UPLOADING..." : "Analyze & Upload"}
+              {previewState === "submitting" ? "ANALYZING..." : "ANALYZE_REPLAY"}
             </button>
 
-            <div className="mt-4" data-testid="dashboard-upload-user-block">
-              <p className={SECTION_LABEL}>Selected_User (Simple_Login)</p>
-              <p className="mb-3 text-[10px] font-mono text-slate-600">플레이어 선택 (Simple Login)</p>
-              <div className="relative">
-                <select
-                  value={selectedPlayer}
-                  onChange={(event) => handlePlayerSelection(event.target.value)}
-                  className="w-full appearance-none rounded-lg px-4 py-2.5 text-sm font-mono pr-10 focus:outline-none transition-all"
-                  style={{ backgroundColor: "#0a1428", border: "1px solid rgba(255,255,255,0.1)", color: "#94a3b8" }}
-                  aria-label="플레이어 선택"
-                >
-                  <option value="">{model.uploadPlaceholder}</option>
-                  {selectablePlayers.map((candidate) => (
-                    <option key={candidate} value={candidate}>
-                      {candidate}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-3 top-3 h-4 w-4 text-slate-500" />
-              </div>
-              <div className="mt-2 flex items-center gap-2">
-                <span className="text-[10px] font-mono text-slate-600">CURRENT_USER:</span>
-                <span
-                  className="rounded px-2 py-0.5 text-[10px] font-mono font-bold"
-                  style={{ backgroundColor: "rgba(34,211,238,0.1)", color: "#22d3ee", border: "1px solid rgba(34,211,238,0.2)" }}
-                >
-                  {currentUser}
-                </span>
-              </div>
-            </div>
+            <button
+              type="button"
+              onClick={handleUpload}
+              disabled={!uploadReady || uploadState === "submitting"}
+              className="mt-3 w-full py-3 rounded-lg text-sm font-mono font-bold tracking-widest transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{
+                background: uploadReady ? "linear-gradient(90deg, #0f766e, #0e7490)" : "#1e293b",
+                color: uploadReady ? "#ecfeff" : "#475569",
+                border: uploadReady ? "1px solid rgba(45,212,191,0.3)" : "1px solid rgba(255,255,255,0.05)"
+              }}
+            >
+              {uploadState === "submitting" ? "UPLOADING..." : "UPLOAD_AUTO_3X3_ONLY"}
+            </button>
 
             <div
               data-testid="dashboard-preview-summary"
@@ -1081,7 +1003,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
                     <p className="text-[10px] text-slate-500 font-mono tracking-widest mb-1">PLAYER</p>
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-xl font-bold" style={{ color: "#22d3ee" }}>
-                        {playerStats.name}
+                        {displayPlayerName(playerStats.name)}
                       </span>
                       <RaceBadge race={playerStats.favoriteRace} size="md" />
                     </div>
@@ -1204,7 +1126,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
                               {ourTeam.map((player) => (
                                 <div key={`${game.id}-our-${player.name}`} className="flex items-center gap-1 text-[11px]">
                                   <RaceBadge race={player.race} />
-                                  <span className={player.isCurrentUser ? "text-cyan-300" : "text-slate-300"}>{player.name}</span>
+                                  <span className={player.isCurrentUser ? "text-cyan-300" : "text-slate-300"} title={player.name}>{displayPlayerName(player.name)}</span>
                                   {player.isCurrentUser ? <span className="text-[9px] text-cyan-500">YOU</span> : null}
                                   <span className="ml-auto text-slate-600">A:{player.apm} E:{player.eapm}</span>
                                 </div>
@@ -1217,7 +1139,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
                               {enemyTeam.map((player) => (
                                 <div key={`${game.id}-enemy-${player.name}`} className="flex items-center gap-1 text-[11px]">
                                   <RaceBadge race={player.race} />
-                                  <span className="text-slate-300">{player.name}</span>
+                                  <span className="text-slate-300" title={player.name}>{displayPlayerName(player.name)}</span>
                                   <span className="ml-auto text-slate-600">A:{player.apm} E:{player.eapm}</span>
                                 </div>
                               ))}
@@ -1262,7 +1184,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
                                                 <div className="flex items-center justify-between gap-2">
                                                   <div className="flex items-center gap-1.5">
                                                     <RaceBadge race={leftEntry.player.race} />
-                                                    <span className="text-[11px] font-mono text-slate-200">{leftEntry.player.name}</span>
+                                                    <span className="text-[11px] font-mono text-slate-200" title={leftEntry.player.name}>{displayPlayerName(leftEntry.player.name)}</span>
                                                   </div>
                                                   <ResultBadge result={leftEntry.result} />
                                                 </div>
@@ -1298,7 +1220,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
                                                 <div className="flex items-center justify-between gap-2">
                                                   <div className="flex items-center gap-1.5">
                                                     <RaceBadge race={rightEntry.player.race} />
-                                                    <span className="text-[11px] font-mono text-slate-200">{rightEntry.player.name}</span>
+                                                    <span className="text-[11px] font-mono text-slate-200" title={rightEntry.player.name}>{displayPlayerName(rightEntry.player.name)}</span>
                                                   </div>
                                                   <ResultBadge result={rightEntry.result} />
                                                 </div>
@@ -1391,7 +1313,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
 
                                     <div className="rounded-lg px-3 py-3 text-[11px] font-mono text-slate-300" style={INNER_PANEL_STRONG_STYLE}>
                                       <p className={SECTION_LABEL}>legend row</p>
-                                      <p>{selectedGame.winnerTeam.map((player) => player.name).join(", ")}</p>
+                                      <p>{displayLineupName(selectedGame.winnerTeam.map((player) => player.name))}</p>
                                     </div>
 
                                     <div className="rounded-lg px-3 py-3 text-[11px] font-mono text-slate-300" style={INNER_PANEL_STRONG_STYLE}>

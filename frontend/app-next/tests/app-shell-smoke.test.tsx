@@ -4,6 +4,7 @@ import HomePage from "@/app/page";
 import VaultPage from "@/app/vault/page";
 import RankingsPage from "@/app/rankings/page";
 import AnalyzerPage from "@/app/analyzer/page";
+import TeamAnalysisPage from "@/app/team-analysis/page";
 import type { ReactElement } from "react";
 import { isValidElement } from "react";
 import { vi } from "vitest";
@@ -21,11 +22,12 @@ describe("app shell smoke", () => {
     expect(metadata.description).toMatch(/Starcraft: Brood War 3v3 Replay Analytics/i);
   });
 
-  it("imports the four route entry points", () => {
+  it("imports the product route entry points", () => {
     expect(HomePage).toBeTypeOf("function");
     expect(VaultPage).toBeTypeOf("function");
     expect(RankingsPage).toBeTypeOf("function");
     expect(AnalyzerPage).toBeTypeOf("function");
+    expect(TeamAnalysisPage).toBeTypeOf("function");
   });
 
   it("renders the footer copy used by the source shell", () => {
@@ -50,8 +52,8 @@ describe("app shell smoke", () => {
     const footer = body.props.children[2];
 
     expect(body.props.style).toEqual({
-      backgroundColor: "#080e1f",
-      color: "#e2e8f0",
+      backgroundColor: "#121826",
+      color: "#e5e7eb",
       fontFamily: "'Inter', sans-serif"
     });
     expect(main.props.children.type).toBe("div");

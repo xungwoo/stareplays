@@ -5,12 +5,13 @@ import type { ApiGamesListResponse, ApiPlayerStatsResponse, ApiRankingsResponse,
 export async function loadDashboardPageModel(options: LoaderOptions = {}) {
   const currentUser = resolveCurrentUser(options.currentUser, options.currentUserCookie);
   const suggestionPrefix = currentUser.slice(0, 4);
+  const cachedOptions = { ...options, revalidateSeconds: options.revalidateSeconds ?? 60 };
 
   const [rankingsResponse, playerStatsResponse, suggestionsResponse, gamesResponse] = await Promise.all([
-    tryFetchApiJson<ApiRankingsResponse>("/api/v1/rankings/3v3?limit=100", options),
-    tryFetchApiJson<ApiPlayerStatsResponse>(`/api/v1/players/${encodeURIComponent(currentUser)}/stats`, options),
-    tryFetchApiJson<ApiUsersSuggestResponse>(`/api/v1/users/suggest?q=${encodeURIComponent(suggestionPrefix)}&limit=5`, options),
-    tryFetchApiJson<ApiGamesListResponse>(`/api/v1/games?limit=12&offset=0&user_name=${encodeURIComponent(currentUser)}`, options)
+    tryFetchApiJson<ApiRankingsResponse>("/api/v1/rankings/3v3?limit=100", { ...cachedOptions, revalidateSeconds: 180 }),
+    tryFetchApiJson<ApiPlayerStatsResponse>(`/api/v1/players/${encodeURIComponent(currentUser)}/stats`, cachedOptions),
+    tryFetchApiJson<ApiUsersSuggestResponse>(`/api/v1/users/suggest?q=${encodeURIComponent(suggestionPrefix)}&limit=5`, cachedOptions),
+    tryFetchApiJson<ApiGamesListResponse>(`/api/v1/games?limit=12&offset=0&user_name=${encodeURIComponent(currentUser)}`, cachedOptions)
   ]);
 
   if (!rankingsResponse && !playerStatsResponse && !suggestionsResponse && !gamesResponse) {
