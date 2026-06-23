@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Activity, CalendarDays, ListOrdered, Swords, Trophy, UsersRound } from "lucide-react";
+import { useState } from "react";
 import {
   CartesianGrid,
   Line,
@@ -77,9 +78,50 @@ function SeasonSelector({ model }: { model: SeasonAnalysisPageModel }) {
   );
 }
 
-function TrendChart({ model }: { model: SeasonAnalysisPageModel }) {
+function TrendChart({
+  model,
+  selectedPlayerName,
+  onSelectPlayer
+}: {
+  model: SeasonAnalysisPageModel;
+  selectedPlayerName: string | null;
+  onSelectPlayer: (name: string | null) => void;
+}) {
+  const visibleSeries = selectedPlayerName ? model.trendSeries.filter((series) => series.name === selectedPlayerName) : model.trendSeries;
+
   return (
     <Panel title="플레이어 누적 승률 추이" description="경기 진행 순서에 따라 누적 승률이 어떻게 변했는지 보여줍니다.">
+      <div className="mb-3 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => onSelectPlayer(null)}
+          className={`rounded border px-2 py-1 text-xs font-semibold transition ${
+            selectedPlayerName == null
+              ? "border-cyan-300/60 bg-cyan-300/15 text-cyan-50"
+              : "border-slate-700 bg-slate-950/40 text-slate-300 hover:border-cyan-300/40"
+          }`}
+        >
+          전체
+        </button>
+        {model.trendSeries.map((series) => {
+          const active = selectedPlayerName === series.name;
+          return (
+            <button
+              key={series.name}
+              type="button"
+              onClick={() => onSelectPlayer(active ? null : series.name)}
+              className={`inline-flex items-center gap-1.5 rounded border px-2 py-1 text-xs font-semibold transition ${
+                active
+                  ? "border-cyan-300/60 bg-cyan-300/15 text-cyan-50"
+                  : "border-slate-700 bg-slate-950/40 text-slate-300 hover:border-cyan-300/40"
+              }`}
+            >
+              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: series.color }} />
+              {series.name}
+            </button>
+          );
+        })}
+      </div>
       <div className="h-[300px] w-full">
         <ResponsiveContainer minWidth={320} minHeight={300}>
           <LineChart data={model.trendPoints} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
@@ -91,7 +133,7 @@ function TrendChart({ model }: { model: SeasonAnalysisPageModel }) {
               formatter={(value, name) => [`${Number(value).toFixed(1)}%`, name]}
               contentStyle={{ backgroundColor: "#020617", border: "1px solid rgba(103,190,207,0.45)", borderRadius: 8, color: "#f8fafc" }}
             />
-            {model.trendSeries.map((series) => (
+            {visibleSeries.map((series) => (
               <Line
                 key={series.name}
                 type="monotone"
@@ -106,7 +148,7 @@ function TrendChart({ model }: { model: SeasonAnalysisPageModel }) {
         </ResponsiveContainer>
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
-        {model.trendSeries.map((series) => (
+        {visibleSeries.map((series) => (
           <span key={series.name} className="inline-flex items-center gap-1.5 rounded bg-slate-950/60 px-2 py-1 text-xs font-semibold text-slate-200">
             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: series.color }} />
             {series.name}
@@ -119,9 +161,9 @@ function TrendChart({ model }: { model: SeasonAnalysisPageModel }) {
 
 function PlayerStandings({ model }: { model: SeasonAnalysisPageModel }) {
   return (
-    <Panel title="플레이어별 누적 전적" description="선수별 승패, 승률, 평균 APM/EAPM을 누적 기준으로 봅니다.">
+    <Panel title="플레이어별 누적 전적" description="선수별 승패, 승률, 평균 APM/EAPM과 분석 지표를 누적 기준으로 봅니다.">
       <div className="overflow-hidden rounded-lg border border-slate-700/80">
-        <table className="w-full text-left text-sm">
+        <table className="w-full min-w-[900px] text-left text-sm">
           <thead className="bg-slate-950 text-xs uppercase text-slate-400">
             <tr>
               <th className="px-3 py-3">선수</th>
@@ -130,6 +172,10 @@ function PlayerStandings({ model }: { model: SeasonAnalysisPageModel }) {
               <th className="px-3 py-3">승률</th>
               <th className="px-3 py-3">APM</th>
               <th className="px-3 py-3">EAPM</th>
+              <th className="px-3 py-3">생산</th>
+              <th className="px-3 py-3">자원</th>
+              <th className="px-3 py-3">테크</th>
+              <th className="px-3 py-3">MVP</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
@@ -141,6 +187,10 @@ function PlayerStandings({ model }: { model: SeasonAnalysisPageModel }) {
                 <td className="px-3 py-3 font-semibold text-cyan-100">{formatPercent(player.winRate)}</td>
                 <td className="px-3 py-3 text-slate-300">{player.averageApm}</td>
                 <td className="px-3 py-3 text-slate-300">{player.averageEapm}</td>
+                <td className="px-3 py-3 text-slate-300">{player.production.toFixed(1)}</td>
+                <td className="px-3 py-3 text-slate-300">{player.resourceSpend.toFixed(1)}</td>
+                <td className="px-3 py-3 text-slate-300">{player.techAndUpgrades.toFixed(1)}</td>
+                <td className="px-3 py-3 font-semibold text-cyan-100">{player.mvpScore.toFixed(1)}</td>
               </tr>
             ))}
           </tbody>
@@ -187,7 +237,7 @@ function GameRecords({ model }: { model: SeasonAnalysisPageModel }) {
 
 function SeasonComparison({ model }: { model: SeasonAnalysisPageModel }) {
   return (
-    <Panel title="시즌별 비교" description="시즌별 경기 수, 팀 승률, 대표 선수를 비교합니다.">
+    <Panel title="시즌별 비교" description="시즌별 경기 수, 팀 승률, MVP를 비교합니다.">
       <div className="grid gap-2">
         {model.seasonSummaries.map((season) => (
           <Link
@@ -206,7 +256,7 @@ function SeasonComparison({ model }: { model: SeasonAnalysisPageModel }) {
               </div>
             </div>
             <div className="mt-2 flex justify-between gap-3 text-xs text-slate-400">
-              <span>최다승 {season.topWinner}</span>
+              <span>MVP {season.mvp.name} ({season.mvp.score.toFixed(1)})</span>
               <span>최고승률 {season.bestWinRatePlayer}</span>
             </div>
           </Link>
@@ -218,6 +268,7 @@ function SeasonComparison({ model }: { model: SeasonAnalysisPageModel }) {
 
 export function SeasonAnalysisPage({ model }: { model: SeasonAnalysisPageModel }) {
   const title = model.selectedSeasonLabel ? `${model.selectedSeasonLabel} 전적 분석` : "전체 시즌 전적 분석";
+  const [selectedPlayerName, setSelectedPlayerName] = useState<string | null>(null);
 
   return (
     <main className="min-h-screen bg-[#111827] px-4 py-5 text-slate-100 sm:px-6">
@@ -238,7 +289,7 @@ export function SeasonAnalysisPage({ model }: { model: SeasonAnalysisPageModel }
               <StatCard label="경기" value={String(model.summary.totalGames)} hint="선택 범위 게임" icon={Swords} />
               <StatCard label="시즌" value={String(model.summary.totalSeasons)} hint="집계 시즌 수" icon={CalendarDays} />
               <StatCard label="선수" value={String(model.summary.totalPlayers)} hint="3x3 플레이어" icon={UsersRound} />
-              <StatCard label="최다승" value={model.summary.topWinner} hint="누적 승수 기준" icon={Trophy} />
+              <StatCard label="MVP" value={model.summary.mvp} hint="종합 지표 기준" icon={Trophy} />
             </div>
           </div>
           <div className="mt-4">
@@ -247,7 +298,7 @@ export function SeasonAnalysisPage({ model }: { model: SeasonAnalysisPageModel }
         </section>
 
         <div className="mb-4 grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-          <TrendChart model={model} />
+          <TrendChart model={model} selectedPlayerName={selectedPlayerName} onSelectPlayer={setSelectedPlayerName} />
           <SeasonComparison model={model} />
         </div>
 

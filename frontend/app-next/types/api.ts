@@ -84,6 +84,17 @@ export interface ApiGameSummary {
   edges?: {
     players?: ApiGamePlayer[];
   };
+  season_analysis?: {
+    status?: string;
+    data_source?: string;
+    players?: Record<string, {
+      production?: number;
+      resource_spend?: number;
+      worker_peak?: number;
+      kills?: number;
+      tech_and_upgrades?: number;
+    }>;
+  };
 }
 
 export interface ApiGamesListResponse {

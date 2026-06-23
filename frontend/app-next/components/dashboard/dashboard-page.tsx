@@ -347,7 +347,6 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
   const router = useRouter();
   const pathname = usePathname();
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [currentUser, setCurrentUser] = useState(model.currentUser);
   const [previewState, setPreviewState] = useState<DashboardActionStatus>("idle");
   const [previewSummary, setPreviewSummary] = useState<DashboardPreviewSummary | null>(null);
@@ -387,7 +386,6 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
   const selectedFile = selectedFiles[0] ?? null;
   const record = `${playerStats.wins}-${playerStats.losses}-${playerStats.draws}`;
   const currentUserNormalized = currentUser.trim();
-  const uploadReady = pendingFiles.length > 0;
   const selectedGame = selectedGameId != null ? recentGames.find((game) => game.id === selectedGameId) ?? null : null;
   const selectedGameDetail = selectedGameId != null ? gameDetailById[selectedGameId] ?? null : null;
   const selectedGameDetailState = selectedGameId != null ? gameDetailStateById[selectedGameId] ?? "idle" : "idle";
@@ -597,67 +595,28 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
     setSelectedFiles(nextFiles);
     setPreviewState("idle");
     setPreviewSummary(null);
-    setPendingFiles([]);
     setUploadState("idle");
     setUploadErrorMessage(null);
     setUploadSummary(null);
     setUploadStatusMessage("READY");
   }
 
-  async function handlePreview() {
-    if (selectedFiles.length === 0) {
-      return;
-    }
-
-    const requestId = ++previewRequestRef.current;
-    uploadRequestRef.current += 1;
-    setPreviewState("submitting");
-    setUploadState("idle");
-    setUploadErrorMessage(null);
-    setUploadSummary(null);
-    setUploadStatusMessage(`ANALYZING ${selectedFiles.length} FILE(S)...`);
-    appendSystemLog(`ANALYZE_REPLAY: ${selectedFiles.length} file(s)`);
-
-    try {
-      const result = (await previewReplayUpload(selectedFiles, { fetchImpl: fetch })) as ApiReplayPreviewResponse;
-      if (previewRequestRef.current !== requestId) {
-        return;
-      }
-      const summary = createPreviewSummary(result);
-      setPreviewSummary(summary);
-      setPreviewState("success");
-      setPendingFiles(selectedFiles);
-      setUploadStatusMessage(`ANALYZE_OK: ${summary.successCount}/${summary.totalFiles} files`);
-      appendSystemLog(`ANALYZE_OK: ${summary.successCount}/${summary.totalFiles} files`);
-    } catch (error) {
-      if (previewRequestRef.current !== requestId) {
-        return;
-      }
-      const message = error instanceof Error ? error.message : "preview failed";
-      setPreviewState("error");
-      setUploadStatusMessage(`ANALYZE_FAIL: ${message}`);
-      appendSystemLog(`ANALYZE_FAIL: ${message}`);
-    }
+  function applyPreviewSummary(summary: DashboardPreviewSummary) {
+    setPreviewSummary(summary);
+    setPreviewState("success");
+    setUploadStatusMessage(`ANALYZE_OK: ${summary.successCount}/${summary.totalFiles} files`);
+    appendSystemLog(`ANALYZE_OK: ${summary.successCount}/${summary.totalFiles} files`);
   }
 
-  async function handleUpload() {
-    if (pendingFiles.length === 0) {
-      setUploadState("error");
-      setUploadErrorMessage("analyze replay first");
-      setUploadStatusMessage("UPLOAD_FAIL: analyze replay first");
-      appendSystemLog("UPLOAD_FAIL: analyze replay first");
-      return;
-    }
-
-    const requestId = ++uploadRequestRef.current;
+  async function submitAnalyzedReplay(files: File[], requestId: number) {
     setUploadState("submitting");
     setUploadErrorMessage(null);
     setUploadSummary(null);
-    setUploadStatusMessage(`UPLOADING ${pendingFiles.length} FILE(S)...`);
+    setUploadStatusMessage(`UPLOADING ${files.length} FILE(S)...`);
     appendSystemLog("UPLOAD_START: auto uploader");
 
     try {
-      const result = (await submitReplayUpload(pendingFiles, { fetchImpl: fetch })) as ApiReplayUploadResponse;
+      const result = (await submitReplayUpload(files, { fetchImpl: fetch })) as ApiReplayUploadResponse;
       if (uploadRequestRef.current !== requestId) {
         return;
       }
@@ -685,6 +644,52 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
       setUploadErrorMessage(message);
       setUploadStatusMessage(`UPLOAD_FAIL: ${message}`);
       appendSystemLog(`UPLOAD_FAIL: ${message}`);
+    }
+  }
+
+  async function handleAnalyzeAndUpload() {
+    if (selectedFiles.length === 0 || previewState === "submitting" || uploadState === "submitting") {
+      return;
+    }
+
+    const files = selectedFiles;
+    const previewRequestId = ++previewRequestRef.current;
+    const uploadRequestId = ++uploadRequestRef.current;
+    setPreviewState("submitting");
+    setUploadState("idle");
+    setUploadErrorMessage(null);
+    setUploadSummary(null);
+    setUploadStatusMessage(`ANALYZING ${files.length} FILE(S)...`);
+    appendSystemLog(`ANALYZE_REPLAY: ${files.length} file(s)`);
+
+    try {
+      const result = (await previewReplayUpload(files, { fetchImpl: fetch })) as ApiReplayPreviewResponse;
+      if (previewRequestRef.current !== previewRequestId || uploadRequestRef.current !== uploadRequestId) {
+        return;
+      }
+
+      const summary = createPreviewSummary(result);
+      applyPreviewSummary(summary);
+
+      if (summary.successCount === 0) {
+        setUploadState("error");
+        setUploadErrorMessage("no analyzed replay to upload");
+        setUploadStatusMessage("UPLOAD_FAIL: no analyzed replay to upload");
+        appendSystemLog("UPLOAD_FAIL: no analyzed replay to upload");
+        return;
+      }
+
+      await submitAnalyzedReplay(files, uploadRequestId);
+    } catch (error) {
+      if (previewRequestRef.current !== previewRequestId || uploadRequestRef.current !== uploadRequestId) {
+        return;
+      }
+      const message = error instanceof Error ? error.message : "preview failed";
+      setPreviewState("error");
+      setUploadState("error");
+      setUploadErrorMessage(message);
+      setUploadStatusMessage(`ANALYZE_FAIL: ${message}`);
+      appendSystemLog(`ANALYZE_FAIL: ${message}`);
     }
   }
 
@@ -822,8 +827,8 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
 
             <button
               type="button"
-              onClick={handlePreview}
-              disabled={selectedFiles.length === 0 || previewState === "submitting"}
+              onClick={handleAnalyzeAndUpload}
+              disabled={selectedFiles.length === 0 || previewState === "submitting" || uploadState === "submitting"}
               className="mt-4 w-full py-3 rounded-lg text-sm font-mono font-bold tracking-widest transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
               style={{
                 background: selectedFiles.length > 0 ? "linear-gradient(90deg, #0891b2, #1d4ed8)" : "#1e293b",
@@ -831,21 +836,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
                 border: selectedFiles.length > 0 ? "1px solid rgba(34,211,238,0.3)" : "1px solid rgba(255,255,255,0.05)"
               }}
             >
-              {previewState === "submitting" ? "ANALYZING..." : "ANALYZE_REPLAY"}
-            </button>
-
-            <button
-              type="button"
-              onClick={handleUpload}
-              disabled={!uploadReady || uploadState === "submitting"}
-              className="mt-3 w-full py-3 rounded-lg text-sm font-mono font-bold tracking-widest transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{
-                background: uploadReady ? "linear-gradient(90deg, #0f766e, #0e7490)" : "#1e293b",
-                color: uploadReady ? "#ecfeff" : "#475569",
-                border: uploadReady ? "1px solid rgba(45,212,191,0.3)" : "1px solid rgba(255,255,255,0.05)"
-              }}
-            >
-              {uploadState === "submitting" ? "UPLOADING..." : "UPLOAD_AUTO_3X3_ONLY"}
+              {previewState === "submitting" ? "ANALYZING..." : uploadState === "submitting" ? "UPLOADING..." : "Analyze & Upload"}
             </button>
 
             <div

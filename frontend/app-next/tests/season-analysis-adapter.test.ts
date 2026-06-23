@@ -17,6 +17,18 @@ const seasonsResponse: ApiSeasonsResponse = {
           map_name: "Neo Super",
           game_length: 600,
           winner_team: 1,
+          season_analysis: {
+            status: "succeeded",
+            data_source: "detail_analysis+replay_analyzer",
+            players: {
+              "3x3_GG": { production: 70, resource_spend: 7000, worker_peak: 30, kills: 2, tech_and_upgrades: 3 },
+              "3x3_mh": { production: 75, resource_spend: 7600, worker_peak: 31, kills: 3, tech_and_upgrades: 4 },
+              "3x3_syntax": { production: 65, resource_spend: 6500, worker_peak: 28, kills: 2, tech_and_upgrades: 2 },
+              "3x3_pil": { production: 68, resource_spend: 6800, worker_peak: 29, kills: 2, tech_and_upgrades: 2 },
+              "3x3_smwoo": { production: 105, resource_spend: 10500, worker_peak: 40, kills: 7, tech_and_upgrades: 8 },
+              "3x3_Kiyong": { production: 80, resource_spend: 7900, worker_peak: 32, kills: 3, tech_and_upgrades: 4 }
+            }
+          },
           edges: {
             players: [
               { name: "3x3_GG", race: "P", team: 1, apm: 150, eapm: 130 },
@@ -36,6 +48,18 @@ const seasonsResponse: ApiSeasonsResponse = {
           map_name: "Neo Super",
           game_length: 900,
           winner_team: 2,
+          season_analysis: {
+            status: "succeeded",
+            data_source: "detail_analysis+replay_analyzer",
+            players: {
+              "3x3_GG": { production: 72, resource_spend: 7100, worker_peak: 30, kills: 2, tech_and_upgrades: 3 },
+              "3x3_mh": { production: 74, resource_spend: 7500, worker_peak: 31, kills: 2, tech_and_upgrades: 4 },
+              "3x3_syntax": { production: 66, resource_spend: 6600, worker_peak: 28, kills: 2, tech_and_upgrades: 2 },
+              "3x3_pil": { production: 70, resource_spend: 7000, worker_peak: 30, kills: 3, tech_and_upgrades: 3 },
+              "3x3_smwoo": { production: 110, resource_spend: 11000, worker_peak: 42, kills: 8, tech_and_upgrades: 9 },
+              "3x3_Kiyong": { production: 82, resource_spend: 8000, worker_peak: 32, kills: 4, tech_and_upgrades: 4 }
+            }
+          },
           edges: {
             players: [
               { name: "3x3_GG", race: "P", team: 1, apm: 152, eapm: 128 },
@@ -104,6 +128,9 @@ describe("season analysis adapter", () => {
     expect(seongwoo?.trend.map((point) => point.winRate)).toEqual([100, 50]);
 
     expect(model.seasonSummaries.map((season) => season.label)).toEqual(["시즌1", "시즌2"]);
+    expect(model.seasonSummaries[0].mvp.name).toBe("성민");
+    expect(model.seasonSummaries[0].mvp.score).toBeGreaterThan(0);
+    expect(model.summary.mvp).toBe("성민");
     expect(model.trendSeries.some((series) => series.name === "성우")).toBe(true);
     expect(model.trendPoints).toHaveLength(2);
   });

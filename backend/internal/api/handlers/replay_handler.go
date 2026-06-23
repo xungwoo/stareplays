@@ -67,24 +67,25 @@ type parsedUploadFile struct {
 }
 
 type gameResponseDTO struct {
-	ID          int                  `json:"id"`
-	Host        string               `json:"host,omitempty"`
-	StartTime   time.Time            `json:"start_time,omitempty"`
-	MapName     string               `json:"map_name,omitempty"`
-	MapWidth    uint16               `json:"map_width,omitempty"`
-	MapHeight   uint16               `json:"map_height,omitempty"`
-	GameLength  int                  `json:"game_length,omitempty"`
-	GameType    string               `json:"game_type,omitempty"`
-	GameSpeed   string               `json:"game_speed,omitempty"`
-	Title       string               `json:"title,omitempty"`
-	PlayerCount int                  `json:"player_count,omitempty"`
-	UploadCount int                  `json:"upload_count,omitempty"`
-	WinnerTeam  uint8                `json:"winner_team,omitempty"`
-	SeasonLabel *string              `json:"season_label,omitempty"`
-	SeasonNo    *int                 `json:"season_no,omitempty"`
-	CreatedAt   time.Time            `json:"created_at,omitempty"`
-	UpdatedAt   time.Time            `json:"updated_at,omitempty"`
-	Edges       gameResponseEdgesDTO `json:"edges"`
+	ID             int                    `json:"id"`
+	Host           string                 `json:"host,omitempty"`
+	StartTime      time.Time              `json:"start_time,omitempty"`
+	MapName        string                 `json:"map_name,omitempty"`
+	MapWidth       uint16                 `json:"map_width,omitempty"`
+	MapHeight      uint16                 `json:"map_height,omitempty"`
+	GameLength     int                    `json:"game_length,omitempty"`
+	GameType       string                 `json:"game_type,omitempty"`
+	GameSpeed      string                 `json:"game_speed,omitempty"`
+	Title          string                 `json:"title,omitempty"`
+	PlayerCount    int                    `json:"player_count,omitempty"`
+	UploadCount    int                    `json:"upload_count,omitempty"`
+	WinnerTeam     uint8                  `json:"winner_team,omitempty"`
+	SeasonLabel    *string                `json:"season_label,omitempty"`
+	SeasonNo       *int                   `json:"season_no,omitempty"`
+	CreatedAt      time.Time              `json:"created_at,omitempty"`
+	UpdatedAt      time.Time              `json:"updated_at,omitempty"`
+	Edges          gameResponseEdgesDTO   `json:"edges"`
+	SeasonAnalysis *seasonGameAnalysisDTO `json:"season_analysis,omitempty"`
 }
 
 type seasonRequest struct {
@@ -134,6 +135,20 @@ type gameReplayFileDTO struct {
 	Filename  string    `json:"filename,omitempty"`
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	Edges     fiber.Map `json:"edges"`
+}
+
+type seasonGameAnalysisDTO struct {
+	Status     string                             `json:"status"`
+	DataSource string                             `json:"data_source"`
+	Players    map[string]seasonPlayerAnalysisDTO `json:"players"`
+}
+
+type seasonPlayerAnalysisDTO struct {
+	Production      float64 `json:"production,omitempty"`
+	ResourceSpend   float64 `json:"resource_spend,omitempty"`
+	WorkerPeak      float64 `json:"worker_peak,omitempty"`
+	Kills           float64 `json:"kills,omitempty"`
+	TechAndUpgrades float64 `json:"tech_and_upgrades,omitempty"`
 }
 
 var (
@@ -534,8 +549,116 @@ func buildGameResponseDTO(g *ent.Game) gameResponseDTO {
 			Edges:     fiber.Map{},
 		})
 	}
+	dto.SeasonAnalysis = buildSeasonGameAnalysisDTO(g)
 
 	return dto
+}
+
+func buildSeasonGameAnalysisDTO(g *ent.Game) *seasonGameAnalysisDTO {
+	if g == nil {
+		return nil
+	}
+	status := replayanalysis.StatusNotRequested
+	if g.Edges.Analysis != nil {
+		status = replayanalysis.NormalizeStatus(g.Edges.Analysis.Status)
+	}
+
+	players := make(map[string]seasonPlayerAnalysisDTO, len(g.Edges.Players))
+	for _, p := range g.Edges.Players {
+		if p == nil || strings.TrimSpace(p.Name) == "" {
+			continue
+		}
+		players[p.Name] = seasonPlayerAnalysisDTO{}
+	}
+	if len(players) == 0 {
+		return nil
+	}
+
+	dataSource := ""
+	if detail := g.Edges.GameDetail; detail != nil {
+		dataSource = "detail_analysis"
+		if unitProd := buildUnitProductionDTO(detail, g.Edges.Players); unitProd != nil {
+			for _, s := range unitProd.Summaries {
+				m := players[s.PlayerName]
+				m.Production = float64(s.Total)
+				players[s.PlayerName] = m
+			}
+		}
+		if resource := buildResourceSpendDTO(detail, g.Edges.Players); resource != nil {
+			for _, s := range resource.Summaries {
+				m := players[s.PlayerName]
+				m.ResourceSpend = float64(s.TotalSpend)
+				players[s.PlayerName] = m
+			}
+		}
+		if tech := buildTechTreeDTO(g, detail); tech != nil {
+			for _, s := range tech.Summary {
+				m := players[s.PlayerName]
+				m.TechAndUpgrades = float64(s.TechCount + s.UpgradeCount)
+				players[s.PlayerName] = m
+			}
+		}
+	}
+
+	if analysis := g.Edges.Analysis; analysis != nil && replayanalysis.NormalizeStatus(analysis.Status) == replayanalysis.StatusSucceeded {
+		if mergeAnalyzerSeasonMetrics(players, analysis, g.Edges.Players) {
+			if dataSource == "" {
+				dataSource = "replay_analyzer"
+			} else {
+				dataSource += "+replay_analyzer"
+			}
+		}
+	}
+
+	if dataSource == "" && status == replayanalysis.StatusNotRequested {
+		return nil
+	}
+	return &seasonGameAnalysisDTO{
+		Status:     status,
+		DataSource: dataSource,
+		Players:    players,
+	}
+}
+
+func mergeAnalyzerSeasonMetrics(players map[string]seasonPlayerAnalysisDTO, analysis *ent.GameAnalysis, gamePlayers []*ent.Player) bool {
+	rawPlayers, ok := analysis.SummaryJSON["players"].([]interface{})
+	if !ok {
+		return false
+	}
+	nameByID := make(map[int]string, len(gamePlayers))
+	for _, p := range gamePlayers {
+		if p != nil {
+			nameByID[int(p.PlayerID)] = p.Name
+		}
+	}
+
+	merged := false
+	for _, raw := range rawPlayers {
+		playerMap, ok := raw.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		name := stringFromAny(playerMap["player_name"])
+		if name == "" {
+			name = stringFromAny(playerMap["name"])
+		}
+		if name == "" {
+			name = nameByID[int(numberFromAny(playerMap["player_id"]))]
+		}
+		if name == "" {
+			continue
+		}
+		final, ok := playerMap["final"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+		m := players[name]
+		m.Kills = numberFromAny(final["kills"])
+		m.WorkerPeak = numberFromAny(final["worker_peak"])
+		players[name] = m
+		merged = true
+	}
+	return merged
 }
 
 func collectReplayFiles(form *multipart.Form) []*multipart.FileHeader {
@@ -1377,11 +1500,20 @@ func ListSeasons(c *fiber.Ctx) error {
 	games, err := database.Client.Game.Query().
 		Where(game.SeasonLabelNotNil()).
 		WithPlayers().
+		WithReplayFiles().
+		WithGameDetail().
+		WithAnalysis().
 		Order(ent.Asc(game.FieldSeasonNo), ent.Asc(game.FieldStartTime), ent.Asc(game.FieldCreatedAt)).
 		All(ctx)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to fetch seasons",
+			"details": err.Error(),
+		})
+	}
+	if err := ensureSeasonAnalysisRows(ctx, games); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to queue missing season analyses",
 			"details": err.Error(),
 		})
 	}
@@ -1430,6 +1562,86 @@ func ListSeasons(c *fiber.Ctx) error {
 		"seasons": summaries,
 		"total":   len(summaries),
 	})
+}
+
+func ensureSeasonAnalysisRows(ctx context.Context, games []*ent.Game) error {
+	for _, g := range games {
+		if g == nil || g.Edges.Analysis != nil {
+			continue
+		}
+		fileHash := latestReplayHash(g.Edges.ReplayFiles)
+		if fileHash == "" {
+			continue
+		}
+		queued, err := insertQueuedAnalysisRow(ctx, g.ID, fileHash)
+		if err != nil {
+			return err
+		}
+		if !queued {
+			continue
+		}
+		g.Edges.Analysis = &ent.GameAnalysis{
+			GameID:          g.ID,
+			FileHash:        fileHash,
+			BucketKey:       replaybucket.ReplayObjectKey(fileHash),
+			AnalyzerVersion: replayanalysis.AnalyzerVersion(),
+			Status:          replayanalysis.StatusQueued,
+		}
+		if err := notifyReplayAnalysisQueued(ctx, g.ID); err != nil {
+			log.Printf("warn: notify season replay analysis game_id=%d failed: %v", g.ID, err)
+		}
+	}
+	return nil
+}
+
+func latestReplayHash(files []*ent.ReplayFile) string {
+	if len(files) == 0 {
+		return ""
+	}
+	sort.SliceStable(files, func(i, j int) bool {
+		return files[i].CreatedAt.After(files[j].CreatedAt)
+	})
+	return strings.TrimSpace(files[0].FileHash)
+}
+
+func insertQueuedAnalysisRow(ctx context.Context, gameID int, fileHash string) (bool, error) {
+	db, err := getNotifyDB()
+	if err != nil {
+		return false, err
+	}
+	now := time.Now()
+	const q = `
+INSERT INTO game_analyses (
+  game_id,
+  file_hash,
+  bucket_key,
+  analyzer_version,
+  status,
+  attempt_count,
+  priority,
+  requested_at,
+  next_retry_at,
+  quality_report_json,
+  summary_json,
+  analysis_phase_json,
+  analysis_events_json,
+  analysis_timeseries_json,
+  artifact_manifest_json,
+  created_at,
+  updated_at
+)
+VALUES ($1, $2, $3, $4, $5, 0, 0, $6, $6, '{}'::jsonb, '{}'::jsonb, '{}'::jsonb, '{}'::jsonb, '{}'::jsonb, '{}'::jsonb, $6, $6)
+ON CONFLICT (game_id) DO NOTHING
+RETURNING id`
+	var id int
+	err = db.QueryRowContext(ctx, q, gameID, fileHash, replaybucket.ReplayObjectKey(fileHash), replayanalysis.AnalyzerVersion(), replayanalysis.StatusQueued, now).Scan(&id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
 
 // SetCurrentSeason sets the default season applied to future uploads.
@@ -1875,6 +2087,31 @@ func stringPtr(v *string) string {
 		return ""
 	}
 	return *v
+}
+
+func stringFromAny(v interface{}) string {
+	if s, ok := v.(string); ok {
+		return strings.TrimSpace(s)
+	}
+	return ""
+}
+
+func numberFromAny(v interface{}) float64 {
+	switch n := v.(type) {
+	case float64:
+		return n
+	case float32:
+		return float64(n)
+	case int:
+		return float64(n)
+	case int64:
+		return float64(n)
+	case json.Number:
+		value, _ := n.Float64()
+		return value
+	default:
+		return 0
+	}
 }
 
 func reliabilityText(uploadCount, playerCount int) string {
