@@ -162,6 +162,15 @@ function createPreviewSummary(result: ApiReplayPreviewResponse): DashboardPrevie
   };
 }
 
+function findMatchingPlayer(players: string[], playerName: string): string | null {
+  const normalized = playerName.trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+
+  return players.find((player) => player.trim().toLowerCase() === normalized) ?? null;
+}
+
 function formatPreviewItemLine(item: DashboardPreviewSummary["items"][number]): string {
   const base = item.ok ? `OK ${item.filename}` : `FAIL ${item.filename}`;
 
@@ -301,17 +310,29 @@ function extractUploadedGame(result: ApiReplayUploadResponse): { id: number | nu
   };
 }
 
+function withCurrentUserParam(path: string, currentUser: string, extraParams?: Record<string, string | number>): string {
+  const params = new URLSearchParams();
+  const normalizedCurrentUser = currentUser.trim();
+
+  if (normalizedCurrentUser) {
+    params.set("currentUser", normalizedCurrentUser);
+  }
+  Object.entries(extraParams ?? {}).forEach(([key, value]) => {
+    params.set(key, String(value));
+  });
+
+  const query = params.toString();
+  return query ? `${path}?${query}` : path;
+}
+
 function createUploadSummary(result: ApiReplayUploadResponse, currentUser: string): DashboardUploadSummary {
   const uploaded = extractUploadedGame(result);
-  const currentUserParam = encodeURIComponent(currentUser);
 
   return {
     uploadedGameId: uploaded.id,
     uploadedMapName: uploaded.mapName,
-    vaultHref: `/vault?currentUser=${currentUserParam}`,
-    analyzerHref: uploaded.id
-      ? `/analyzer?currentUser=${currentUserParam}&gameId=${uploaded.id}`
-      : `/analyzer?currentUser=${currentUserParam}`
+    vaultHref: withCurrentUserParam("/vault", currentUser),
+    analyzerHref: withCurrentUserParam("/analyzer", currentUser, uploaded.id ? { gameId: uploaded.id } : undefined)
   };
 }
 
@@ -346,8 +367,6 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
   const router = useRouter();
   const pathname = usePathname();
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
-  const [pendingCommonPlayers, setPendingCommonPlayers] = useState<string[]>([]);
   const [selectedPlayer, setSelectedPlayer] = useState("");
   const [currentUser, setCurrentUser] = useState(model.currentUser);
   const [previewState, setPreviewState] = useState<DashboardActionStatus>("idle");
@@ -387,14 +406,9 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
 
   const selectedFile = selectedFiles[0] ?? null;
   const record = `${playerStats.wins}-${playerStats.losses}-${playerStats.draws}`;
-  const currentUserNormalized = currentUser.trim();
   const selectablePlayers = previewSummary
     ? previewSummary.commonPlayers
     : [...new Set([selectedPlayer, ...model.uploadCandidates].filter(Boolean))];
-  const uploadReady =
-    pendingFiles.length > 0 &&
-    Boolean(currentUserNormalized) &&
-    pendingCommonPlayers.some((player) => player.trim().toLowerCase() === currentUserNormalized.toLowerCase());
   const selectedGame = selectedGameId != null ? recentGames.find((game) => game.id === selectedGameId) ?? null : null;
   const selectedGameDetail = selectedGameId != null ? gameDetailById[selectedGameId] ?? null : null;
   const selectedGameDetailState = selectedGameId != null ? gameDetailStateById[selectedGameId] ?? "idle" : "idle";
@@ -605,8 +619,6 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
     setSelectedFiles(nextFiles);
     setPreviewState("idle");
     setPreviewSummary(null);
-    setPendingFiles([]);
-    setPendingCommonPlayers([]);
     setUploadState("idle");
     setUploadErrorMessage(null);
     setUploadSummary(null);
@@ -618,124 +630,60 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
     setSelectedPlayer(nextPlayer);
     if (nextPlayer.trim()) {
       appendSystemLog(`SELECT_USER: ${nextPlayer}`);
-      persistCurrentUser(nextPlayer);
     }
   }
 
-  async function handlePreview() {
-    if (selectedFiles.length === 0) {
-      return;
+  function applyPreviewSummary(summary: DashboardPreviewSummary) {
+    setPreviewSummary(summary);
+    setPreviewState("success");
+    setUploadStatusMessage(`ANALYZE_OK: ${summary.successCount}/${summary.totalFiles} files`);
+    appendSystemLog(`ANALYZE_OK: ${summary.successCount}/${summary.totalFiles} files`);
+
+    const matchedSelectedPlayer = findMatchingPlayer(summary.commonPlayers, selectedPlayer);
+
+    if (matchedSelectedPlayer) {
+      setSelectedPlayer(matchedSelectedPlayer);
+      return matchedSelectedPlayer;
     }
 
-    const requestId = ++previewRequestRef.current;
-    uploadRequestRef.current += 1;
-    setPreviewState("submitting");
-    setUploadState("idle");
-    setUploadErrorMessage(null);
-    setUploadSummary(null);
-    setUploadStatusMessage(`ANALYZING ${selectedFiles.length} FILE(S)...`);
-    appendSystemLog(`ANALYZE_REPLAY: ${selectedFiles.length} file(s)`);
+    const matchedCurrentUser = findMatchingPlayer(summary.commonPlayers, currentUser);
 
-    try {
-      const result = (await previewReplayUpload(selectedFiles, { fetchImpl: fetch })) as ApiReplayPreviewResponse;
-      if (previewRequestRef.current !== requestId) {
-        return;
-      }
-      const summary = createPreviewSummary(result);
-      setPreviewSummary(summary);
-      setPreviewState("success");
-      setPendingFiles(selectedFiles);
-      setPendingCommonPlayers(summary.commonPlayers);
-      setUploadStatusMessage(`ANALYZE_OK: ${summary.successCount}/${summary.totalFiles} files`);
-      appendSystemLog(`ANALYZE_OK: ${summary.successCount}/${summary.totalFiles} files`);
-
-      const normalizedCurrentUser = currentUser.trim().toLowerCase();
-      const matchedCurrentUser = normalizedCurrentUser
-        ? summary.commonPlayers.find((player) => player.trim().toLowerCase() === normalizedCurrentUser)
-        : null;
-
-      if (matchedCurrentUser) {
-        setSelectedPlayer(matchedCurrentUser);
-      } else if (!currentUser.trim() && summary.commonPlayers.length === 1) {
-        const preferredPlayer = summary.commonPlayers[0];
-        setSelectedPlayer(preferredPlayer);
-        persistCurrentUser(preferredPlayer, { preserveUploadTerminal: true });
-      } else {
-        setSelectedPlayer("");
-      }
-    } catch (error) {
-      if (previewRequestRef.current !== requestId) {
-        return;
-      }
-      const message = error instanceof Error ? error.message : "preview failed";
-      setPreviewState("error");
-      setUploadStatusMessage(`ANALYZE_FAIL: ${message}`);
-      appendSystemLog(`ANALYZE_FAIL: ${message}`);
+    if (matchedCurrentUser) {
+      setSelectedPlayer(matchedCurrentUser);
+      return matchedCurrentUser;
     }
+
+    if (!currentUser.trim() && summary.commonPlayers.length === 1) {
+      const preferredPlayer = summary.commonPlayers[0];
+      setSelectedPlayer(preferredPlayer);
+      return preferredPlayer;
+    }
+
+    setSelectedPlayer("");
+    return null;
   }
 
-  async function handleUpload() {
-    const normalizedCurrentUser = currentUser.trim();
-
-    if (!normalizedCurrentUser) {
-      setUploadState("error");
-      setUploadErrorMessage("select user first (simple login)");
-      setUploadStatusMessage("UPLOAD_FAIL: select user first (simple login)");
-      appendSystemLog("UPLOAD_FAIL: select user first (simple login)");
-      return;
-    }
-
-    if (pendingFiles.length === 0) {
-      setUploadState("error");
-      setUploadErrorMessage("analyze replay first");
-      setUploadStatusMessage("UPLOAD_FAIL: analyze replay first");
-      appendSystemLog("UPLOAD_FAIL: analyze replay first");
-      return;
-    }
-
-    if (pendingCommonPlayers.length === 0) {
-      setUploadState("error");
-      setUploadErrorMessage("no common participant across analyzed files");
-      setUploadStatusMessage("UPLOAD_FAIL: no common participant across analyzed files");
-      appendSystemLog("UPLOAD_FAIL: no common participant across analyzed files");
-      return;
-    }
-
-    const isCurrentUserCommon = pendingCommonPlayers.some(
-      (player) => player.trim().toLowerCase() === normalizedCurrentUser.toLowerCase()
-    );
-
-    if (!isCurrentUserCommon) {
-      setUploadState("error");
-      setUploadErrorMessage(`'${normalizedCurrentUser}' is not a common participant in current analyzed files`);
-      setUploadStatusMessage(`UPLOAD_FAIL: '${normalizedCurrentUser}' is not a common participant in current analyzed files`);
-      appendSystemLog(`UPLOAD_FAIL: '${normalizedCurrentUser}' is not a common participant in current analyzed files`);
-      return;
-    }
-
-    const requestId = ++uploadRequestRef.current;
+  async function submitAnalyzedReplay(files: File[], uploaderName: string, requestId: number) {
     setUploadState("submitting");
     setUploadErrorMessage(null);
     setUploadSummary(null);
-    setUploadStatusMessage(`UPLOADING ${pendingFiles.length} FILE(S) AS ${normalizedCurrentUser}...`);
-    appendSystemLog(`UPLOAD_START: ${normalizedCurrentUser}`);
+    setUploadStatusMessage(`UPLOADING ${files.length} FILE(S) AS ${uploaderName}...`);
+    appendSystemLog(`UPLOAD_START: ${uploaderName}`);
 
     try {
-      const result = (await submitReplayUpload(pendingFiles, normalizedCurrentUser, { fetchImpl: fetch })) as ApiReplayUploadResponse;
+      const result = (await submitReplayUpload(files, uploaderName, { fetchImpl: fetch })) as ApiReplayUploadResponse;
       if (uploadRequestRef.current !== requestId) {
         return;
       }
-      const summary = createUploadSummary(result, normalizedCurrentUser);
+      const summary = createUploadSummary(result, currentUser);
       setUploadSummary(summary);
       setUploadState("success");
       setUploadErrorMessage(null);
       setUploadStatusMessage("UPLOAD_DONE: check terminal log");
       appendSystemLog("UPLOAD_DONE: check terminal log");
-      persistCurrentUser(normalizedCurrentUser, { refresh: true });
       if (summary.uploadedGameId != null) {
         setSelectedGameId(summary.uploadedGameId);
       }
-      void loadRecentGames(normalizedCurrentUser, "UPLOAD_REFRESH", 1);
     } catch (error) {
       if (uploadRequestRef.current !== requestId) {
         return;
@@ -745,6 +693,58 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
       setUploadErrorMessage(message);
       setUploadStatusMessage(`UPLOAD_FAIL: ${message}`);
       appendSystemLog(`UPLOAD_FAIL: ${message}`);
+    }
+  }
+
+  async function handleAnalyzeAndUpload() {
+    if (selectedFiles.length === 0 || previewState === "submitting" || uploadState === "submitting") {
+      return;
+    }
+
+    const files = selectedFiles;
+    const previewRequestId = ++previewRequestRef.current;
+    const uploadRequestId = ++uploadRequestRef.current;
+    setPreviewState("submitting");
+    setUploadState("idle");
+    setUploadErrorMessage(null);
+    setUploadSummary(null);
+    setUploadStatusMessage(`ANALYZING ${files.length} FILE(S)...`);
+    appendSystemLog(`ANALYZE_REPLAY: ${files.length} file(s)`);
+
+    try {
+      const result = (await previewReplayUpload(files, { fetchImpl: fetch })) as ApiReplayPreviewResponse;
+      if (previewRequestRef.current !== previewRequestId || uploadRequestRef.current !== uploadRequestId) {
+        return;
+      }
+
+      const summary = createPreviewSummary(result);
+      const uploaderName = applyPreviewSummary(summary);
+
+      if (!uploaderName) {
+        setUploadState("error");
+        if (summary.commonPlayers.length === 0) {
+          setUploadErrorMessage("no common participant across analyzed files");
+          setUploadStatusMessage("UPLOAD_FAIL: no common participant across analyzed files");
+          appendSystemLog("UPLOAD_FAIL: no common participant across analyzed files");
+        } else {
+          setUploadErrorMessage("select user first (simple login)");
+          setUploadStatusMessage("UPLOAD_FAIL: select user first (simple login)");
+          appendSystemLog("UPLOAD_FAIL: select user first (simple login)");
+        }
+        return;
+      }
+
+      await submitAnalyzedReplay(files, uploaderName, uploadRequestId);
+    } catch (error) {
+      if (previewRequestRef.current !== previewRequestId || uploadRequestRef.current !== uploadRequestId) {
+        return;
+      }
+      const message = error instanceof Error ? error.message : "preview failed";
+      setPreviewState("error");
+      setUploadState("error");
+      setUploadErrorMessage(message);
+      setUploadStatusMessage(`ANALYZE_FAIL: ${message}`);
+      appendSystemLog(`ANALYZE_FAIL: ${message}`);
     }
   }
 
@@ -883,8 +883,8 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
 
             <button
               type="button"
-              onClick={handlePreview}
-              disabled={selectedFiles.length === 0 || previewState === "submitting"}
+              onClick={handleAnalyzeAndUpload}
+              disabled={selectedFiles.length === 0 || previewState === "submitting" || uploadState === "submitting"}
               className="mt-4 w-full py-3 rounded-lg text-sm font-mono font-bold tracking-widest transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
               style={{
                 background: selectedFiles.length > 0 ? "linear-gradient(90deg, #0891b2, #1d4ed8)" : "#1e293b",
@@ -892,7 +892,7 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
                 border: selectedFiles.length > 0 ? "1px solid rgba(34,211,238,0.3)" : "1px solid rgba(255,255,255,0.05)"
               }}
             >
-              {previewState === "submitting" ? "ANALYZING..." : "ANALYZE_REPLAY"}
+              {previewState === "submitting" ? "ANALYZING..." : uploadState === "submitting" ? "UPLOADING..." : "Analyze & Upload"}
             </button>
 
             <div className="mt-4" data-testid="dashboard-upload-user-block">
@@ -925,20 +925,6 @@ export function DashboardPage({ model }: { model: DashboardPageModel }) {
                 </span>
               </div>
             </div>
-
-            <button
-              type="button"
-              onClick={handleUpload}
-              disabled={!uploadReady || uploadState === "submitting"}
-              className="mt-3 w-full py-3 rounded-lg text-sm font-mono font-bold tracking-widest transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{
-                background: uploadReady ? "linear-gradient(90deg, #0f766e, #0e7490)" : "#1e293b",
-                color: uploadReady ? "#ecfeff" : "#475569",
-                border: uploadReady ? "1px solid rgba(45,212,191,0.3)" : "1px solid rgba(255,255,255,0.05)"
-              }}
-            >
-              {uploadState === "submitting" ? "UPLOADING..." : "UPLOAD_WITH_SELECTED_USER"}
-            </button>
 
             <div
               data-testid="dashboard-preview-summary"
