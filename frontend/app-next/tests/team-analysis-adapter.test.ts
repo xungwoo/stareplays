@@ -126,6 +126,8 @@ describe("team analysis adapter", () => {
     expect(model.insights.bestDuo?.title).toContain("최강 듀오");
     expect(model.insights.randomReadyPlayer?.title).toContain("랜덤 적응");
     expect(model.insights.randomRiskPlayer?.title).toContain("랜덤 리스크");
+    expect(model.insights.randomReadyPlayer?.body).toContain("실제 랜덤 선택");
+    expect(model.insights.randomRiskPlayer?.body).toContain("실제 랜덤 선택");
     expect(model.insights.cards.map((card) => card.label)).toEqual(expect.not.arrayContaining(["인사이트 1", "인사이트 2", "인사이트 3"]));
     expect(model.insights.cards.length).toBeGreaterThanOrEqual(8);
     expect(model.insights.cards.every((card) => /[가-힣]/.test(`${card.title} ${card.body}`))).toBe(true);

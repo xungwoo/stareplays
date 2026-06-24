@@ -80,6 +80,7 @@ export function createTeamAnalysisRawPayload({
       ].join("\n"),
       analysisGuidance: [
         "player.isRandomSelected=true인 선수는 실제 종족이 P/T/Z로 기록되어도 선택은 랜덤입니다.",
+        "analysis.players[].randomSelectedGames/randomSelectedWins/randomSelectedWinRate는 실제 랜덤 선택 표본에서 계산된 값입니다.",
         "선수별 랜덤 선택 표본 수를 함께 언급해 종족 통계의 해석 범위를 분리하세요.",
         "player.isRandomSelected=false인 선수는 실제 종족을 선택한 것으로 해석하세요."
       ],

@@ -609,12 +609,9 @@ function buildInsights(players: TeamAnalysisPlayer[], lineups: TeamAnalysisLineu
   const bestLineup = qualifiedLineups[0] ?? lineups[0] ?? null;
   const worstLineup = [...(qualifiedLineups.length > 0 ? qualifiedLineups : lineups)].filter((lineup) => lineup.games > 0).sort((left, right) => left.winRate - right.winRate || right.games - left.games)[0] ?? null;
   const bestDuo = duos.find((duo) => duo.games >= MIN_LINEUP_GAMES) ?? duos[0] ?? null;
-  const randomReadyPlayer = [...players].sort((left, right) => right.raceStats.length - left.raceStats.length || right.winRate - left.winRate || right.averageApm - left.averageApm)[0] ?? null;
-  const randomRiskPlayer = [...players].sort((left, right) => {
-    const leftWorst = Math.min(...left.raceStats.map((stat) => stat.winRate));
-    const rightWorst = Math.min(...right.raceStats.map((stat) => stat.winRate));
-    return leftWorst - rightWorst || left.winRate - right.winRate || right.raceStats.length - left.raceStats.length;
-  })[0] ?? null;
+  const randomPlayers = players.filter((player) => player.randomSelectedGames > 0);
+  const randomReadyPlayer = [...randomPlayers].sort((left, right) => right.randomSelectedWinRate - left.randomSelectedWinRate || right.randomSelectedWins - left.randomSelectedWins || right.randomSelectedGames - left.randomSelectedGames)[0] ?? null;
+  const randomRiskPlayer = [...randomPlayers].sort((left, right) => left.randomSelectedWinRate - right.randomSelectedWinRate || right.randomSelectedGames - left.randomSelectedGames || left.winRate - right.winRate)[0] ?? null;
   const bestRace = raceCompositions.find((composition) => composition.qualified) ?? raceCompositions[0] ?? null;
   const tempoLeader = [...players].sort((left, right) => right.tempoStability - left.tempoStability || right.averageEapm - left.averageEapm)[0] ?? null;
   const productionLeader = [...players].sort((left, right) => right.productionAbility - left.productionAbility || right.commandEfficiency - left.commandEfficiency)[0] ?? null;
@@ -654,7 +651,7 @@ function buildInsights(players: TeamAnalysisPlayer[], lineups: TeamAnalysisLineu
         id: "random-ready",
         label: "랜덤 에이스",
         title: `랜덤 적응 주사위 에이스: ${displayPlayerName(randomReadyPlayer.name)}`,
-        body: `${randomReadyPlayer.raceStats.length}개 종족 표본에서 전체 승률 ${formatPercentValue(randomReadyPlayer.winRate)}, 평균 APM ${randomReadyPlayer.averageApm}입니다. 랜덤을 눌러도 표정 변화가 가장 적은 타입입니다.`,
+        body: `실제 랜덤 선택 ${randomReadyPlayer.randomSelectedGames}경기에서 ${randomReadyPlayer.randomSelectedWins}승, 승률 ${formatPercentValue(randomReadyPlayer.randomSelectedWinRate)}입니다. 랜덤 축은 종족 편차가 아니라 실제 랜덤 선택 표본으로 봅니다.`,
         tone: "violet"
       })
       : null,
@@ -663,7 +660,7 @@ function buildInsights(players: TeamAnalysisPlayer[], lineups: TeamAnalysisLineu
         id: "random-risk",
         label: "랜덤 주의",
         title: `랜덤 리스크 주의보: ${displayPlayerName(randomRiskPlayer.name)}`,
-        body: `최약 종족은 ${randomRiskPlayer.weakness}입니다. 주사위가 이쪽으로 굴러가면 옆자리에서 든든하게 보험을 들어줘야 합니다.`,
+        body: `실제 랜덤 선택 ${randomRiskPlayer.randomSelectedGames}경기에서 ${randomRiskPlayer.randomSelectedWins}승, 승률 ${formatPercentValue(randomRiskPlayer.randomSelectedWinRate)}입니다. 랜덤 선택 표본 기준으로 보완이 필요한 선수입니다.`,
         tone: "amber"
       })
       : null,

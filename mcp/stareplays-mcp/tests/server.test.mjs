@@ -11,7 +11,7 @@ test("lists stareplays tools and serves a prompt bundle through tool calls", asy
       compatibility: { recommendedMcpVersion: "0.2.0" },
       analysis: {
         summary: { gamesAnalyzed: 12, topPlayer: "성우" },
-        players: [{ name: "성우", winRate: 66.7, randomSelectedGames: 4 }]
+        players: [{ name: "성우", wins: 4, losses: 2, winRate: 66.7, averageApm: 150, productionAbility: 120, randomSelectedGames: 4, randomSelectedWins: 3, randomSelectedWinRate: 75 }]
       },
       llm: {
         promptTitle: "3x3 팀 전적 분석",
@@ -42,7 +42,7 @@ test("lists stareplays tools and serves a prompt bundle through tool calls", asy
   });
 
   assert.match(prompt.result.content[0].text, /시즌7/);
-  assert.doesNotMatch(prompt.result.content[0].text, /randomSelectedGames/);
+  assert.match(prompt.result.content[0].text, /랜덤선택 4경기 3승 75%/);
   assert.match(prompt.result.content[0].text, /player\.isRandomSelected=true/);
   assert.match(prompt.result.content[0].text, /https:\/\/stareplays\.up\.railway\.app\/seasons/);
   assert.match(prompt.result.content[0].text, /최적 조합을 추천해줘/);

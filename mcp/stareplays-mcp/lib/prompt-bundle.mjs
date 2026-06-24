@@ -27,7 +27,15 @@ export function createPromptBundle(rawPayload, { seasonLabel } = {}) {
     ...(analysisGuidance.length > 0 ? analysisGuidance.map((item) => `- ${item}`) : ["- Raw JSON의 features와 compatibility를 확인하고, 알 수 없는 신규 필드는 원문 근거로만 해석하세요."]),
     "",
     "## 선수 요약",
-    ...players.map((player) => `- ${player.name}: ${player.wins}-${player.losses}, 승률 ${player.winRate}%, APM ${player.averageApm}, 생산능력 ${player.productionAbility}`),
+    ...players.map((player) => {
+      const randomGames = Number(player.randomSelectedGames ?? 0);
+      const randomWins = Number(player.randomSelectedWins ?? 0);
+      const randomWinRate = Number(player.randomSelectedWinRate ?? 0);
+      const randomSummary = randomGames > 0
+        ? `, 랜덤선택 ${randomGames}경기 ${randomWins}승 ${randomWinRate}%`
+        : ", 랜덤선택 0경기";
+      return `- ${player.name}: ${player.wins}-${player.losses}, 승률 ${player.winRate}%, APM ${player.averageApm}, 생산능력 ${player.productionAbility}${randomSummary}`;
+    }),
     "",
     "## 상위 조합",
     ...lineups.slice(0, 8).map((lineup) => `- ${lineup.players.join(" + ")} (${lineup.composition}): ${lineup.wins}-${lineup.losses}, 승률 ${lineup.winRate}%`),
