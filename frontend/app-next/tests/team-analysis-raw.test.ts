@@ -9,6 +9,7 @@ const gamesResponse: ApiGamesListResponse = {
       map_name: "Season Arena",
       winner_team: 1,
       game_length: 900,
+      is_random_selected: true,
       start_time: "2026-06-01T00:00:00Z",
       season_label: "시즌7",
       edges: {
@@ -33,13 +34,18 @@ describe("team analysis raw payload", () => {
       generatedAt: "2026-06-24T00:00:00.000Z"
     });
 
-    expect(payload.schemaVersion).toBe("stareplays.team-analysis.raw.v1");
+    expect(payload.schemaVersion).toBe("stareplays.team-analysis.raw.v2");
     expect(payload.generatedAt).toBe("2026-06-24T00:00:00.000Z");
     expect(payload.scope).toEqual({ teamSize: "3x3", seasonLabel: "시즌7" });
+    expect(payload.features.isRandomSelected).toBe(true);
     expect(payload.source.totalGames).toBe(1);
+    expect(payload.source.randomSelectedGames).toBe(1);
     expect(payload.analysis.summary.gamesAnalyzed).toBe(1);
+    expect(payload.analysis.summary.randomSelectedGames).toBe(1);
+    expect(payload.analysis.recentMatches[0]?.isRandomSelected).toBe(true);
     expect(payload.analysis.players.map((player) => player.name)).toEqual(expect.arrayContaining(["성우", "민혁", "성민"]));
     expect(payload.llm.promptTitle).toContain("3x3 팀 전적 분석");
+    expect(payload.llm.analysisGuidance.join("\n")).toContain("isRandomSelected=true");
     expect(payload.llm.suggestedQuestions.length).toBeGreaterThanOrEqual(4);
   });
 });

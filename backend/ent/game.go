@@ -43,6 +43,8 @@ type Game struct {
 	UploadCount int `json:"upload_count,omitempty"`
 	// Computed.WinnerTeam
 	WinnerTeam uint8 `json:"winner_team,omitempty"`
+	// Whether this game was played with Random selected by all players
+	IsRandomSelected bool `json:"is_random_selected"`
 	// Season label used by team analysis, e.g. 시즌1
 	SeasonLabel *string `json:"season_label,omitempty"`
 	// Numeric season number used for ordering
@@ -117,6 +119,8 @@ func (*Game) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case game.FieldIsRandomSelected:
+			values[i] = new(sql.NullBool)
 		case game.FieldID, game.FieldMapWidth, game.FieldMapHeight, game.FieldGameLength, game.FieldPlayerCount, game.FieldUploadCount, game.FieldWinnerTeam, game.FieldSeasonNo:
 			values[i] = new(sql.NullInt64)
 		case game.FieldHost, game.FieldMapName, game.FieldGameType, game.FieldGameSpeed, game.FieldTitle, game.FieldSeasonLabel:
@@ -215,6 +219,12 @@ func (_m *Game) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field winner_team", values[i])
 			} else if value.Valid {
 				_m.WinnerTeam = uint8(value.Int64)
+			}
+		case game.FieldIsRandomSelected:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field is_random_selected", values[i])
+			} else if value.Valid {
+				_m.IsRandomSelected = value.Bool
 			}
 		case game.FieldSeasonLabel:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -333,6 +343,9 @@ func (_m *Game) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("winner_team=")
 	builder.WriteString(fmt.Sprintf("%v", _m.WinnerTeam))
+	builder.WriteString(", ")
+	builder.WriteString("is_random_selected=")
+	builder.WriteString(fmt.Sprintf("%v", _m.IsRandomSelected))
 	builder.WriteString(", ")
 	if v := _m.SeasonLabel; v != nil {
 		builder.WriteString("season_label=")

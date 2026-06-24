@@ -21,7 +21,7 @@ printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' \
   | node ~/.stareplays/mcp/stareplays-mcp/bin/stareplays-mcp-server.mjs
 ```
 
-정상이라면 `get_team_analysis_raw`, `get_team_analysis_prompt_bundle`가 출력됩니다.
+정상이라면 `get_team_analysis_raw`, `get_team_analysis_prompt_bundle`, `get_mcp_update_status`가 출력됩니다.
 
 ## 설치 대상 선택
 
@@ -52,8 +52,15 @@ npx -y --package github:xungwoo/stareplays#main stareplays-mcp install --client 
 
 - Tool: `get_team_analysis_raw`
 - Tool: `get_team_analysis_prompt_bundle`
+- Tool: `get_mcp_update_status`
 - Resource: `stareplays://team-analysis/raw`
 - Prompt: `analyze_team_matchups`
+
+`get_team_analysis_raw`는 `/api/team-analysis/raw` 응답을 그대로 전달합니다. 따라서 `schemaVersion`, `features`, `compatibility`, `isRandomSelected` 같은 optional 필드가 서비스에 추가되면 MCP 코드 변경 없이 raw 도구에서 바로 확인할 수 있습니다.
+
+`get_team_analysis_prompt_bundle`는 API 응답의 `llm.promptContext`와 `llm.analysisGuidance`를 우선 사용하고, 마지막에 Raw JSON 전체를 함께 첨부합니다. 새 분석 필드를 LLM이 적극적으로 사용해야 한다면 서비스 raw 응답의 `llm.analysisGuidance`를 함께 갱신하세요.
+
+`get_mcp_update_status`는 raw endpoint의 `compatibility.recommendedMcpVersion`과 로컬 MCP 버전을 비교해 업데이트 필요 여부와 재설치 명령을 알려줍니다. MCP가 실행 중인 자기 파일을 자동으로 덮어쓰지는 않습니다.
 
 기본 API:
 
@@ -66,6 +73,14 @@ https://stareplays.up.railway.app/api/team-analysis/raw
 ```text
 https://stareplays.up.railway.app/api/team-analysis/raw?season_label=시즌7
 ```
+
+Raw endpoint v2 주요 메타:
+
+- `features.isRandomSelected`: 경기 단위 랜덤 선택 플래그 제공 여부
+- `source.randomSelectedGames`: 응답에 포함된 랜덤 선택 경기 수
+- `analysis.summary.randomSelectedGames`: 분석 대상 3x3 경기 중 랜덤 선택 경기 수
+- `analysis.recentMatches[].isRandomSelected`: 최근 경기별 랜덤 선택 여부
+- `compatibility.recommendedMcpVersion`: 해당 raw 계약에 권장되는 MCP 버전
 
 ## 자주 쓰는 옵션
 

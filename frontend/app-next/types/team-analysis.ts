@@ -92,6 +92,7 @@ export interface TeamAnalysisRecentMatch {
   winner: string;
   loser: string;
   startTime: string;
+  isRandomSelected: boolean;
 }
 
 export interface TeamAnalysisPageModel {
@@ -102,6 +103,7 @@ export interface TeamAnalysisPageModel {
     topPlayer: string;
     topLineup: string;
     strongestComposition: string;
+    randomSelectedGames: number;
   };
   players: TeamAnalysisPlayer[];
   lineups: TeamAnalysisLineup[];
