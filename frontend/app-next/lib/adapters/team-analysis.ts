@@ -36,6 +36,8 @@ type PlayerAccumulator = {
   games: number;
   wins: number;
   losses: number;
+  randomSelectedGames: number;
+  randomSelectedWins: number;
   apmTotal: number;
   eapmTotal: number;
   commandTotal: number;
@@ -178,6 +180,8 @@ function getOrCreatePlayer(accumulators: Map<string, PlayerAccumulator>, player:
     games: 0,
     wins: 0,
     losses: 0,
+    randomSelectedGames: 0,
+    randomSelectedWins: 0,
     apmTotal: 0,
     eapmTotal: 0,
     commandTotal: 0,
@@ -190,10 +194,12 @@ function getOrCreatePlayer(accumulators: Map<string, PlayerAccumulator>, player:
   return created;
 }
 
-function recordPlayer(accumulator: PlayerAccumulator, player: NormalizedPlayer, won: boolean, teammates: NormalizedPlayer[], gameLength: number) {
+function recordPlayer(accumulator: PlayerAccumulator, player: NormalizedPlayer, won: boolean, teammates: NormalizedPlayer[], gameLength: number, isRandomSelected: boolean) {
   accumulator.games += 1;
   accumulator.wins += won ? 1 : 0;
   accumulator.losses += won ? 0 : 1;
+  accumulator.randomSelectedGames += isRandomSelected ? 1 : 0;
+  accumulator.randomSelectedWins += isRandomSelected && won ? 1 : 0;
   accumulator.apmTotal += player.apm;
   accumulator.eapmTotal += player.eapm;
   accumulator.commandTotal += player.cmdCount;
@@ -358,8 +364,8 @@ function buildPlayers(matches: NormalizedMatch[]): TeamAnalysisPlayer[] {
   const accumulators = new Map<string, PlayerAccumulator>();
 
   matches.forEach((match) => {
-    match.winner.forEach((player) => recordPlayer(getOrCreatePlayer(accumulators, player), player, true, match.winner, match.gameLength));
-    match.loser.forEach((player) => recordPlayer(getOrCreatePlayer(accumulators, player), player, false, match.loser, match.gameLength));
+    match.winner.forEach((player) => recordPlayer(getOrCreatePlayer(accumulators, player), player, true, match.winner, match.gameLength, match.isRandomSelected));
+    match.loser.forEach((player) => recordPlayer(getOrCreatePlayer(accumulators, player), player, false, match.loser, match.gameLength, match.isRandomSelected));
   });
 
   const playerNames = Array.from(accumulators.keys()).sort();
@@ -382,6 +388,9 @@ function buildPlayers(matches: NormalizedMatch[]): TeamAnalysisPlayer[] {
       wins: accumulator.wins,
       losses: accumulator.losses,
       winRate: winRate(accumulator.wins, accumulator.games),
+      randomSelectedGames: accumulator.randomSelectedGames,
+      randomSelectedWins: accumulator.randomSelectedWins,
+      randomSelectedWinRate: winRate(accumulator.randomSelectedWins, accumulator.randomSelectedGames),
       averageApm: round(accumulator.apmTotal / Math.max(accumulator.games, 1), 1),
       averageEapm: round(accumulator.eapmTotal / Math.max(accumulator.games, 1), 1),
       commandEfficiency: round((accumulator.effectiveCommandTotal / Math.max(accumulator.commandTotal, 1)) * 100, 1),
@@ -509,13 +518,11 @@ function normalizeMetricBand(value: number, values: number[], floor = 35, ceilin
   return round(floor + (normalized / 100) * (ceiling - floor), 1);
 }
 
-function raceFlexScore(player: TeamAnalysisPlayer): number {
-  const raceWinRates = player.raceStats.map((stat) => stat.winRate);
-  const raceCountScore = (player.raceStats.length / 3) * 55;
-  const floorScore = raceWinRates.length > 0 ? Math.min(...raceWinRates) * 0.25 : 0;
-  const bestScore = raceWinRates.length > 0 ? Math.max(...raceWinRates) * 0.2 : 0;
+function randomSelectionScore(player: TeamAnalysisPlayer): number {
+  if (player.randomSelectedGames <= 0) return 0;
+  if (player.randomSelectedGames >= MIN_PLAYER_RACE_GAMES) return player.randomSelectedWinRate;
 
-  return Math.min(100, round(raceCountScore + floorScore + bestScore, 1));
+  return round(player.randomSelectedWinRate * (player.randomSelectedGames / MIN_PLAYER_RACE_GAMES), 1);
 }
 
 function raceCapabilityScore(player: TeamAnalysisPlayer, race: RaceCode): number {
@@ -555,7 +562,7 @@ function buildPlayerPentagons(players: TeamAnalysisPlayer[]): TeamAnalysisPlayer
     },
     {
       title: "종족 역량 오각형",
-      description: "프로토스, 저그, 테란별 실제 승률과 랜덤 대응력, 전체 승률을 한 번에 비교합니다.",
+      description: "프로토스, 저그, 테란별 실제 승률과 랜덤 선택 경기 승률, 전체 승률을 한 번에 비교합니다.",
       axes: ["프로토스", "저그", "테란", "랜덤", "전체 역량"],
       players: topPlayers.map((player, index) => ({
         name: player.name,
@@ -565,7 +572,7 @@ function buildPlayerPentagons(players: TeamAnalysisPlayer[]): TeamAnalysisPlayer
           { label: "프로토스", value: raceCapabilityScore(player, "P") },
           { label: "저그", value: raceCapabilityScore(player, "Z") },
           { label: "테란", value: raceCapabilityScore(player, "T") },
-          { label: "랜덤", value: raceFlexScore(player) },
+          { label: "랜덤", value: randomSelectionScore(player) },
           { label: "전체 역량", value: player.winRate }
         ]
       }))
