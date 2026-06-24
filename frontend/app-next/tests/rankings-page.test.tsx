@@ -91,6 +91,10 @@ describe("rankings page", () => {
     expect(screen.getByRole("heading", { name: /race_rankings/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /random_rankings/i })).toBeInTheDocument();
     expect(screen.getAllByText("3x3_alpha").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("1승").length).toBeGreaterThan(0);
+    expect(screen.getByText("1패")).toBeInTheDocument();
+    expect(screen.getByText("(2경기)")).toBeInTheDocument();
+    expect(screen.queryByText("170.0")).not.toBeInTheDocument();
   });
 
   it("sorts win rate and race composition ties with the legacy tie-break cascade", async () => {
