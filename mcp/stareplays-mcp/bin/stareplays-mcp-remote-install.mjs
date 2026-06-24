@@ -1,9 +1,11 @@
 #!/usr/bin/env node
-import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, chmod, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { homedir } from "node:os";
 
 const DEFAULT_API_BASE_URL = "https://stareplays-next-production.up.railway.app";
+const DEFAULT_CACHE_TTL_SECONDS = 300;
+const DEFAULT_TIMEOUT_MS = 10000;
 const DEFAULT_REF = "main";
 const markerStart = "# >>> stareplays-mcp >>>";
 const markerEnd = "# <<< stareplays-mcp <<<";
@@ -13,6 +15,12 @@ const files = [
   "lib/mcp-server.mjs",
   "lib/prompt-bundle.mjs",
   "lib/stdio.mjs"
+];
+const defaultExtraCaCertPaths = [
+  "/opt/homebrew/etc/ca-certificates/cert.pem",
+  "/usr/local/etc/ca-certificates/cert.pem",
+  "/etc/ssl/cert.pem",
+  "/etc/ssl/certs/ca-certificates.crt"
 ];
 
 function readArg(name, fallback) {
@@ -32,6 +40,9 @@ function usage() {
     "  --client claude|codex|both       MCP client config to update. Default: both",
     "  --api-base-url <url>             Stareplays app base URL. Default: production",
     "  --install-dir <path>             Install directory. Default: ~/.stareplays/mcp/stareplays-mcp",
+    "  --cache-ttl-seconds <seconds>    Local cache TTL. Default: 300",
+    "  --timeout-ms <ms>                API request timeout. Default: 10000",
+    "  --extra-ca-certs <path>          Extra CA bundle for Node TLS. Default: auto-detect",
     "  --ref <git-ref>                  Git ref for raw GitHub downloads. Default: main",
     "  --source-base-url <url>          Override raw file base URL",
     "  --help                           Show this help"
@@ -48,6 +59,22 @@ function defaultSourceBaseUrl(ref) {
 
 function normalizeBaseUrl(value) {
   return value.replace(/\/+$/, "");
+}
+
+async function fileExists(path) {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function detectExtraCaCerts() {
+  for (const path of defaultExtraCaCertPaths) {
+    if (await fileExists(path)) return path;
+  }
+  return null;
 }
 
 async function readJsonIfExists(path, fallback) {
@@ -85,7 +112,18 @@ async function downloadFile({ sourceBaseUrl, relativePath, installDir }) {
   return targetPath;
 }
 
-async function writeClaudeConfig({ homeDir, serverPath, apiBaseUrl }) {
+function mcpEnv({ apiBaseUrl, cacheTtlSeconds, timeoutMs, extraCaCerts }) {
+  const env = {
+    STAREPLAYS_API_BASE_URL: apiBaseUrl,
+    STAREPLAYS_MCP_CACHE_TTL_SECONDS: String(cacheTtlSeconds),
+    STAREPLAYS_MCP_TIMEOUT_MS: String(timeoutMs)
+  };
+
+  if (extraCaCerts) env.NODE_EXTRA_CA_CERTS = extraCaCerts;
+  return env;
+}
+
+async function writeClaudeConfig({ homeDir, serverPath, apiBaseUrl, cacheTtlSeconds, timeoutMs, extraCaCerts }) {
   const configPath = join(homeDir, "Library", "Application Support", "Claude", "claude_desktop_config.json");
   const config = await readJsonIfExists(configPath, {});
   config.mcpServers = {
@@ -93,9 +131,7 @@ async function writeClaudeConfig({ homeDir, serverPath, apiBaseUrl }) {
     stareplays: {
       command: "node",
       args: [serverPath],
-      env: {
-        STAREPLAYS_API_BASE_URL: apiBaseUrl
-      }
+      env: mcpEnv({ apiBaseUrl, cacheTtlSeconds, timeoutMs, extraCaCerts })
     }
   };
 
@@ -112,7 +148,7 @@ function replaceMarkedBlock(text, block) {
   return pattern.test(text) ? text.replace(pattern, nextBlock) : `${text.trimEnd()}\n\n${nextBlock}`;
 }
 
-async function writeCodexConfig({ homeDir, serverPath, apiBaseUrl }) {
+async function writeCodexConfig({ homeDir, serverPath, apiBaseUrl, cacheTtlSeconds, timeoutMs, extraCaCerts }) {
   const configPath = join(homeDir, ".codex", "config.toml");
   const current = await readTextIfExists(configPath);
   const block = [
@@ -120,7 +156,10 @@ async function writeCodexConfig({ homeDir, serverPath, apiBaseUrl }) {
     "command = \"node\"",
     `args = [${jsonString(serverPath)}]`,
     "[mcp_servers.stareplays.env]",
-    `STAREPLAYS_API_BASE_URL = ${jsonString(apiBaseUrl)}`
+    `STAREPLAYS_API_BASE_URL = ${jsonString(apiBaseUrl)}`,
+    `STAREPLAYS_MCP_CACHE_TTL_SECONDS = ${jsonString(String(cacheTtlSeconds))}`,
+    `STAREPLAYS_MCP_TIMEOUT_MS = ${jsonString(String(timeoutMs))}`,
+    ...(extraCaCerts ? [`NODE_EXTRA_CA_CERTS = ${jsonString(extraCaCerts)}`] : [])
   ].join("\n");
 
   await mkdir(dirname(configPath), { recursive: true });
@@ -129,7 +168,7 @@ async function writeCodexConfig({ homeDir, serverPath, apiBaseUrl }) {
   return configPath;
 }
 
-async function installMcpConfig({ client, homeDir, serverPath, apiBaseUrl }) {
+async function installMcpConfig({ client, homeDir, serverPath, apiBaseUrl, cacheTtlSeconds, timeoutMs, extraCaCerts }) {
   if (!["claude", "codex", "both"].includes(client)) {
     throw new Error(`Unsupported --client value: ${client}`);
   }
@@ -140,11 +179,11 @@ async function installMcpConfig({ client, homeDir, serverPath, apiBaseUrl }) {
   };
 
   if (client === "claude" || client === "both") {
-    result.claudeConfigPath = await writeClaudeConfig({ homeDir, serverPath, apiBaseUrl });
+    result.claudeConfigPath = await writeClaudeConfig({ homeDir, serverPath, apiBaseUrl, cacheTtlSeconds, timeoutMs, extraCaCerts });
   }
 
   if (client === "codex" || client === "both") {
-    result.codexConfigPath = await writeCodexConfig({ homeDir, serverPath, apiBaseUrl });
+    result.codexConfigPath = await writeCodexConfig({ homeDir, serverPath, apiBaseUrl, cacheTtlSeconds, timeoutMs, extraCaCerts });
   }
 
   return result;
@@ -163,9 +202,13 @@ async function main() {
   const homeDir = process.env.HOME || homedir();
   const client = readArg("--client", "both");
   const apiBaseUrl = readArg("--api-base-url", process.env.STAREPLAYS_API_BASE_URL || DEFAULT_API_BASE_URL);
+  const cacheTtlSeconds = Number(readArg("--cache-ttl-seconds", process.env.STAREPLAYS_MCP_CACHE_TTL_SECONDS || DEFAULT_CACHE_TTL_SECONDS));
+  const timeoutMs = Number(readArg("--timeout-ms", process.env.STAREPLAYS_MCP_TIMEOUT_MS || DEFAULT_TIMEOUT_MS));
   const ref = readArg("--ref", DEFAULT_REF);
   const installDir = readArg("--install-dir", join(homeDir, ".stareplays", "mcp", "stareplays-mcp"));
   const sourceBaseUrl = readArg("--source-base-url", defaultSourceBaseUrl(ref));
+  const explicitExtraCaCerts = readArg("--extra-ca-certs", process.env.STAREPLAYS_MCP_EXTRA_CA_CERTS || process.env.NODE_EXTRA_CA_CERTS || undefined);
+  const extraCaCerts = explicitExtraCaCerts === undefined ? await detectExtraCaCerts() : explicitExtraCaCerts;
 
   console.log(`Installing Stareplays MCP runtime into ${installDir}`);
   for (const relativePath of files) {
@@ -173,11 +216,12 @@ async function main() {
   }
 
   const serverPath = join(installDir, "bin", "stareplays-mcp-server.mjs");
-  const result = await installMcpConfig({ client, homeDir, serverPath, apiBaseUrl });
+  const result = await installMcpConfig({ client, homeDir, serverPath, apiBaseUrl, cacheTtlSeconds, timeoutMs, extraCaCerts });
 
   console.log("Stareplays MCP config installed.");
   if (result.claudeConfigPath) console.log(`Claude Desktop: ${result.claudeConfigPath}`);
   if (result.codexConfigPath) console.log(`Codex: ${result.codexConfigPath}`);
+  if (extraCaCerts) console.log(`Extra CA certificates: ${extraCaCerts}`);
   console.log("Restart the target client so it reloads MCP configuration.");
 }
 

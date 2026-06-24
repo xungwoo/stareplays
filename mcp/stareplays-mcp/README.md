@@ -80,8 +80,30 @@ curl -fsSL https://raw.githubusercontent.com/xungwoo/stareplays/main/mcp/starepl
 저장소를 clone한 개발자는 로컬 파일을 직접 설정에 등록할 수 있습니다.
 
 ```bash
-node mcp/stareplays-mcp/bin/stareplays-mcp-install.mjs --client both --api-base-url https://stareplays-next-production.up.railway.app
+npx -y --package github:xungwoo/stareplays#main stareplays-mcp install --client both
 ```
+
+Codex만 설정하고 런타임 설치 위치를 지정하려면:
+
+```bash
+npx -y --package github:xungwoo/stareplays#main stareplays-mcp install \
+  --client codex \
+  --install-dir ~/.local/share/stareplays-mcp
+```
+
+기본 설치는 운영 API, 로컬 캐시 TTL 300초, API 타임아웃 10초, Node TLS용 CA bundle 자동 감지를 함께 설정합니다. 조정하려면:
+
+```bash
+npx -y --package github:xungwoo/stareplays#main stareplays-mcp install \
+  --client both \
+  --api-base-url https://stareplays-next-production.up.railway.app \
+  --install-dir ~/.local/share/stareplays-mcp \
+  --cache-ttl-seconds 300 \
+  --timeout-ms 10000 \
+  --extra-ca-certs /opt/homebrew/etc/ca-certificates/cert.pem
+```
+
+`--extra-ca-certs`는 선택값입니다. 설치 CLI는 macOS Homebrew와 일반 Linux 경로에서 CA bundle을 자동 감지해 `NODE_EXTRA_CA_CERTS`로 설정합니다. Node `fetch`가 `UNABLE_TO_GET_ISSUER_CERT_LOCALLY`를 내는 환경에서는 이 값이 필요합니다.
 
 지원 클라이언트:
 
@@ -223,7 +245,10 @@ GET https://stareplays-next-production.up.railway.app/api/team-analysis/raw?seas
       "command": "node",
       "args": ["/Users/YOU/.stareplays/mcp/stareplays-mcp/bin/stareplays-mcp-server.mjs"],
       "env": {
-        "STAREPLAYS_API_BASE_URL": "https://stareplays-next-production.up.railway.app"
+        "STAREPLAYS_API_BASE_URL": "https://stareplays-next-production.up.railway.app",
+        "STAREPLAYS_MCP_CACHE_TTL_SECONDS": "300",
+        "STAREPLAYS_MCP_TIMEOUT_MS": "10000",
+        "NODE_EXTRA_CA_CERTS": "/opt/homebrew/etc/ca-certificates/cert.pem"
       }
     }
   }
@@ -243,6 +268,9 @@ args = ["/Users/YOU/.stareplays/mcp/stareplays-mcp/bin/stareplays-mcp-server.mjs
 
 [mcp_servers.stareplays.env]
 STAREPLAYS_API_BASE_URL = "https://stareplays-next-production.up.railway.app"
+STAREPLAYS_MCP_CACHE_TTL_SECONDS = "300"
+STAREPLAYS_MCP_TIMEOUT_MS = "10000"
+NODE_EXTRA_CA_CERTS = "/opt/homebrew/etc/ca-certificates/cert.pem"
 ```
 
 `args` 경로는 원격 설치 위치 또는 clone한 저장소의 절대 경로로 바꿔야 합니다.
@@ -259,7 +287,37 @@ npx -y --package github:xungwoo/stareplays#main stareplays-mcp install --client 
 
 ```bash
 STAREPLAYS_API_BASE_URL=https://stareplays-next-production.up.railway.app \
+STAREPLAYS_MCP_CACHE_TTL_SECONDS=300 \
+STAREPLAYS_MCP_TIMEOUT_MS=10000 \
+NODE_EXTRA_CA_CERTS=/opt/homebrew/etc/ca-certificates/cert.pem \
 node ~/.stareplays/mcp/stareplays-mcp/bin/stareplays-mcp-server.mjs
+```
+
+## 캐시와 오류 처리
+
+- 캐시 위치 기본값: `~/.stareplays/mcp/cache`
+- 캐시 키: API base URL + `seasonLabel`
+- 신선한 캐시가 있으면 원격 API를 호출하지 않습니다.
+- 캐시가 만료됐고 원격 API가 실패하면 stale 캐시를 반환합니다.
+- 캐시가 없고 원격 API가 실패하면 JSON-RPC 오류를 request id와 함께 반환합니다.
+- TLS 인증서, 타임아웃, HTTP status 오류는 `error.data.code`에 분류됩니다.
+- `UNABLE_TO_GET_ISSUER_CERT_LOCALLY`가 발생하면 `NODE_EXTRA_CA_CERTS`가 MCP 서버 시작 환경에 설정됐는지 확인합니다. macOS Homebrew Node는 `/opt/homebrew/etc/ca-certificates/cert.pem`이 일반적인 값입니다.
+
+예시:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "error": {
+    "code": -32000,
+    "message": "Stareplays API TLS certificate validation failed",
+    "data": {
+      "code": "STAREPLAYS_API_TLS_CERT",
+      "status": null
+    }
+  }
+}
 ```
 
 ## 사용 예시

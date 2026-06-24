@@ -444,8 +444,10 @@ curl -fsSL https://raw.githubusercontent.com/xungwoo/stareplays/main/mcp/starepl
 저장소를 clone한 개발자용 설치:
 
 ```bash
-node mcp/stareplays-mcp/bin/stareplays-mcp-install.mjs --client both --api-base-url https://stareplays-next-production.up.railway.app
+npx -y --package github:xungwoo/stareplays#main stareplays-mcp install --client both
 ```
+
+기본 설치는 운영 API, 로컬 캐시 TTL 300초, API 타임아웃 10초, Node TLS용 CA bundle 자동 감지를 함께 설정합니다.
 
 설치 후 Claude Desktop 또는 Codex를 재시작하면 `get_team_analysis_raw`, `get_team_analysis_prompt_bundle`, `analyze_team_matchups`를 사용할 수 있습니다. raw endpoint 데이터 구조, 설치 방식 선택, 수동 설정, 제거, 문제 해결은 `mcp/stareplays-mcp/README.md`를 기준으로 관리합니다.
 
