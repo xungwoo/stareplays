@@ -12,3 +12,4 @@
 
 - 현재 시스템 구조와 기능 명세는 상위 `docs/architecture.md`, `docs/spec.md`를 기준으로 봅니다.
 - 이 디렉토리 문서는 "어떻게 구현했고 어떻게 검증했는가"를 추적하는 용도입니다.
+- 문서 안의 `frontend/web`, `analyzer.html`, legacy UI 기준 문장은 작성 당시의 검증 환경을 뜻합니다. 현재 운영 웹 기준은 `frontend/app-next`와 Railway `stareplays-next`입니다.

@@ -295,9 +295,16 @@ multipart/form-data:
 
 ### 2) 게임 목록
 
-`GET /games?limit=10&offset=0`
+`GET /games?limit=10&offset=0&season_label=시즌8`
 
 - 응답에 `reliability_summaries` 포함 (`m_of_n`, `reliability`)
+- `season_label`로 시즌 게임만 조회 가능
+
+### 2-1) Replay hash 목록
+
+`GET /games/replay-file-hashes`
+
+- 대량 업로드 도구가 이미 업로드된 replay hash를 확인하는 용도
 
 ### 3) 게임 상세
 
@@ -319,7 +326,7 @@ multipart/form-data:
 - API 응답의 `analyzer_version`은 DB/job 버전(`REPLAY_ANALYZER_VERSION`)입니다.
 - analyzer 산출물 `metadata.json`의 `analyzer_version`, `analysis_contract_version`은 현재 API에 별도 노출되지 않습니다.
 - `succeeded`일 때 `quality_report`, `summary`, `analysis_phase` 요약 반환
-- `analyzer.html`은 polling 없이 새로고침 버튼으로 상태를 갱신
+- Next `/analyzer` 화면은 polling 없이 새로고침/수동 reanalyze 버튼으로 상태를 갱신
 
 ### 5) 게임 삭제
 
@@ -354,6 +361,51 @@ multipart/form-data:
   - `sort_by`: `games`, `team_a_win_rate`, `team_b_win_rate`, `matchup`
   - `sort_dir`: `asc` | `desc`
   - `page`, `page_size` (`limit`도 하위호환으로 지원)
+
+### 10) 시즌 목록
+
+`GET /seasons`
+
+- 시즌 라벨이 있는 게임을 시즌별로 묶어 반환
+- 현재 설정된 시즌과 시즌별 경기 목록/분석 요약 포함
+
+### 11) 현재 시즌 설정
+
+`PUT /seasons/current`
+
+```json
+{
+  "season_label": "시즌8",
+  "season_no": 8
+}
+```
+
+- 이후 replay 업로드에 기본 적용할 시즌 설정
+
+### 12) 게임 시즌 수정
+
+`PUT /games/:id/season`
+
+```json
+{
+  "season_label": "시즌8",
+  "season_no": 8
+}
+```
+
+- 이미 저장된 게임의 시즌 메타데이터 수정
+
+## Next raw endpoint
+
+기본 URL: `http://localhost:3100`
+
+`GET /api/team-analysis/raw`
+
+`GET /api/team-analysis/raw?season_label=시즌7`
+
+- MCP/LLM 분석용 raw JSON
+- 현재 별도 인증 없음
+- 응답 계약은 `mcp/stareplays-mcp/README.md`의 “Raw endpoint 데이터” 섹션 기준
 
 ## 실행
 

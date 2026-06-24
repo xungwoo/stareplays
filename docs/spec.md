@@ -22,18 +22,20 @@
 5. snapshot 기반 3v3 랭킹
 6. snapshot 기반 종족 조합 승률 분석
 7. 비동기 replay analyzer 상태/결과 조회
+8. 시즌 라벨 설정과 시즌별 전적 조회
+9. Next.js 대시보드와 MCP/LLM용 팀 분석 raw endpoint
 
 현재 범위 밖:
 
 - 기존 DB 데이터 일괄 backfill
-- `frontend/app-next` 운영 전환
 - analyzer 자동 polling
 
 ## 현재 운영 UI
 
-- 운영 웹 엔트리포인트는 `frontend/web`입니다.
-- `frontend/app-next`는 운영 트래픽을 받지 않습니다.
+- 운영 웹 엔트리포인트는 Railway `stareplays-next` 서비스의 `frontend/app-next`입니다.
+- `frontend/web`은 legacy UI 참고용으로 유지합니다.
 - `Analyzer` 화면은 polling 없이 수동 새로고침으로 analyzer 상태를 갱신합니다.
+- `/api/team-analysis/raw`는 MCP/LLM 분석용 raw JSON을 제공합니다.
 
 ## 도메인 규칙
 
@@ -130,6 +132,7 @@
   - `limit` 기본 `10`, 최대 `100`
   - `offset` 기본 `0`
   - `user_name` 선택
+  - `season_label` 선택
 
 응답 특성:
 
@@ -137,6 +140,12 @@
 - `total`
 - `reliability_summaries`
 - `analysis_statuses`
+
+### 5-1. List Replay File Hashes
+
+- `GET /api/v1/games/replay-file-hashes`
+- 목적:
+  - 대량 업로드 도구가 이미 업로드된 replay hash를 확인해 중복 업로드를 피할 수 있게 합니다.
 
 ### 6. Get Game
 
@@ -233,6 +242,58 @@
 
 - 이 API도 snapshot 기반입니다.
 - `analyzer_race_matchups`가 준비되지 않으면 `503`이 날 수 있습니다.
+
+### 14. Seasons
+
+- `GET /api/v1/seasons`
+- 목적:
+  - 시즌 라벨이 있는 게임을 시즌별로 묶어 반환합니다.
+  - 각 시즌의 경기 목록, 승패, replay analyzer 기반 시즌 분석 지표를 포함합니다.
+  - 현재 설정된 시즌도 함께 반환합니다.
+
+### 15. Set Current Season
+
+- `PUT /api/v1/seasons/current`
+- 요청 body:
+
+```json
+{
+  "season_label": "시즌8",
+  "season_no": 8
+}
+```
+
+- 목적:
+  - 이후 replay 업로드 시 기본 적용할 시즌을 설정합니다.
+
+### 16. Set Game Season
+
+- `PUT /api/v1/games/:id/season`
+- 요청 body:
+
+```json
+{
+  "season_label": "시즌8",
+  "season_no": 8
+}
+```
+
+- 목적:
+  - 이미 저장된 특정 게임의 시즌 메타데이터를 수정합니다.
+
+## Next raw endpoint
+
+Next.js 앱은 MCP/LLM 분석용 raw endpoint를 제공합니다.
+
+- `GET /api/team-analysis/raw`
+- `GET /api/team-analysis/raw?season_label=시즌7`
+
+특성:
+
+- Fiber `/api/v1`가 아니라 `stareplays-next`의 Next route입니다.
+- 현재 별도 인증 없이 JSON을 반환합니다.
+- 응답에는 `schemaVersion`, `generatedAt`, `scope`, `source`, `analysis`, `llm`이 포함됩니다.
+- 상세 데이터 계약은 `mcp/stareplays-mcp/README.md`에서 관리합니다.
 
 ## 백그라운드 작업 명세
 

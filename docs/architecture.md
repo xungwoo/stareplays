@@ -15,15 +15,17 @@
 
 ## 현재 운영 범위
 
-- 운영 웹 UI는 `frontend/web`만 사용합니다.
-- `frontend/app-next`는 저장소에 존재하지만 현재 운영 트래픽을 받지 않습니다.
+- 운영 웹 UI는 Railway `stareplays-next` 서비스의 `frontend/app-next`가 담당합니다.
+- `frontend/web`은 legacy 동작과 표현을 참고하기 위한 정적 UI로 남아 있습니다.
+- Fiber API 서버인 `stareplays`도 legacy web 정적 파일을 서빙할 수 있지만, 현재 운영 대시보드의 기준은 Next 앱입니다.
 - replay analyzer 통합은 운영 연결 및 실제 업로드 E2E 검증까지 완료된 상태입니다.
 
 ## 상위 구조
 
 ```text
 Browser
-  -> stareplays (public API + legacy web static hosting)
+  -> stareplays-next (Next.js dashboard + /api/team-analysis/raw)
+       -> stareplays (public API)
        -> Postgres
        -> replay-bucket (S3-compatible Railway Bucket)
        -> pg_notify(replay_analysis_jobs)
@@ -49,30 +51,36 @@ analyzer-job (cron)
 1. `stareplays`
 - 공개 서비스입니다.
 - Fiber API 서버를 실행합니다.
-- `frontend/web` 정적 파일을 `/` 아래에서 함께 제공합니다.
+- legacy `frontend/web` 정적 파일을 `/` 아래에서 함께 제공할 수 있습니다.
 - 신규 replay 업로드를 받아 DB 저장, bucket 저장, analyzer enqueue를 담당합니다.
 
-2. `Postgres`
+2. `stareplays-next`
+- 공개 Next.js 대시보드 서비스입니다.
+- `frontend/app-next`를 빌드/실행합니다.
+- `/`, `/vault`, `/analyzer`, `/rankings`, `/team-analysis`, `/seasons` 화면을 제공합니다.
+- `/api/team-analysis/raw`를 통해 MCP/LLM용 팀 분석 raw JSON을 제공합니다.
+
+3. `Postgres`
 - 핵심 영속 저장소입니다.
 - 게임, 플레이어, 상세 데이터, 업로드 이력, analyzer queue/result, snapshot 데이터를 보관합니다.
 
-3. `replay-bucket`
+4. `replay-bucket`
 - 신규 업로드 replay 원본 저장소입니다.
 - object key는 `replays/{file_hash}.rep` 형식입니다.
 
-4. `replay_analyzer`
+5. `replay_analyzer`
 - 공개 서비스가 아닌 private worker 서비스입니다.
 - 기존 analyzer 전용 서비스를 `stareplays`의 worker 이미지로 재목적화했습니다.
 - `backend/Dockerfile.replay-analyzer-worker`로 빌드합니다.
 - `replay_analyzer-volume`을 `/data`에 mount 하고, MPQ 자산은 `/data/mpq`에서 재사용합니다.
 
-5. `ranking-job`
+6. `ranking-job`
 - snapshot 기반 3v3 랭킹 데이터를 주기적으로 재생성합니다.
 
-6. `analyzer-job`
+7. `analyzer-job`
 - snapshot 기반 종족 조합 승률 데이터를 주기적으로 재생성합니다.
 
-7. `migration-job`
+8. `migration-job`
 - steady-state 필수 서비스는 아니며, 필요 시에만 사용하는 유지보수/마이그레이션용 서비스입니다.
 
 ## 핵심 저장 모델
@@ -159,11 +167,18 @@ worker started
 ### `stareplays`
 
 - HTTP API
-- legacy web 제공
+- legacy web 정적 파일 제공 가능
 - replay 업로드 파싱
 - reliability 모델 계산
 - bucket 업로드
 - analyzer enqueue
+
+### `stareplays-next`
+
+- 운영 Next.js 대시보드
+- API-backed page model 생성
+- 팀/시즌/랭킹/분석 화면 제공
+- MCP raw endpoint 제공
 
 ### `replay_analyzer`
 
@@ -199,5 +214,5 @@ worker started
 ## 현재 상태 요약
 
 - replay analyzer 통합은 코드/로컬/운영 E2E까지 완료되었습니다.
-- 운영 UI는 `frontend/web` 기준입니다.
-- Next.js 전환은 별도 작업이며 현재 아키텍처의 production path에 포함되지 않습니다.
+- 운영 UI는 `frontend/app-next` 기반 `stareplays-next` 기준입니다.
+- `frontend/web`은 legacy 참고용으로 유지합니다.
