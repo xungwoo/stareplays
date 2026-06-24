@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -31,15 +31,44 @@ async function readTextIfExists(path) {
   }
 }
 
-function mcpEnv({ apiBaseUrl, cacheTtlSeconds, timeoutMs }) {
-  return {
+const defaultExtraCaCertPaths = [
+  "/opt/homebrew/etc/ca-certificates/cert.pem",
+  "/usr/local/etc/ca-certificates/cert.pem",
+  "/etc/ssl/cert.pem",
+  "/etc/ssl/certs/ca-certificates.crt"
+];
+
+async function fileExists(path) {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function detectExtraCaCerts() {
+  for (const path of defaultExtraCaCertPaths) {
+    if (await fileExists(path)) return path;
+  }
+  return null;
+}
+
+function mcpEnv({ apiBaseUrl, cacheTtlSeconds, timeoutMs, extraCaCerts }) {
+  const env = {
     STAREPLAYS_API_BASE_URL: apiBaseUrl,
     STAREPLAYS_MCP_CACHE_TTL_SECONDS: String(cacheTtlSeconds),
     STAREPLAYS_MCP_TIMEOUT_MS: String(timeoutMs)
   };
+
+  if (extraCaCerts) {
+    env.NODE_EXTRA_CA_CERTS = extraCaCerts;
+  }
+
+  return env;
 }
 
-async function writeClaudeConfig({ homeDir, serverPath, apiBaseUrl, cacheTtlSeconds, timeoutMs }) {
+async function writeClaudeConfig({ homeDir, serverPath, apiBaseUrl, cacheTtlSeconds, timeoutMs, extraCaCerts }) {
   const configPath = join(homeDir, "Library", "Application Support", "Claude", "claude_desktop_config.json");
   const config = await readJsonIfExists(configPath, {});
   config.mcpServers = {
@@ -47,7 +76,7 @@ async function writeClaudeConfig({ homeDir, serverPath, apiBaseUrl, cacheTtlSeco
     stareplays: {
       command: "node",
       args: [serverPath],
-      env: mcpEnv({ apiBaseUrl, cacheTtlSeconds, timeoutMs })
+      env: mcpEnv({ apiBaseUrl, cacheTtlSeconds, timeoutMs, extraCaCerts })
     }
   };
 
@@ -64,7 +93,7 @@ function replaceMarkedBlock(text, block) {
   return pattern.test(text) ? text.replace(pattern, nextBlock) : `${text.trimEnd()}\n\n${nextBlock}`;
 }
 
-async function writeCodexConfig({ homeDir, serverPath, apiBaseUrl, cacheTtlSeconds, timeoutMs }) {
+async function writeCodexConfig({ homeDir, serverPath, apiBaseUrl, cacheTtlSeconds, timeoutMs, extraCaCerts }) {
   const configPath = join(homeDir, ".codex", "config.toml");
   const current = await readTextIfExists(configPath);
   const block = [
@@ -74,7 +103,8 @@ async function writeCodexConfig({ homeDir, serverPath, apiBaseUrl, cacheTtlSecon
     `[mcp_servers.stareplays.env]`,
     `STAREPLAYS_API_BASE_URL = ${jsonString(apiBaseUrl)}`,
     `STAREPLAYS_MCP_CACHE_TTL_SECONDS = ${jsonString(String(cacheTtlSeconds))}`,
-    `STAREPLAYS_MCP_TIMEOUT_MS = ${jsonString(String(timeoutMs))}`
+    `STAREPLAYS_MCP_TIMEOUT_MS = ${jsonString(String(timeoutMs))}`,
+    ...(extraCaCerts ? [`NODE_EXTRA_CA_CERTS = ${jsonString(extraCaCerts)}`] : [])
   ].join("\n");
 
   await mkdir(dirname(configPath), { recursive: true });
@@ -89,21 +119,25 @@ export async function installMcpConfig({
   serverPath = defaultServerPath(),
   apiBaseUrl = DEFAULT_API_BASE_URL,
   cacheTtlSeconds = DEFAULT_CACHE_TTL_SECONDS,
-  timeoutMs = DEFAULT_TIMEOUT_MS
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+  extraCaCerts = process.env.STAREPLAYS_MCP_EXTRA_CA_CERTS || process.env.NODE_EXTRA_CA_CERTS || undefined
 } = {}) {
   if (!homeDir) throw new Error("HOME directory is required");
 
+  const resolvedExtraCaCerts = extraCaCerts === undefined ? await detectExtraCaCerts() : extraCaCerts;
+
   const result = {
     claudeConfigPath: null,
-    codexConfigPath: null
+    codexConfigPath: null,
+    extraCaCerts: resolvedExtraCaCerts || null
   };
 
   if (client === "claude" || client === "both") {
-    result.claudeConfigPath = await writeClaudeConfig({ homeDir, serverPath, apiBaseUrl, cacheTtlSeconds, timeoutMs });
+    result.claudeConfigPath = await writeClaudeConfig({ homeDir, serverPath, apiBaseUrl, cacheTtlSeconds, timeoutMs, extraCaCerts: resolvedExtraCaCerts });
   }
 
   if (client === "codex" || client === "both") {
-    result.codexConfigPath = await writeCodexConfig({ homeDir, serverPath, apiBaseUrl, cacheTtlSeconds, timeoutMs });
+    result.codexConfigPath = await writeCodexConfig({ homeDir, serverPath, apiBaseUrl, cacheTtlSeconds, timeoutMs, extraCaCerts: resolvedExtraCaCerts });
   }
 
   return result;

@@ -2,6 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Mandatory Deployment Guidance
+
+Before any Railway production deployment, read `docs/RAILWAY_DEPLOYMENT_GUIDE.md`.
+
+The critical rule is that `stareplays-next` must be deployed with `railway up frontend/app-next --path-as-root --service stareplays-next --environment production`. Deploying it from the repository root makes Railway miss `frontend/app-next/railway.toml`, fall back to default detection, and can create a failed production deployment.
+
 ## Project Overview
 
 stareplays is a StarCraft replay statistics and analysis API built with Go. The application parses StarCraft replay files (.rep), extracts game data, stores it in PostgreSQL, and provides a REST API for querying player statistics and game history.

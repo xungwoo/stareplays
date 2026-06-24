@@ -36,8 +36,11 @@ node mcp/stareplays-mcp/bin/stareplays-mcp-install.mjs \
   --client both \
   --api-base-url https://stareplays-next-production.up.railway.app \
   --cache-ttl-seconds 300 \
-  --timeout-ms 10000
+  --timeout-ms 10000 \
+  --extra-ca-certs /opt/homebrew/etc/ca-certificates/cert.pem
 ```
+
+`--extra-ca-certs`는 선택값입니다. 설치 CLI는 macOS Homebrew와 일반 Linux 경로에서 CA bundle을 자동 감지해 `NODE_EXTRA_CA_CERTS`로 설정합니다. Node `fetch`가 `UNABLE_TO_GET_ISSUER_CERT_LOCALLY`를 내는 환경에서는 이 값이 필요합니다.
 
 지원 클라이언트:
 
@@ -83,7 +86,8 @@ curl -s https://stareplays-next-production.up.railway.app/api/team-analysis/raw 
       "env": {
         "STAREPLAYS_API_BASE_URL": "https://stareplays-next-production.up.railway.app",
         "STAREPLAYS_MCP_CACHE_TTL_SECONDS": "300",
-        "STAREPLAYS_MCP_TIMEOUT_MS": "10000"
+        "STAREPLAYS_MCP_TIMEOUT_MS": "10000",
+        "NODE_EXTRA_CA_CERTS": "/opt/homebrew/etc/ca-certificates/cert.pem"
       }
     }
   }
@@ -105,6 +109,7 @@ args = ["/ABSOLUTE/PATH/TO/stareplays/mcp/stareplays-mcp/bin/stareplays-mcp-serv
 STAREPLAYS_API_BASE_URL = "https://stareplays-next-production.up.railway.app"
 STAREPLAYS_MCP_CACHE_TTL_SECONDS = "300"
 STAREPLAYS_MCP_TIMEOUT_MS = "10000"
+NODE_EXTRA_CA_CERTS = "/opt/homebrew/etc/ca-certificates/cert.pem"
 ```
 
 `args` 경로는 clone한 저장소의 절대 경로로 바꿔야 합니다.
@@ -123,6 +128,7 @@ node mcp/stareplays-mcp/bin/stareplays-mcp-install.mjs --client both --api-base-
 STAREPLAYS_API_BASE_URL=https://stareplays-next-production.up.railway.app \
 STAREPLAYS_MCP_CACHE_TTL_SECONDS=300 \
 STAREPLAYS_MCP_TIMEOUT_MS=10000 \
+NODE_EXTRA_CA_CERTS=/opt/homebrew/etc/ca-certificates/cert.pem \
 node mcp/stareplays-mcp/bin/stareplays-mcp-server.mjs
 ```
 
@@ -134,6 +140,7 @@ node mcp/stareplays-mcp/bin/stareplays-mcp-server.mjs
 - 캐시가 만료됐고 원격 API가 실패하면 stale 캐시를 반환합니다.
 - 캐시가 없고 원격 API가 실패하면 JSON-RPC 오류를 request id와 함께 반환합니다.
 - TLS 인증서, 타임아웃, HTTP status 오류는 `error.data.code`에 분류됩니다.
+- `UNABLE_TO_GET_ISSUER_CERT_LOCALLY`가 발생하면 `NODE_EXTRA_CA_CERTS`가 MCP 서버 시작 환경에 설정됐는지 확인합니다. macOS Homebrew Node는 `/opt/homebrew/etc/ca-certificates/cert.pem`이 일반적인 값입니다.
 
 예시:
 
