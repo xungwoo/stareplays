@@ -160,6 +160,12 @@ Railway service:
 - Start command: `npm run start`
 - Healthcheck path: `/team-analysis`
 
+배포 전 조건:
+
+- feature branch 작업이 `main`에 병합되어 있어야 합니다.
+- `main`이 `origin/main`과 같아야 합니다.
+- 자세한 절차는 루트의 `AGENTS.md`, `CLAUDE.md`, `docs/RAILWAY_DEPLOYMENT_GUIDE.md`를 따릅니다.
+
 수동 배포:
 
 ```bash
@@ -167,5 +173,26 @@ railway up frontend/app-next \
   --path-as-root \
   --service stareplays-next \
   --environment production \
+  --detach \
   --message "Deploy dashboard update"
 ```
+
+임시 worktree에서 Railway project link가 없으면 project id를 명시합니다.
+
+```bash
+railway up frontend/app-next \
+  --path-as-root \
+  --project 838683d6-9fb8-41d6-ad8a-1075e4d00196 \
+  --service stareplays-next \
+  --environment production \
+  --detach \
+  --message "Deploy dashboard update"
+```
+
+금지:
+
+```bash
+railway up --service stareplays-next --environment production
+```
+
+레포 루트에서 `stareplays-next`를 배포하면 `frontend/app-next/railway.toml`을 읽지 못하고 Railpack 기본 감지로 실패할 수 있습니다.

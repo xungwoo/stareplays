@@ -6,10 +6,12 @@
 - [spec.md](spec.md): 현재 기능 명세, 도메인 규칙, API/백그라운드 작업 동작
 - [frontend-next-architecture.md](frontend-next-architecture.md): 운영 Next.js 프런트 구조와 데이터 흐름
 - [starprojects-railway-overview.md](starprojects-railway-overview.md): StarProjects GitHub 레포지토리와 Railway 배포 모듈 관계
+- [RAILWAY_DEPLOYMENT_GUIDE.md](RAILWAY_DEPLOYMENT_GUIDE.md): feature branch → main 병합 → Railway production 배포 절차와 실패 복구 기준
 
 보조 원칙:
 
 - 현재 런타임/운영 동작을 설명하는 문서는 위 두 파일을 기준으로 유지합니다.
+- Claude/Codex 작업 사이클은 루트의 `AGENTS.md`와 `CLAUDE.md`를 기준으로 유지합니다.
 - 구현 중간 과정, 검증 로그, 임시 runbook, 완료된 TODO 문서는 [histories](histories/README.md) 아래에 보관합니다.
 - 아직 끝나지 않은 작업 계획 문서는 루트의 `TODO_*.md`를 유지합니다.
 
