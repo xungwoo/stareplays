@@ -37,7 +37,9 @@ function usage() {
     "Usage: node stareplays-mcp-remote-install.mjs [options]",
     "",
     "Options:",
-    "  --client claude|codex|both       MCP client config to update. Default: both",
+    "  --client claude-desktop|claude-code|codex|both|all",
+    "                                   MCP client config to update. Default: both",
+    "                                   both = Claude Desktop + Codex",
     "  --api-base-url <url>             Stareplays app base URL. Default: production",
     "  --install-dir <path>             Install directory. Default: ~/.stareplays/mcp/stareplays-mcp",
     "  --cache-ttl-seconds <seconds>    Local cache TTL. Default: 300",
@@ -168,22 +170,69 @@ async function writeCodexConfig({ homeDir, serverPath, apiBaseUrl, cacheTtlSecon
   return configPath;
 }
 
-async function installMcpConfig({ client, homeDir, serverPath, apiBaseUrl, cacheTtlSeconds, timeoutMs, extraCaCerts }) {
-  if (!["claude", "codex", "both"].includes(client)) {
-    throw new Error(`Unsupported --client value: ${client}`);
-  }
+async function writeClaudeCodeConfig({ homeDir, projectDir, serverPath, apiBaseUrl, cacheTtlSeconds, timeoutMs, extraCaCerts }) {
+  const configPath = join(homeDir, ".claude.json");
+  const config = await readJsonIfExists(configPath, {});
+  const currentProject = config.projects?.[projectDir] ?? {};
 
-  const result = {
-    claudeConfigPath: null,
-    codexConfigPath: null
+  config.projects = {
+    ...(config.projects ?? {}),
+    [projectDir]: {
+      ...currentProject,
+      mcpServers: {
+        ...(currentProject.mcpServers ?? {}),
+        stareplays: {
+          type: "stdio",
+          command: "node",
+          args: [serverPath],
+          env: mcpEnv({ apiBaseUrl, cacheTtlSeconds, timeoutMs, extraCaCerts })
+        }
+      }
+    }
   };
 
-  if (client === "claude" || client === "both") {
+  await mkdir(dirname(configPath), { recursive: true });
+  await writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`);
+
+  return configPath;
+}
+
+function selectedClients(client) {
+  switch (client) {
+    case "claude":
+    case "claude-desktop":
+      return { claudeDesktop: true, codex: false, claudeCode: false };
+    case "codex":
+      return { claudeDesktop: false, codex: true, claudeCode: false };
+    case "claude-code":
+      return { claudeDesktop: false, codex: false, claudeCode: true };
+    case "both":
+      return { claudeDesktop: true, codex: true, claudeCode: false };
+    case "all":
+      return { claudeDesktop: true, codex: true, claudeCode: true };
+    default:
+      throw new Error(`Unsupported --client value: ${client}. Use claude-desktop, claude-code, codex, both, or all.`);
+  }
+}
+
+async function installMcpConfig({ client, homeDir, projectDir, serverPath, apiBaseUrl, cacheTtlSeconds, timeoutMs, extraCaCerts }) {
+  const result = {
+    claudeConfigPath: null,
+    codexConfigPath: null,
+    claudeCodeConfigPath: null
+  };
+  const targets = selectedClients(client);
+
+  if (targets.claudeDesktop) {
     result.claudeConfigPath = await writeClaudeConfig({ homeDir, serverPath, apiBaseUrl, cacheTtlSeconds, timeoutMs, extraCaCerts });
   }
 
-  if (client === "codex" || client === "both") {
+  if (targets.codex) {
     result.codexConfigPath = await writeCodexConfig({ homeDir, serverPath, apiBaseUrl, cacheTtlSeconds, timeoutMs, extraCaCerts });
+  }
+
+  if (targets.claudeCode) {
+    result.claudeCodeConfigPath = await writeClaudeCodeConfig({ homeDir, projectDir, serverPath, apiBaseUrl, cacheTtlSeconds, timeoutMs, extraCaCerts });
   }
 
   return result;
@@ -216,11 +265,12 @@ async function main() {
   }
 
   const serverPath = join(installDir, "bin", "stareplays-mcp-server.mjs");
-  const result = await installMcpConfig({ client, homeDir, serverPath, apiBaseUrl, cacheTtlSeconds, timeoutMs, extraCaCerts });
+  const result = await installMcpConfig({ client, homeDir, projectDir: process.cwd(), serverPath, apiBaseUrl, cacheTtlSeconds, timeoutMs, extraCaCerts });
 
   console.log("Stareplays MCP config installed.");
   if (result.claudeConfigPath) console.log(`Claude Desktop: ${result.claudeConfigPath}`);
   if (result.codexConfigPath) console.log(`Codex: ${result.codexConfigPath}`);
+  if (result.claudeCodeConfigPath) console.log(`Claude Code: ${result.claudeCodeConfigPath}`);
   if (extraCaCerts) console.log(`Extra CA certificates: ${extraCaCerts}`);
   console.log("Restart the target client so it reloads MCP configuration.");
 }
