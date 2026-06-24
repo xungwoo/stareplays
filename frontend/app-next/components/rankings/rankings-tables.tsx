@@ -363,12 +363,11 @@ function RaceRankingPanel({ race, rows }: { race: RaceRankingRow["race"]; rows: 
         )}
         <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-slate-300">{title}</h3>
       </div>
-      <div className="grid px-4 py-2" style={{ gridTemplateColumns: "44px 1fr 66px 82px 72px", backgroundColor: "rgba(8,20,40,0.72)" }}>
+      <div className="grid px-4 py-2" style={{ gridTemplateColumns: "44px minmax(92px,1fr) 132px 78px", backgroundColor: "rgba(8,20,40,0.72)" }}>
         <span className="text-[10px] font-mono font-semibold uppercase text-slate-600">R</span>
         <span className="text-[10px] font-mono font-semibold uppercase text-slate-600">USER</span>
-        <span className="text-[10px] font-mono font-semibold uppercase text-slate-600">G</span>
-        <span className="text-[10px] font-mono font-semibold uppercase text-slate-600">WIN%</span>
-        <span className="text-[10px] font-mono font-semibold uppercase text-slate-600">APM</span>
+        <span className="text-[10px] font-mono font-semibold uppercase text-slate-600">전체 성적</span>
+        <span className="text-[10px] font-mono font-semibold uppercase text-slate-600">승률</span>
       </div>
       {rows.length === 0 ? (
         <div className="px-4 py-5 text-center text-[11px] font-mono" style={{ color: "#4A4F59" }}>
@@ -376,14 +375,18 @@ function RaceRankingPanel({ race, rows }: { race: RaceRankingRow["race"]; rows: 
         </div>
       ) : (
         rows.map((row) => (
-          <div key={`${row.race}-${row.user}`} className="grid items-center px-4 py-3 hover:bg-slate-800/30" style={{ gridTemplateColumns: "44px 1fr 66px 82px 72px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+          <div key={`${row.race}-${row.user}`} className="grid items-center px-4 py-3 hover:bg-slate-800/30" style={{ gridTemplateColumns: "44px minmax(92px,1fr) 132px 78px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
             <span className="text-xs font-mono font-bold text-slate-500">#{row.rank}</span>
             <div className="flex items-center gap-2">
               <PlayerBadge name={displayPlayerName(row.user)} compact />
             </div>
-            <span className="text-xs font-mono text-slate-300">{row.games}</span>
+            <span className="text-xs font-mono text-slate-300">
+              <span className="text-emerald-300">{row.wins}승</span>
+              <span className="text-slate-500"> </span>
+              <span className="text-rose-300">{row.losses}패</span>
+              <span className="text-slate-500"> ({row.games}경기)</span>
+            </span>
             <span className="text-xs font-mono font-semibold" style={{ color: row.winRate >= 50 ? "#34d399" : "#f87171" }}>{row.winRate.toFixed(1)}%</span>
-            <span className="text-xs font-mono font-semibold text-cyan-300">{row.avgApm.toFixed(1)}</span>
           </div>
         ))
       )}
