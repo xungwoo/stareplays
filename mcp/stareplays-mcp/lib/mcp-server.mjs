@@ -2,6 +2,7 @@ import { loadTeamAnalysisRaw } from "./client.mjs";
 import { createPromptBundle } from "./prompt-bundle.mjs";
 
 const protocolVersion = "2024-11-05";
+const serverVersion = "0.2.0";
 
 function ok(id, result) {
   return { jsonrpc: "2.0", id, result };
@@ -13,6 +14,28 @@ function error(id, code, message, data) {
 
 function textContent(text) {
   return [{ type: "text", text }];
+}
+
+function compareVersions(left, right) {
+  const leftParts = String(left ?? "0.0.0").split(".").map((part) => Number.parseInt(part, 10) || 0);
+  const rightParts = String(right ?? "0.0.0").split(".").map((part) => Number.parseInt(part, 10) || 0);
+  const length = Math.max(leftParts.length, rightParts.length);
+
+  for (let index = 0; index < length; index += 1) {
+    const delta = (leftParts[index] ?? 0) - (rightParts[index] ?? 0);
+    if (delta !== 0) return delta;
+  }
+  return 0;
+}
+
+function updateStatus(raw) {
+  const recommendedVersion = raw?.compatibility?.recommendedMcpVersion ?? serverVersion;
+  return {
+    currentVersion: serverVersion,
+    recommendedVersion,
+    updateAvailable: compareVersions(serverVersion, recommendedVersion) < 0,
+    updateCommand: "npx -y --package github:xungwoo/stareplays#main stareplays-mcp install --client all"
+  };
 }
 
 async function loadRawOrError({ id, apiBaseUrl, seasonLabel, fetchImpl, forceRefresh = false }) {
@@ -46,7 +69,7 @@ export async function handleMcpRequest({ request, apiBaseUrl, fetchImpl = fetch 
       },
       serverInfo: {
         name: "stareplays-mcp",
-        version: "0.1.0"
+        version: serverVersion
       }
     });
   }
@@ -73,6 +96,14 @@ export async function handleMcpRequest({ request, apiBaseUrl, fetchImpl = fetch 
               seasonLabel: { type: "string", description: "Optional season label, for example 시즌7." }
             }
           }
+        },
+        {
+          name: "get_mcp_update_status",
+          description: "Check whether the local Stareplays MCP runtime is older than the service-recommended version.",
+          inputSchema: {
+            type: "object",
+            properties: {}
+          }
         }
       ]
     });
@@ -81,13 +112,22 @@ export async function handleMcpRequest({ request, apiBaseUrl, fetchImpl = fetch 
   if (method === "tools/call") {
     const name = request.params?.name;
     const args = request.params?.arguments ?? {};
-    if (name !== "get_team_analysis_raw" && name !== "get_team_analysis_prompt_bundle") {
+    if (name !== "get_team_analysis_raw" && name !== "get_team_analysis_prompt_bundle" && name !== "get_mcp_update_status") {
       return error(id, -32602, `Unknown tool: ${name}`);
     }
 
     const result = await loadRawOrError({ id, apiBaseUrl, seasonLabel: args.seasonLabel, fetchImpl, forceRefresh: args.forceRefresh === true });
     if (result.error) return result;
     const raw = result.payload;
+
+    if (name === "get_mcp_update_status") {
+      return ok(id, {
+        content: textContent(JSON.stringify(updateStatus(raw), null, 2)),
+        _meta: {
+          cache: result.cache
+        }
+      });
+    }
 
     if (name === "get_team_analysis_raw") {
       return ok(id, {

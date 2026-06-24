@@ -448,6 +448,7 @@ multipart/form-data:
 - MCP/LLM 분석용 raw JSON
 - 현재 별도 인증 없음
 - 응답 계약과 MCP 도구 매핑은 `mcp/stareplays-mcp/README.md` 기준
+- raw v2는 `features.isRandomSelected`, `source.randomSelectedGames`, `analysis.summary.randomSelectedGames`, `analysis.recentMatches[].isRandomSelected`를 포함한다.
 
 ## 실행
 
@@ -491,7 +492,7 @@ npx -y --package github:xungwoo/stareplays#main stareplays-mcp install --client 
 
 기본 설치는 운영 API, 로컬 캐시 TTL 300초, API 타임아웃 10초, Node TLS용 CA bundle 자동 감지를 함께 설정합니다.
 
-설치 후 Claude Desktop, Claude Code, Codex를 재시작하면 `get_team_analysis_raw`, `get_team_analysis_prompt_bundle`, `analyze_team_matchups`를 사용할 수 있습니다. 기존 호환 옵션인 `--client both`는 Claude Desktop + Codex만 설정합니다.
+설치 후 Claude Desktop, Claude Code, Codex를 재시작하면 `get_team_analysis_raw`, `get_team_analysis_prompt_bundle`, `get_mcp_update_status`, `analyze_team_matchups`를 사용할 수 있습니다. 기존 호환 옵션인 `--client both`는 Claude Desktop + Codex만 설정합니다.
 raw endpoint 데이터 구조, 설치 방식 선택, 수동 설정, 제거, 문제 해결은 `mcp/stareplays-mcp/README.md`를 기준으로 관리합니다.
 
 ### 로컬 서버 운영 규칙 (필수)

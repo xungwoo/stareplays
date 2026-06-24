@@ -49,6 +49,10 @@ func (Game) Fields() []ent.Field {
 		field.Uint8("winner_team").
 			Default(0).
 			Comment("Computed.WinnerTeam"),
+		field.Bool("is_random_selected").
+			Default(false).
+			StructTag(`json:"is_random_selected"`).
+			Comment("Whether this game was played with Random selected by all players"),
 		field.String("season_label").
 			Optional().
 			Nillable().

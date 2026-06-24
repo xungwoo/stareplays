@@ -3,14 +3,22 @@ import type { ApiGamesListResponse } from "@/types/api";
 import type { TeamAnalysisPageModel } from "@/types/team-analysis";
 
 export interface TeamAnalysisRawPayload {
-  schemaVersion: "stareplays.team-analysis.raw.v1";
+  schemaVersion: "stareplays.team-analysis.raw.v2";
   generatedAt: string;
   scope: {
     teamSize: "3x3";
     seasonLabel: string | null;
   };
+  features: {
+    isRandomSelected: boolean;
+  };
+  compatibility: {
+    minMcpVersion: string;
+    recommendedMcpVersion: string;
+  };
   source: {
     totalGames: number;
+    randomSelectedGames: number;
     includedGameIds: number[];
     seasons: string[];
   };
@@ -18,6 +26,7 @@ export interface TeamAnalysisRawPayload {
   llm: {
     promptTitle: string;
     promptContext: string;
+    analysisGuidance: string[];
     suggestedQuestions: string[];
   };
 }
@@ -41,14 +50,22 @@ export function createTeamAnalysisRawPayload({
   const seasonText = seasonLabel ? `${seasonLabel} 기준` : "전체 시즌 기준";
 
   return {
-    schemaVersion: "stareplays.team-analysis.raw.v1",
+    schemaVersion: "stareplays.team-analysis.raw.v2",
     generatedAt,
     scope: {
       teamSize: "3x3",
       seasonLabel
     },
+    features: {
+      isRandomSelected: true
+    },
+    compatibility: {
+      minMcpVersion: "0.1.0",
+      recommendedMcpVersion: "0.2.0"
+    },
     source: {
       totalGames: games.length,
+      randomSelectedGames: games.filter((game) => game.is_random_selected === true).length,
       includedGameIds: games.map((game) => Number(game.id)).filter((id) => Number.isFinite(id)),
       seasons: uniqueSorted(games.map((game) => game.season_label))
     },
@@ -59,10 +76,17 @@ export function createTeamAnalysisRawPayload({
         "이 데이터는 StarCraft 3x3 팀 경기 raw snapshot과 파생 분석입니다.",
         "선수명은 한국어 표시명을 우선 사용합니다.",
         "답변할 때 표본 경기 수, 승률, 조합, 종족, APM/EAPM/생산능력 근거를 함께 제시하세요.",
+        "isRandomSelected는 경기 참가자들이 랜덤 선택 룰로 시작한 경기 여부입니다. 실제 종족 통계와 선택 룰을 혼동하지 마세요.",
         "Bradley-Terry와 TrueSkill은 절대 단위가 다르므로 순위나 상대 비교로 해석하세요."
       ].join("\n"),
+      analysisGuidance: [
+        "isRandomSelected=true인 경기는 실제 종족이 P/T/Z로 기록되어도 선택 룰은 랜덤입니다.",
+        "랜덤 선택 경기 수와 전체 경기 수를 함께 언급해 종족 통계의 해석 범위를 분리하세요.",
+        "selectedRace 원천 데이터가 없으면 실제 종족만으로 개별 선수의 선택 종족을 단정하지 마세요."
+      ],
       suggestedQuestions: [
         "이번 시즌 최적 3인 조합을 추천해줘.",
+        "랜덤 선택 경기와 일반 선택 경기를 구분해서 시즌 흐름을 설명해줘.",
         "승률은 낮지만 개선 가능성이 큰 선수를 찾아줘.",
         "종족 조합 기준으로 가장 안정적인 운영 패턴을 설명해줘.",
         "APM/EAPM/생산능력 지표와 실제 승률이 어긋나는 선수를 분석해줘.",

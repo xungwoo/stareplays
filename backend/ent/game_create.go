@@ -176,6 +176,20 @@ func (_c *GameCreate) SetNillableWinnerTeam(v *uint8) *GameCreate {
 	return _c
 }
 
+// SetIsRandomSelected sets the "is_random_selected" field.
+func (_c *GameCreate) SetIsRandomSelected(v bool) *GameCreate {
+	_c.mutation.SetIsRandomSelected(v)
+	return _c
+}
+
+// SetNillableIsRandomSelected sets the "is_random_selected" field if the given value is not nil.
+func (_c *GameCreate) SetNillableIsRandomSelected(v *bool) *GameCreate {
+	if v != nil {
+		_c.SetIsRandomSelected(*v)
+	}
+	return _c
+}
+
 // SetSeasonLabel sets the "season_label" field.
 func (_c *GameCreate) SetSeasonLabel(v string) *GameCreate {
 	_c.mutation.SetSeasonLabel(v)
@@ -347,6 +361,10 @@ func (_c *GameCreate) defaults() {
 		v := game.DefaultWinnerTeam
 		_c.mutation.SetWinnerTeam(v)
 	}
+	if _, ok := _c.mutation.IsRandomSelected(); !ok {
+		v := game.DefaultIsRandomSelected
+		_c.mutation.SetIsRandomSelected(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := game.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -378,6 +396,9 @@ func (_c *GameCreate) check() error {
 	}
 	if _, ok := _c.mutation.WinnerTeam(); !ok {
 		return &ValidationError{Name: "winner_team", err: errors.New(`ent: missing required field "Game.winner_team"`)}
+	}
+	if _, ok := _c.mutation.IsRandomSelected(); !ok {
+		return &ValidationError{Name: "is_random_selected", err: errors.New(`ent: missing required field "Game.is_random_selected"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "Game.created_at"`)}
@@ -458,6 +479,10 @@ func (_c *GameCreate) createSpec() (*Game, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.WinnerTeam(); ok {
 		_spec.SetField(game.FieldWinnerTeam, field.TypeUint8, value)
 		_node.WinnerTeam = value
+	}
+	if value, ok := _c.mutation.IsRandomSelected(); ok {
+		_spec.SetField(game.FieldIsRandomSelected, field.TypeBool, value)
+		_node.IsRandomSelected = value
 	}
 	if value, ok := _c.mutation.SeasonLabel(); ok {
 		_spec.SetField(game.FieldSeasonLabel, field.TypeString, value)

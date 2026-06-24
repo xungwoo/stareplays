@@ -235,6 +235,8 @@ curl -sS -D - -o /tmp/stareplays-team-analysis-raw.json \
 ```text
 HTTP=200
 cache-control: public, s-maxage=60, stale-while-revalidate=300
+schemaVersion=stareplays.team-analysis.raw.v2
+features.isRandomSelected=true
 ```
 
 ## 배포 실패 복구

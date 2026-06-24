@@ -106,12 +106,16 @@ func init() {
 	gameDescWinnerTeam := gameFields[11].Descriptor()
 	// game.DefaultWinnerTeam holds the default value on creation for the winner_team field.
 	game.DefaultWinnerTeam = gameDescWinnerTeam.Default.(uint8)
+	// gameDescIsRandomSelected is the schema descriptor for is_random_selected field.
+	gameDescIsRandomSelected := gameFields[12].Descriptor()
+	// game.DefaultIsRandomSelected holds the default value on creation for the is_random_selected field.
+	game.DefaultIsRandomSelected = gameDescIsRandomSelected.Default.(bool)
 	// gameDescCreatedAt is the schema descriptor for created_at field.
-	gameDescCreatedAt := gameFields[14].Descriptor()
+	gameDescCreatedAt := gameFields[15].Descriptor()
 	// game.DefaultCreatedAt holds the default value on creation for the created_at field.
 	game.DefaultCreatedAt = gameDescCreatedAt.Default.(func() time.Time)
 	// gameDescUpdatedAt is the schema descriptor for updated_at field.
-	gameDescUpdatedAt := gameFields[15].Descriptor()
+	gameDescUpdatedAt := gameFields[16].Descriptor()
 	// game.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	game.DefaultUpdatedAt = gameDescUpdatedAt.Default.(func() time.Time)
 	// game.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

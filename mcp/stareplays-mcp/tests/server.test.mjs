@@ -7,13 +7,16 @@ test("lists stareplays tools and serves a prompt bundle through tool calls", asy
   const fetchImpl = async () => ({
     ok: true,
     json: async () => ({
-      schemaVersion: "stareplays.team-analysis.raw.v1",
+      schemaVersion: "stareplays.team-analysis.raw.v2",
+      compatibility: { recommendedMcpVersion: "0.2.0" },
+      source: { randomSelectedGames: 6 },
       analysis: {
-        summary: { gamesAnalyzed: 12, topPlayer: "성우" },
+        summary: { gamesAnalyzed: 12, topPlayer: "성우", randomSelectedGames: 6 },
         players: [{ name: "성우", winRate: 66.7 }]
       },
       llm: {
         promptTitle: "3x3 팀 전적 분석",
+        analysisGuidance: ["isRandomSelected=true면 랜덤 선택 경기로 해석하세요."],
         suggestedQuestions: ["최적 조합을 추천해줘"]
       }
     })
@@ -39,7 +42,36 @@ test("lists stareplays tools and serves a prompt bundle through tool calls", asy
   });
 
   assert.match(prompt.result.content[0].text, /시즌7/);
+  assert.match(prompt.result.content[0].text, /랜덤 선택 경기: 6/);
+  assert.match(prompt.result.content[0].text, /isRandomSelected=true/);
   assert.match(prompt.result.content[0].text, /최적 조합을 추천해줘/);
+});
+
+test("reports MCP update status from raw compatibility metadata", async () => {
+  const fetchImpl = async () => ({
+    ok: true,
+    json: async () => ({
+      schemaVersion: "stareplays.team-analysis.raw.v2",
+      compatibility: { recommendedMcpVersion: "0.3.0" }
+    })
+  });
+
+  const response = await handleMcpRequest({
+    request: {
+      jsonrpc: "2.0",
+      id: 3,
+      method: "tools/call",
+      params: { name: "get_mcp_update_status", arguments: {} }
+    },
+    apiBaseUrl: "https://stareplays.example",
+    fetchImpl
+  });
+
+  const status = JSON.parse(response.result.content[0].text);
+  assert.equal(status.currentVersion, "0.2.0");
+  assert.equal(status.recommendedVersion, "0.3.0");
+  assert.equal(status.updateAvailable, true);
+  assert.match(status.updateCommand, /stareplays-mcp install/);
 });
 
 test("returns request-scoped API errors from tool calls", async () => {

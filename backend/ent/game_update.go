@@ -284,6 +284,20 @@ func (_u *GameUpdate) AddWinnerTeam(v int8) *GameUpdate {
 	return _u
 }
 
+// SetIsRandomSelected sets the "is_random_selected" field.
+func (_u *GameUpdate) SetIsRandomSelected(v bool) *GameUpdate {
+	_u.mutation.SetIsRandomSelected(v)
+	return _u
+}
+
+// SetNillableIsRandomSelected sets the "is_random_selected" field if the given value is not nil.
+func (_u *GameUpdate) SetNillableIsRandomSelected(v *bool) *GameUpdate {
+	if v != nil {
+		_u.SetIsRandomSelected(*v)
+	}
+	return _u
+}
+
 // SetSeasonLabel sets the "season_label" field.
 func (_u *GameUpdate) SetSeasonLabel(v string) *GameUpdate {
 	_u.mutation.SetSeasonLabel(v)
@@ -596,6 +610,9 @@ func (_u *GameUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AddedWinnerTeam(); ok {
 		_spec.AddField(game.FieldWinnerTeam, field.TypeUint8, value)
+	}
+	if value, ok := _u.mutation.IsRandomSelected(); ok {
+		_spec.SetField(game.FieldIsRandomSelected, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.SeasonLabel(); ok {
 		_spec.SetField(game.FieldSeasonLabel, field.TypeString, value)
@@ -1035,6 +1052,20 @@ func (_u *GameUpdateOne) AddWinnerTeam(v int8) *GameUpdateOne {
 	return _u
 }
 
+// SetIsRandomSelected sets the "is_random_selected" field.
+func (_u *GameUpdateOne) SetIsRandomSelected(v bool) *GameUpdateOne {
+	_u.mutation.SetIsRandomSelected(v)
+	return _u
+}
+
+// SetNillableIsRandomSelected sets the "is_random_selected" field if the given value is not nil.
+func (_u *GameUpdateOne) SetNillableIsRandomSelected(v *bool) *GameUpdateOne {
+	if v != nil {
+		_u.SetIsRandomSelected(*v)
+	}
+	return _u
+}
+
 // SetSeasonLabel sets the "season_label" field.
 func (_u *GameUpdateOne) SetSeasonLabel(v string) *GameUpdateOne {
 	_u.mutation.SetSeasonLabel(v)
@@ -1377,6 +1408,9 @@ func (_u *GameUpdateOne) sqlSave(ctx context.Context) (_node *Game, err error) {
 	}
 	if value, ok := _u.mutation.AddedWinnerTeam(); ok {
 		_spec.AddField(game.FieldWinnerTeam, field.TypeUint8, value)
+	}
+	if value, ok := _u.mutation.IsRandomSelected(); ok {
+		_spec.SetField(game.FieldIsRandomSelected, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.SeasonLabel(); ok {
 		_spec.SetField(game.FieldSeasonLabel, field.TypeString, value)

@@ -115,6 +115,11 @@ func WinnerTeam(v uint8) predicate.Game {
 	return predicate.Game(sql.FieldEQ(FieldWinnerTeam, v))
 }
 
+// IsRandomSelected applies equality check predicate on the "is_random_selected" field. It's identical to IsRandomSelectedEQ.
+func IsRandomSelected(v bool) predicate.Game {
+	return predicate.Game(sql.FieldEQ(FieldIsRandomSelected, v))
+}
+
 // SeasonLabel applies equality check predicate on the "season_label" field. It's identical to SeasonLabelEQ.
 func SeasonLabel(v string) predicate.Game {
 	return predicate.Game(sql.FieldEQ(FieldSeasonLabel, v))
@@ -808,6 +813,16 @@ func WinnerTeamLT(v uint8) predicate.Game {
 // WinnerTeamLTE applies the LTE predicate on the "winner_team" field.
 func WinnerTeamLTE(v uint8) predicate.Game {
 	return predicate.Game(sql.FieldLTE(FieldWinnerTeam, v))
+}
+
+// IsRandomSelectedEQ applies the EQ predicate on the "is_random_selected" field.
+func IsRandomSelectedEQ(v bool) predicate.Game {
+	return predicate.Game(sql.FieldEQ(FieldIsRandomSelected, v))
+}
+
+// IsRandomSelectedNEQ applies the NEQ predicate on the "is_random_selected" field.
+func IsRandomSelectedNEQ(v bool) predicate.Game {
+	return predicate.Game(sql.FieldNEQ(FieldIsRandomSelected, v))
 }
 
 // SeasonLabelEQ applies the EQ predicate on the "season_label" field.

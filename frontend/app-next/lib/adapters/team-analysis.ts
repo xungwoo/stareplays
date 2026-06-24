@@ -26,6 +26,7 @@ type NormalizedMatch = {
   map: string;
   startTime: string;
   gameLength: number;
+  isRandomSelected: boolean;
   winner: NormalizedPlayer[];
   loser: NormalizedPlayer[];
 };
@@ -124,6 +125,7 @@ function normalizeApiGame(game: ApiGameSummary): NormalizedMatch | null {
     map: game.map_name?.trim() || "Unknown Map",
     startTime: formatStartTime(game.start_time ?? ""),
     gameLength: toNumber(game.game_length),
+    isRandomSelected: game.is_random_selected === true,
     winner,
     loser
   };
@@ -151,6 +153,7 @@ function normalizeVaultGame(game: VaultGame): NormalizedMatch | null {
     map: game.map,
     startTime: game.startTime,
     gameLength: 900,
+    isRandomSelected: false,
     winner,
     loser
   };
@@ -472,7 +475,8 @@ function buildRecentMatches(matches: NormalizedMatch[]): TeamAnalysisRecentMatch
       map: match.map,
       winner: displayLineupName(sortNames(match.winner.map((player) => player.name))),
       loser: displayLineupName(sortNames(match.loser.map((player) => player.name))),
-      startTime: match.startTime
+      startTime: match.startTime,
+      isRandomSelected: match.isRandomSelected
     }));
 }
 
@@ -737,6 +741,7 @@ export function createTeamAnalysisPageModel({ gamesResponse }: { gamesResponse?:
   const topPlayer = displayPlayers[0]?.name ?? "NO_DATA";
   const topLineup = displayLineups[0]?.players.join(" + ") ?? "NO_DATA";
   const strongestComposition = raceCompositions.find((composition) => composition.qualified)?.composition ?? "표본 부족";
+  const randomSelectedGames = matches.filter((match) => match.isRandomSelected).length;
 
   return {
     summary: {
@@ -745,7 +750,8 @@ export function createTeamAnalysisPageModel({ gamesResponse }: { gamesResponse?:
       lineupsTracked: lineups.length,
       topPlayer,
       topLineup,
-      strongestComposition
+      strongestComposition,
+      randomSelectedGames
     },
     players: displayPlayers,
     lineups: displayLineups,
