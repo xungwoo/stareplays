@@ -20,10 +20,64 @@ https://stareplays-next-production.up.railway.app/api/team-analysis/raw
 ## 사전 조건
 
 - Node.js 18 이상
-- 이 저장소를 로컬에 clone한 상태
 - Claude Desktop 또는 Codex MCP 클라이언트
 
 ## 빠른 설치
+
+소스코드를 clone하지 않고 설치하려면 npx를 사용합니다.
+
+### npm 패키지 설치
+
+```bash
+npx -y stareplays-mcp install --client both --api-base-url https://stareplays-next-production.up.railway.app
+```
+
+이 명령은 MCP 실행 파일을 `~/.stareplays/mcp/stareplays-mcp` 아래에 설치하고, Claude Desktop/Codex 설정이 그 로컬 설치 경로를 바라보도록 수정합니다. Stareplays 전체 저장소를 clone할 필요는 없습니다.
+
+### npm publish 전 GitHub 설치
+
+npm registry에 `stareplays-mcp`가 publish되기 전에는 GitHub package spec을 사용합니다.
+
+```bash
+npx -y --package github:xungwoo/stareplays#main stareplays-mcp install --client both --api-base-url https://stareplays-next-production.up.railway.app
+```
+
+설치 위치를 바꾸려면:
+
+```bash
+npx -y stareplays-mcp install --client codex --install-dir ~/.local/share/stareplays-mcp
+```
+
+로컬/스테이징 API를 바라보게 하려면:
+
+```bash
+npx -y stareplays-mcp install --client both --api-base-url http://127.0.0.1:3100
+```
+
+### npm publish 전 대체 설치
+
+`stareplays-mcp` 패키지가 아직 npm registry에 publish되지 않은 환경에서는 GitHub raw installer를 사용할 수 있습니다.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/xungwoo/stareplays/main/mcp/stareplays-mcp/bin/stareplays-mcp-remote-install.mjs \
+  | node - --client both --api-base-url https://stareplays-next-production.up.railway.app
+```
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/xungwoo/stareplays/main/mcp/stareplays-mcp/bin/stareplays-mcp-remote-install.mjs \
+  | node - --client codex --install-dir ~/.local/share/stareplays-mcp
+```
+
+특정 브랜치나 태그의 MCP 런타임을 설치하려면:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/xungwoo/stareplays/main/mcp/stareplays-mcp/bin/stareplays-mcp-remote-install.mjs \
+  | node - --ref main --client both
+```
+
+## 개발자 설치
+
+저장소를 clone한 개발자는 로컬 파일을 직접 설정에 등록할 수 있습니다.
 
 ```bash
 node mcp/stareplays-mcp/bin/stareplays-mcp-install.mjs --client both --api-base-url https://stareplays-next-production.up.railway.app
@@ -48,10 +102,12 @@ MCP 서버가 도구 목록을 반환하는지 로컬에서 확인할 수 있습
 
 ```bash
 printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' \
-  | node mcp/stareplays-mcp/bin/stareplays-mcp-server.mjs
+  | node ~/.stareplays/mcp/stareplays-mcp/bin/stareplays-mcp-server.mjs
 ```
 
 정상이라면 `get_team_analysis_raw`, `get_team_analysis_prompt_bundle`가 포함된 JSON-RPC 응답이 출력됩니다.
+
+저장소 clone 방식으로 설치했다면 `node mcp/stareplays-mcp/bin/stareplays-mcp-server.mjs`로 확인해도 됩니다.
 
 운영 raw endpoint가 응답하는지도 확인할 수 있습니다.
 
@@ -69,7 +125,7 @@ curl -s https://stareplays-next-production.up.railway.app/api/team-analysis/raw 
   "mcpServers": {
     "stareplays": {
       "command": "node",
-      "args": ["/ABSOLUTE/PATH/TO/stareplays/mcp/stareplays-mcp/bin/stareplays-mcp-server.mjs"],
+      "args": ["/Users/YOU/.stareplays/mcp/stareplays-mcp/bin/stareplays-mcp-server.mjs"],
       "env": {
         "STAREPLAYS_API_BASE_URL": "https://stareplays-next-production.up.railway.app"
       }
@@ -78,7 +134,7 @@ curl -s https://stareplays-next-production.up.railway.app/api/team-analysis/raw 
 }
 ```
 
-`args` 경로는 clone한 저장소의 절대 경로로 바꿔야 합니다.
+`args` 경로는 원격 설치 위치 또는 clone한 저장소의 절대 경로로 바꿔야 합니다.
 
 ## Codex 수동 설정
 
@@ -87,27 +143,27 @@ curl -s https://stareplays-next-production.up.railway.app/api/team-analysis/raw 
 ```toml
 [mcp_servers.stareplays]
 command = "node"
-args = ["/ABSOLUTE/PATH/TO/stareplays/mcp/stareplays-mcp/bin/stareplays-mcp-server.mjs"]
+args = ["/Users/YOU/.stareplays/mcp/stareplays-mcp/bin/stareplays-mcp-server.mjs"]
 
 [mcp_servers.stareplays.env]
 STAREPLAYS_API_BASE_URL = "https://stareplays-next-production.up.railway.app"
 ```
 
-`args` 경로는 clone한 저장소의 절대 경로로 바꿔야 합니다.
+`args` 경로는 원격 설치 위치 또는 clone한 저장소의 절대 경로로 바꿔야 합니다.
 
 ## 로컬/스테이징 API 연결
 
 다른 API 서버를 사용하려면 설치 시 base URL을 바꿉니다.
 
 ```bash
-node mcp/stareplays-mcp/bin/stareplays-mcp-install.mjs --client both --api-base-url http://127.0.0.1:3100
+npx -y stareplays-mcp install --client both --api-base-url http://127.0.0.1:3100
 ```
 
 또는 서버 실행 시 환경변수로 지정합니다.
 
 ```bash
 STAREPLAYS_API_BASE_URL=https://stareplays-next-production.up.railway.app \
-node mcp/stareplays-mcp/bin/stareplays-mcp-server.mjs
+node ~/.stareplays/mcp/stareplays-mcp/bin/stareplays-mcp-server.mjs
 ```
 
 ## 사용 예시

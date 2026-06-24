@@ -1,0 +1,22 @@
+{
+  "name": "stareplays-mcp",
+  "version": "0.1.0",
+  "description": "MCP connector for Stareplays 3x3 team analysis data.",
+  "type": "module",
+  "bin": {
+    "stareplays-mcp": "./bin/stareplays-mcp.mjs",
+    "stareplays-mcp-server": "./bin/stareplays-mcp-server.mjs"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "UNLICENSED"
+}
