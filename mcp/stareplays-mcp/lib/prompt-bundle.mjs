@@ -8,7 +8,6 @@ export function createPromptBundle(rawPayload, { seasonLabel } = {}) {
   const suggestedQuestions = rawPayload?.llm?.suggestedQuestions ?? [];
   const title = rawPayload?.llm?.promptTitle ?? "3x3 팀 전적 분석";
   const seasonText = seasonLabel || rawPayload?.scope?.seasonLabel || "전체 시즌";
-  const randomSelectedGames = rawPayload?.source?.randomSelectedGames ?? rawPayload?.analysis?.summary?.randomSelectedGames ?? null;
 
   return [
     `# ${title}`,
@@ -23,7 +22,6 @@ export function createPromptBundle(rawPayload, { seasonLabel } = {}) {
     `- 추적 선수: ${summary.playersTracked ?? players.length}`,
     `- 최고 선수: ${summary.topPlayer ?? "-"}`,
     `- 최고 조합: ${summary.topLineup ?? "-"}`,
-    ...(randomSelectedGames == null ? [] : [`- 랜덤 선택 경기: ${randomSelectedGames}`]),
     "",
     "## 추가 분석 지침",
     ...(analysisGuidance.length > 0 ? analysisGuidance.map((item) => `- ${item}`) : ["- Raw JSON의 features와 compatibility를 확인하고, 알 수 없는 신규 필드는 원문 근거로만 해석하세요."]),

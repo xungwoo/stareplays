@@ -97,7 +97,6 @@ type NormalizedGame = {
   startTime: string;
   mapName: string;
   durationMinutes: number;
-  isRandomSelected: boolean;
   winner: string[];
   loser: string[];
   winnerPlayers: SeasonGameRecordPlayer[];
@@ -153,11 +152,11 @@ function playersForTeam(game: ApiGameSummary, team: number) {
   return (game.edges?.players ?? []).filter((player) => isTrackedPlayer(player) && toNumber(player.team) === team);
 }
 
-function seasonGameRecordPlayers(players: ApiGamePlayer[], isRandomSelected: boolean): SeasonGameRecordPlayer[] {
+function seasonGameRecordPlayers(players: ApiGamePlayer[]): SeasonGameRecordPlayer[] {
   return players.map((player) => ({
     name: displayPlayerName(player.name ?? "Unknown"),
     race: getRaceLetter(player.race ?? "P"),
-    isRandomSelected
+    isRandomSelected: player.is_random_selected === true
   }));
 }
 
@@ -177,7 +176,6 @@ function normalizeGame(game: ApiGameSummary, fallbackSeasonLabel: string, fallba
   const seasonNo = game.season_no ?? fallbackSeasonNo;
   const allTrackedPlayers = [...winnerPlayers, ...loserPlayers];
   const analysisPlayers = game.season_analysis?.players ?? {};
-  const isRandomSelected = game.is_random_selected === true;
 
   return {
     id: toNumber(game.id),
@@ -187,11 +185,10 @@ function normalizeGame(game: ApiGameSummary, fallbackSeasonLabel: string, fallba
     startTime: formatStartTime(startTimeRaw),
     mapName: game.map_name?.trim() || "Unknown Map",
     durationMinutes: round(toNumber(game.game_length) / 60, 1),
-    isRandomSelected,
     winner: displayPlayerNames(winnerPlayers.map((player) => player.name ?? "")),
     loser: displayPlayerNames(loserPlayers.map((player) => player.name ?? "")),
-    winnerPlayers: seasonGameRecordPlayers(winnerPlayers, isRandomSelected),
-    loserPlayers: seasonGameRecordPlayers(loserPlayers, isRandomSelected),
+    winnerPlayers: seasonGameRecordPlayers(winnerPlayers),
+    loserPlayers: seasonGameRecordPlayers(loserPlayers),
     players: allTrackedPlayers.map((player) => ({
       name: player.name ?? "Unknown",
       displayName: displayPlayerName(player.name ?? "Unknown"),

@@ -448,7 +448,7 @@ multipart/form-data:
 - MCP/LLM 분석용 raw JSON
 - 현재 별도 인증 없음
 - 응답 계약과 MCP 도구 매핑은 `mcp/stareplays-mcp/README.md` 기준
-- raw v2는 `features.isRandomSelected`, `source.randomSelectedGames`, `analysis.summary.randomSelectedGames`, `analysis.recentMatches[].isRandomSelected`를 포함한다.
+- raw v2는 선수별 `is_random_selected`를 원천으로 사용하며, 경기 단위 랜덤 선택 요약 필드는 제공하지 않는다.
 
 ## 실행
 

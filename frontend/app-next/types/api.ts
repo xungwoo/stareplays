@@ -70,6 +70,7 @@ export interface ApiGamePlayer {
   effective_cmd_count?: number;
   redundancy?: number;
   is_winner?: boolean;
+  is_random_selected?: boolean;
   result?: string;
 }
 
@@ -79,7 +80,6 @@ export interface ApiGameSummary {
   game_length?: number;
   winner_team?: number;
   start_time?: string;
-  is_random_selected?: boolean;
   season_label?: string | null;
   season_no?: number | null;
   edges?: {

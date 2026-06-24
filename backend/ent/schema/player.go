@@ -47,6 +47,10 @@ func (Player) Fields() []ent.Field {
 			Comment("Redundancy percentage"),
 		field.Bool("is_winner").
 			Default(false),
+		field.Bool("is_random_selected").
+			Default(false).
+			StructTag(`json:"is_random_selected"`).
+			Comment("Whether this player selected Random before the replay resolved an actual race"),
 		field.String("result").
 			Default("unknown").
 			Comment("win/loss/draw/unknown"),

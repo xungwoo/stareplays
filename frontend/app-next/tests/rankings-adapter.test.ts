@@ -28,10 +28,9 @@ describe("rankings adapter", () => {
         games: [
           {
             winner_team: 1,
-            is_random_selected: true,
             edges: {
               players: [
-                { name: "3x3_alpha", race: "T", team: 1, apm: 180 },
+                { name: "3x3_alpha", race: "T", team: 1, apm: 180, is_random_selected: true },
                 { name: "3x3_beta", race: "P", team: 2, apm: 150 }
               ]
             }
@@ -52,7 +51,9 @@ describe("rankings adapter", () => {
     expect(model.raceRankings).toEqual(expect.arrayContaining([
       expect.objectContaining({ race: "T", user: "3x3_alpha", games: 2, wins: 1, losses: 1 }),
       expect.objectContaining({ race: "R", user: "3x3_alpha", games: 1, wins: 1, losses: 0 }),
-      expect.objectContaining({ race: "R", user: "3x3_beta", games: 1, wins: 0, losses: 1 })
+    ]));
+    expect(model.raceRankings).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ race: "R", user: "3x3_beta" })
     ]));
   });
 });

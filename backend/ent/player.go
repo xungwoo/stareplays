@@ -46,6 +46,8 @@ type Player struct {
 	Redundancy int `json:"redundancy,omitempty"`
 	// IsWinner holds the value of the "is_winner" field.
 	IsWinner bool `json:"is_winner,omitempty"`
+	// Whether this player selected Random before the replay resolved an actual race
+	IsRandomSelected bool `json:"is_random_selected"`
 	// win/loss/draw/unknown
 	Result string `json:"result,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -82,7 +84,7 @@ func (*Player) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case player.FieldIsWinner:
+		case player.FieldIsWinner, player.FieldIsRandomSelected:
 			values[i] = new(sql.NullBool)
 		case player.FieldID, player.FieldTeam, player.FieldPlayerID, player.FieldApm, player.FieldEapm, player.FieldCmdCount, player.FieldEffectiveCmdCount, player.FieldStartLocationX, player.FieldStartLocationY, player.FieldStartDirection, player.FieldRedundancy:
 			values[i] = new(sql.NullInt64)
@@ -197,6 +199,12 @@ func (_m *Player) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.IsWinner = value.Bool
 			}
+		case player.FieldIsRandomSelected:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field is_random_selected", values[i])
+			} else if value.Valid {
+				_m.IsRandomSelected = value.Bool
+			}
 		case player.FieldResult:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field result", values[i])
@@ -298,6 +306,9 @@ func (_m *Player) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("is_winner=")
 	builder.WriteString(fmt.Sprintf("%v", _m.IsWinner))
+	builder.WriteString(", ")
+	builder.WriteString("is_random_selected=")
+	builder.WriteString(fmt.Sprintf("%v", _m.IsRandomSelected))
 	builder.WriteString(", ")
 	builder.WriteString("result=")
 	builder.WriteString(_m.Result)

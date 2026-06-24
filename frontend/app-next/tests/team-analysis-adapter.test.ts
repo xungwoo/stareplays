@@ -26,7 +26,6 @@ const gamesResponse: ApiGamesListResponse = {
       map_name: "Team Circuit",
       winner_team: 2,
       game_length: 840,
-      is_random_selected: true,
       start_time: "2026-03-02T00:00:00Z",
       edges: {
         players: [
@@ -44,11 +43,10 @@ const gamesResponse: ApiGamesListResponse = {
       map_name: "Neo Junction",
       winner_team: 1,
       game_length: 760,
-      is_random_selected: true,
       start_time: "2026-03-03T00:00:00Z",
       edges: {
         players: [
-          { name: "3x3_alpha", race: "T", team: 1, apm: 220, eapm: 180, cmd_count: 2200, effective_cmd_count: 1800 },
+          { name: "3x3_alpha", race: "T", team: 1, apm: 220, eapm: 180, cmd_count: 2200, effective_cmd_count: 1800, is_random_selected: true },
           { name: "3x3_echo", race: "P", team: 1, apm: 155, eapm: 128, cmd_count: 1550, effective_cmd_count: 1280 },
           { name: "3x3_foxtrot", race: "P", team: 1, apm: 180, eapm: 150, cmd_count: 1800, effective_cmd_count: 1500 },
           { name: "3x3_bravo", race: "T", team: 2, apm: 165, eapm: 138, cmd_count: 1650, effective_cmd_count: 1380 },
@@ -88,9 +86,9 @@ describe("team analysis adapter", () => {
       wins: 1,
       losses: 1,
       winRate: 50,
-      randomSelectedGames: 2,
+      randomSelectedGames: 1,
       randomSelectedWins: 1,
-      randomSelectedWinRate: 50,
+      randomSelectedWinRate: 100,
       averageApm: 210,
       bestRace: "T"
     });

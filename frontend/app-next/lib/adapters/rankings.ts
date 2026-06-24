@@ -56,7 +56,7 @@ function buildRaceRankings(gamesResponse?: ApiGamesListResponse | null): RaceRan
       const race = getRaceLetter(player.race ?? "P");
       const user = player.name?.trim() || "Unknown";
       const won = toNumber(player.team) === winnerTeam || player.is_winner === true;
-      const keys: Array<RaceCode | "R"> = game.is_random_selected === true ? [race, "R"] : [race];
+      const keys: Array<RaceCode | "R"> = player.is_random_selected === true ? [race, "R"] : [race];
 
       for (const rankingRace of keys) {
         const key = `${rankingRace}:${user}`;

@@ -9,10 +9,10 @@ import (
 )
 
 type GameRecord struct {
-	SeasonLabel      string
-	SeasonNo         int
-	RowNumber        int
-	IsRandomSelected bool
+	SeasonLabel            string
+	SeasonNo               int
+	RowNumber              int
+	PlayerRandomSelections []bool
 }
 
 func ParseCSV(r io.Reader) ([]GameRecord, error) {
@@ -44,12 +44,12 @@ func ParseCSV(r io.Reader) ([]GameRecord, error) {
 			continue
 		}
 
-		isRandom := IsForcedRandomSeasonNo(seasonNo) || rowHasRandomMarker(row)
+		playerRandomSelections := playerRandomSelectionsFromRow(row, IsForcedRandomSeasonNo(seasonNo))
 		records = append(records, GameRecord{
-			SeasonLabel:      seasonLabel,
-			SeasonNo:         seasonNo,
-			RowNumber:        rowNumber,
-			IsRandomSelected: isRandom,
+			SeasonLabel:            seasonLabel,
+			SeasonNo:               seasonNo,
+			RowNumber:              rowNumber,
+			PlayerRandomSelections: playerRandomSelections,
 		})
 	}
 
@@ -113,11 +113,10 @@ func isRaceCell(value string) bool {
 		strings.Contains(value, "랜")
 }
 
-func rowHasRandomMarker(row []string) bool {
+func playerRandomSelectionsFromRow(row []string, forcedRandom bool) []bool {
+	selections := make([]bool, 0, 6)
 	for _, index := range []int{1, 2, 3, 6, 7, 8} {
-		if index < len(row) && strings.Contains(strings.TrimSpace(row[index]), "랜") {
-			return true
-		}
+		selections = append(selections, forcedRandom || (index < len(row) && strings.Contains(strings.TrimSpace(row[index]), "랜")))
 	}
-	return false
+	return selections
 }

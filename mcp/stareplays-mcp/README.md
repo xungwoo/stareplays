@@ -78,10 +78,10 @@ https://stareplays.up.railway.app/api/team-analysis/raw?season_label=시즌7
 
 Raw endpoint v2 주요 메타:
 
-- `features.isRandomSelected`: 경기 단위 랜덤 선택 플래그 제공 여부
-- `source.randomSelectedGames`: 응답에 포함된 랜덤 선택 경기 수
-- `analysis.summary.randomSelectedGames`: 분석 대상 3x3 경기 중 랜덤 선택 경기 수
-- `analysis.recentMatches[].isRandomSelected`: 최근 경기별 랜덤 선택 여부
+- `games[].edges.players[].is_random_selected`: 해당 선수가 랜덤을 선택했는지 여부
+- `analysis.players[].randomSelectedGames`: 선수별 랜덤 선택 표본 수
+- `analysis.players[].randomSelectedWins`: 선수별 랜덤 선택 승수
+- `analysis.players[].randomSelectedWinRate`: 선수별 랜덤 선택 승률
 - `compatibility.recommendedMcpVersion`: 해당 raw 계약에 권장되는 MCP 버전
 
 ## 자주 쓰는 옵션

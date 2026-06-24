@@ -106,16 +106,12 @@ func init() {
 	gameDescWinnerTeam := gameFields[11].Descriptor()
 	// game.DefaultWinnerTeam holds the default value on creation for the winner_team field.
 	game.DefaultWinnerTeam = gameDescWinnerTeam.Default.(uint8)
-	// gameDescIsRandomSelected is the schema descriptor for is_random_selected field.
-	gameDescIsRandomSelected := gameFields[12].Descriptor()
-	// game.DefaultIsRandomSelected holds the default value on creation for the is_random_selected field.
-	game.DefaultIsRandomSelected = gameDescIsRandomSelected.Default.(bool)
 	// gameDescCreatedAt is the schema descriptor for created_at field.
-	gameDescCreatedAt := gameFields[15].Descriptor()
+	gameDescCreatedAt := gameFields[14].Descriptor()
 	// game.DefaultCreatedAt holds the default value on creation for the created_at field.
 	game.DefaultCreatedAt = gameDescCreatedAt.Default.(func() time.Time)
 	// gameDescUpdatedAt is the schema descriptor for updated_at field.
-	gameDescUpdatedAt := gameFields[16].Descriptor()
+	gameDescUpdatedAt := gameFields[15].Descriptor()
 	// game.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	game.DefaultUpdatedAt = gameDescUpdatedAt.Default.(func() time.Time)
 	// game.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -184,12 +180,16 @@ func init() {
 	playerDescIsWinner := playerFields[13].Descriptor()
 	// player.DefaultIsWinner holds the default value on creation for the is_winner field.
 	player.DefaultIsWinner = playerDescIsWinner.Default.(bool)
+	// playerDescIsRandomSelected is the schema descriptor for is_random_selected field.
+	playerDescIsRandomSelected := playerFields[14].Descriptor()
+	// player.DefaultIsRandomSelected holds the default value on creation for the is_random_selected field.
+	player.DefaultIsRandomSelected = playerDescIsRandomSelected.Default.(bool)
 	// playerDescResult is the schema descriptor for result field.
-	playerDescResult := playerFields[14].Descriptor()
+	playerDescResult := playerFields[15].Descriptor()
 	// player.DefaultResult holds the default value on creation for the result field.
 	player.DefaultResult = playerDescResult.Default.(string)
 	// playerDescCreatedAt is the schema descriptor for created_at field.
-	playerDescCreatedAt := playerFields[15].Descriptor()
+	playerDescCreatedAt := playerFields[16].Descriptor()
 	// player.DefaultCreatedAt holds the default value on creation for the created_at field.
 	player.DefaultCreatedAt = playerDescCreatedAt.Default.(func() time.Time)
 	ranking3v3Fields := schema.Ranking3v3{}.Fields()

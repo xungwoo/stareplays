@@ -38,8 +38,6 @@ const (
 	FieldUploadCount = "upload_count"
 	// FieldWinnerTeam holds the string denoting the winner_team field in the database.
 	FieldWinnerTeam = "winner_team"
-	// FieldIsRandomSelected holds the string denoting the is_random_selected field in the database.
-	FieldIsRandomSelected = "is_random_selected"
 	// FieldSeasonLabel holds the string denoting the season_label field in the database.
 	FieldSeasonLabel = "season_label"
 	// FieldSeasonNo holds the string denoting the season_no field in the database.
@@ -103,7 +101,6 @@ var Columns = []string{
 	FieldPlayerCount,
 	FieldUploadCount,
 	FieldWinnerTeam,
-	FieldIsRandomSelected,
 	FieldSeasonLabel,
 	FieldSeasonNo,
 	FieldCreatedAt,
@@ -129,8 +126,6 @@ var (
 	DefaultUploadCount int
 	// DefaultWinnerTeam holds the default value on creation for the "winner_team" field.
 	DefaultWinnerTeam uint8
-	// DefaultIsRandomSelected holds the default value on creation for the "is_random_selected" field.
-	DefaultIsRandomSelected bool
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -205,11 +200,6 @@ func ByUploadCount(opts ...sql.OrderTermOption) OrderOption {
 // ByWinnerTeam orders the results by the winner_team field.
 func ByWinnerTeam(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldWinnerTeam, opts...).ToFunc()
-}
-
-// ByIsRandomSelected orders the results by the is_random_selected field.
-func ByIsRandomSelected(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldIsRandomSelected, opts...).ToFunc()
 }
 
 // BySeasonLabel orders the results by the season_label field.

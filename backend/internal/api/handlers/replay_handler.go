@@ -67,26 +67,25 @@ type parsedUploadFile struct {
 }
 
 type gameResponseDTO struct {
-	ID               int                    `json:"id"`
-	Host             string                 `json:"host,omitempty"`
-	StartTime        time.Time              `json:"start_time,omitempty"`
-	MapName          string                 `json:"map_name,omitempty"`
-	MapWidth         uint16                 `json:"map_width,omitempty"`
-	MapHeight        uint16                 `json:"map_height,omitempty"`
-	GameLength       int                    `json:"game_length,omitempty"`
-	GameType         string                 `json:"game_type,omitempty"`
-	GameSpeed        string                 `json:"game_speed,omitempty"`
-	Title            string                 `json:"title,omitempty"`
-	PlayerCount      int                    `json:"player_count,omitempty"`
-	UploadCount      int                    `json:"upload_count,omitempty"`
-	WinnerTeam       uint8                  `json:"winner_team,omitempty"`
-	IsRandomSelected bool                   `json:"is_random_selected"`
-	SeasonLabel      *string                `json:"season_label,omitempty"`
-	SeasonNo         *int                   `json:"season_no,omitempty"`
-	CreatedAt        time.Time              `json:"created_at,omitempty"`
-	UpdatedAt        time.Time              `json:"updated_at,omitempty"`
-	Edges            gameResponseEdgesDTO   `json:"edges"`
-	SeasonAnalysis   *seasonGameAnalysisDTO `json:"season_analysis,omitempty"`
+	ID             int                    `json:"id"`
+	Host           string                 `json:"host,omitempty"`
+	StartTime      time.Time              `json:"start_time,omitempty"`
+	MapName        string                 `json:"map_name,omitempty"`
+	MapWidth       uint16                 `json:"map_width,omitempty"`
+	MapHeight      uint16                 `json:"map_height,omitempty"`
+	GameLength     int                    `json:"game_length,omitempty"`
+	GameType       string                 `json:"game_type,omitempty"`
+	GameSpeed      string                 `json:"game_speed,omitempty"`
+	Title          string                 `json:"title,omitempty"`
+	PlayerCount    int                    `json:"player_count,omitempty"`
+	UploadCount    int                    `json:"upload_count,omitempty"`
+	WinnerTeam     uint8                  `json:"winner_team,omitempty"`
+	SeasonLabel    *string                `json:"season_label,omitempty"`
+	SeasonNo       *int                   `json:"season_no,omitempty"`
+	CreatedAt      time.Time              `json:"created_at,omitempty"`
+	UpdatedAt      time.Time              `json:"updated_at,omitempty"`
+	Edges          gameResponseEdgesDTO   `json:"edges"`
+	SeasonAnalysis *seasonGameAnalysisDTO `json:"season_analysis,omitempty"`
 }
 
 type seasonSummary struct {
@@ -134,6 +133,7 @@ type gamePlayerDTO struct {
 	StartDirection    int32     `json:"start_direction,omitempty"`
 	Redundancy        int       `json:"redundancy,omitempty"`
 	IsWinner          bool      `json:"is_winner"`
+	IsRandomSelected  bool      `json:"is_random_selected"`
 	Result            string    `json:"result,omitempty"`
 	CreatedAt         time.Time `json:"created_at,omitempty"`
 	Edges             fiber.Map `json:"edges"`
@@ -502,24 +502,23 @@ func processParsedReplayResult(ctx context.Context, parsed *parser.ParsedGame, o
 
 func buildGameResponseDTO(g *ent.Game) gameResponseDTO {
 	dto := gameResponseDTO{
-		ID:               g.ID,
-		Host:             g.Host,
-		StartTime:        g.StartTime,
-		MapName:          g.MapName,
-		MapWidth:         g.MapWidth,
-		MapHeight:        g.MapHeight,
-		GameLength:       g.GameLength,
-		GameType:         g.GameType,
-		GameSpeed:        g.GameSpeed,
-		Title:            g.Title,
-		PlayerCount:      g.PlayerCount,
-		UploadCount:      g.UploadCount,
-		WinnerTeam:       g.WinnerTeam,
-		IsRandomSelected: g.IsRandomSelected,
-		SeasonLabel:      g.SeasonLabel,
-		SeasonNo:         g.SeasonNo,
-		CreatedAt:        g.CreatedAt,
-		UpdatedAt:        g.UpdatedAt,
+		ID:          g.ID,
+		Host:        g.Host,
+		StartTime:   g.StartTime,
+		MapName:     g.MapName,
+		MapWidth:    g.MapWidth,
+		MapHeight:   g.MapHeight,
+		GameLength:  g.GameLength,
+		GameType:    g.GameType,
+		GameSpeed:   g.GameSpeed,
+		Title:       g.Title,
+		PlayerCount: g.PlayerCount,
+		UploadCount: g.UploadCount,
+		WinnerTeam:  g.WinnerTeam,
+		SeasonLabel: g.SeasonLabel,
+		SeasonNo:    g.SeasonNo,
+		CreatedAt:   g.CreatedAt,
+		UpdatedAt:   g.UpdatedAt,
 		Edges: gameResponseEdgesDTO{
 			Players:     make([]gamePlayerDTO, 0, len(g.Edges.Players)),
 			ReplayFiles: make([]gameReplayFileDTO, 0, len(g.Edges.ReplayFiles)),
@@ -545,6 +544,7 @@ func buildGameResponseDTO(g *ent.Game) gameResponseDTO {
 			StartDirection:    p.StartDirection,
 			Redundancy:        p.Redundancy,
 			IsWinner:          p.IsWinner,
+			IsRandomSelected:  p.IsRandomSelected,
 			Result:            p.Result,
 			CreatedAt:         p.CreatedAt,
 			Edges:             fiber.Map{},
@@ -769,10 +769,19 @@ func applySeasonToGame(ctx context.Context, gameID int, options uploadOptions) (
 	if options.SeasonNo != nil {
 		update.SetSeasonNo(*options.SeasonNo)
 	}
-	if isRandomSelectedSeason(options.SeasonNo) {
-		update.SetIsRandomSelected(true)
+	updated, err := update.Save(ctx)
+	if err != nil {
+		return nil, err
 	}
-	return update.Save(ctx)
+	if options.SeasonNo != nil {
+		if _, err := database.Client.Player.Update().
+			Where(player.HasGameWith(game.IDEQ(gameID))).
+			SetIsRandomSelected(isRandomSelectedSeason(options.SeasonNo)).
+			Save(ctx); err != nil {
+			return nil, err
+		}
+	}
+	return updated, nil
 }
 
 func getCurrentSeason(ctx context.Context) (uploadOptions, error) {
@@ -1245,7 +1254,6 @@ func createNewGame(ctx context.Context, parsed *parser.ParsedGame, uploader *ent
 		SetWinnerTeam(parsed.WinnerTeam)
 	gameCreate.SetNillableSeasonLabel(options.SeasonLabel)
 	gameCreate.SetNillableSeasonNo(options.SeasonNo)
-	gameCreate.SetIsRandomSelected(isRandomSelectedSeason(options.SeasonNo))
 
 	savedGame, err := gameCreate.Save(ctx)
 	if err != nil {
@@ -1273,6 +1281,7 @@ func createNewGame(ctx context.Context, parsed *parser.ParsedGame, uploader *ent
 			SetStartDirection(p.StartDirection).
 			SetRedundancy(p.Redundancy).
 			SetIsWinner(p.IsWinner).
+			SetIsRandomSelected(isRandomSelectedSeason(options.SeasonNo)).
 			SetResult(p.Result).
 			SetGame(savedGame).
 			Save(ctx)
@@ -1753,7 +1762,6 @@ func SetGameSeason(c *fiber.Ctx) error {
 	g, err := database.Client.Game.UpdateOneID(id).
 		SetSeasonLabel(label).
 		SetNillableSeasonNo(req.SeasonNo).
-		SetIsRandomSelected(isRandomSelectedSeason(req.SeasonNo)).
 		Save(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {
@@ -1765,6 +1773,17 @@ func SetGameSeason(c *fiber.Ctx) error {
 			"error":   "Failed to update game season",
 			"details": err.Error(),
 		})
+	}
+	if req.SeasonNo != nil {
+		if _, err := database.Client.Player.Update().
+			Where(player.HasGameWith(game.IDEQ(id))).
+			SetIsRandomSelected(isRandomSelectedSeason(req.SeasonNo)).
+			Save(ctx); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error":   "Failed to update game players",
+				"details": err.Error(),
+			})
+		}
 	}
 	return c.JSON(fiber.Map{
 		"message": "game season updated",

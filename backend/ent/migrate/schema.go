@@ -82,7 +82,6 @@ var (
 		{Name: "player_count", Type: field.TypeInt, Default: 0},
 		{Name: "upload_count", Type: field.TypeInt, Default: 1},
 		{Name: "winner_team", Type: field.TypeUint8, Default: 0},
-		{Name: "is_random_selected", Type: field.TypeBool, Default: false},
 		{Name: "season_label", Type: field.TypeString, Nullable: true},
 		{Name: "season_no", Type: field.TypeInt, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
@@ -107,7 +106,7 @@ var (
 			{
 				Name:    "game_season_label_start_time_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{GamesColumns[14], GamesColumns[2], GamesColumns[16]},
+				Columns: []*schema.Column{GamesColumns[13], GamesColumns[2], GamesColumns[15]},
 			},
 		},
 	}
@@ -202,6 +201,7 @@ var (
 		{Name: "start_direction", Type: field.TypeInt32, Nullable: true},
 		{Name: "redundancy", Type: field.TypeInt, Nullable: true},
 		{Name: "is_winner", Type: field.TypeBool, Default: false},
+		{Name: "is_random_selected", Type: field.TypeBool, Default: false},
 		{Name: "result", Type: field.TypeString, Default: "unknown"},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "game_players", Type: field.TypeInt},
@@ -214,7 +214,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "players_games_players",
-				Columns:    []*schema.Column{PlayersColumns[17]},
+				Columns:    []*schema.Column{PlayersColumns[18]},
 				RefColumns: []*schema.Column{GamesColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -228,12 +228,12 @@ var (
 			{
 				Name:    "player_game_players",
 				Unique:  false,
-				Columns: []*schema.Column{PlayersColumns[17]},
+				Columns: []*schema.Column{PlayersColumns[18]},
 			},
 			{
 				Name:    "player_player_id_game_players",
 				Unique:  true,
-				Columns: []*schema.Column{PlayersColumns[5], PlayersColumns[17]},
+				Columns: []*schema.Column{PlayersColumns[5], PlayersColumns[18]},
 			},
 		},
 	}

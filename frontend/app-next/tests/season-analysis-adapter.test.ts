@@ -17,7 +17,6 @@ const seasonsResponse: ApiSeasonsResponse = {
           map_name: "Neo Super",
           game_length: 600,
           winner_team: 1,
-          is_random_selected: true,
           season_analysis: {
             status: "succeeded",
             data_source: "detail_analysis+replay_analyzer",
@@ -32,9 +31,9 @@ const seasonsResponse: ApiSeasonsResponse = {
           },
           edges: {
             players: [
-              { name: "3x3_GG", race: "P", team: 1, apm: 150, eapm: 130 },
+              { name: "3x3_GG", race: "P", team: 1, apm: 150, eapm: 130, is_random_selected: true },
               { name: "3x3_mh", race: "T", team: 1, apm: 170, eapm: 140 },
-              { name: "3x3_syntax", race: "Z", team: 1, apm: 120, eapm: 105 },
+              { name: "3x3_syntax", race: "Z", team: 1, apm: 120, eapm: 105, is_random_selected: true },
               { name: "3x3_pil", race: "P", team: 2, apm: 140, eapm: 120 },
               { name: "3x3_smwoo", race: "P", team: 2, apm: 190, eapm: 165 },
               { name: "3x3_Kiyong", race: "T", team: 2, apm: 180, eapm: 150 }
@@ -120,7 +119,7 @@ describe("season analysis adapter", () => {
     });
     expect(model.gameRecords[0].winnerPlayers).toEqual([
       { name: "성우", race: "P", isRandomSelected: true },
-      { name: "민혁", race: "T", isRandomSelected: true },
+      { name: "민혁", race: "T", isRandomSelected: false },
       { name: "명진", race: "Z", isRandomSelected: true }
     ]);
     expect(model.gameRecords[1].winnerPlayers[0]).toMatchObject({ name: "필균", race: "P", isRandomSelected: false });

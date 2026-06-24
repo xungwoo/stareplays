@@ -15,6 +15,7 @@ type TeamSide = {
 type NormalizedPlayer = {
   name: string;
   race: RaceCode;
+  isRandomSelected: boolean;
   apm: number;
   eapm: number;
   cmdCount: number;
@@ -26,7 +27,6 @@ type NormalizedMatch = {
   map: string;
   startTime: string;
   gameLength: number;
-  isRandomSelected: boolean;
   winner: NormalizedPlayer[];
   loser: NormalizedPlayer[];
 };
@@ -91,6 +91,7 @@ function normalizeApiPlayer(player: ApiGamePlayer): NormalizedPlayer {
   return {
     name: player.name?.trim() || "Unknown",
     race: getRaceLetter(player.race ?? "P"),
+    isRandomSelected: player.is_random_selected === true,
     apm: toNumber(player.apm),
     eapm: toNumber(player.eapm),
     cmdCount: toNumber(player.cmd_count),
@@ -127,7 +128,6 @@ function normalizeApiGame(game: ApiGameSummary): NormalizedMatch | null {
     map: game.map_name?.trim() || "Unknown Map",
     startTime: formatStartTime(game.start_time ?? ""),
     gameLength: toNumber(game.game_length),
-    isRandomSelected: game.is_random_selected === true,
     winner,
     loser
   };
@@ -137,6 +137,7 @@ function normalizeVaultPlayer(player: VaultPlayer): NormalizedPlayer {
   return {
     name: player.name,
     race: player.race,
+    isRandomSelected: false,
     apm: player.apm,
     eapm: player.eapm,
     cmdCount: player.apm,
@@ -155,7 +156,6 @@ function normalizeVaultGame(game: VaultGame): NormalizedMatch | null {
     map: game.map,
     startTime: game.startTime,
     gameLength: 900,
-    isRandomSelected: false,
     winner,
     loser
   };
@@ -194,12 +194,12 @@ function getOrCreatePlayer(accumulators: Map<string, PlayerAccumulator>, player:
   return created;
 }
 
-function recordPlayer(accumulator: PlayerAccumulator, player: NormalizedPlayer, won: boolean, teammates: NormalizedPlayer[], gameLength: number, isRandomSelected: boolean) {
+function recordPlayer(accumulator: PlayerAccumulator, player: NormalizedPlayer, won: boolean, teammates: NormalizedPlayer[], gameLength: number) {
   accumulator.games += 1;
   accumulator.wins += won ? 1 : 0;
   accumulator.losses += won ? 0 : 1;
-  accumulator.randomSelectedGames += isRandomSelected ? 1 : 0;
-  accumulator.randomSelectedWins += isRandomSelected && won ? 1 : 0;
+  accumulator.randomSelectedGames += player.isRandomSelected ? 1 : 0;
+  accumulator.randomSelectedWins += player.isRandomSelected && won ? 1 : 0;
   accumulator.apmTotal += player.apm;
   accumulator.eapmTotal += player.eapm;
   accumulator.commandTotal += player.cmdCount;
@@ -364,8 +364,8 @@ function buildPlayers(matches: NormalizedMatch[]): TeamAnalysisPlayer[] {
   const accumulators = new Map<string, PlayerAccumulator>();
 
   matches.forEach((match) => {
-    match.winner.forEach((player) => recordPlayer(getOrCreatePlayer(accumulators, player), player, true, match.winner, match.gameLength, match.isRandomSelected));
-    match.loser.forEach((player) => recordPlayer(getOrCreatePlayer(accumulators, player), player, false, match.loser, match.gameLength, match.isRandomSelected));
+    match.winner.forEach((player) => recordPlayer(getOrCreatePlayer(accumulators, player), player, true, match.winner, match.gameLength));
+    match.loser.forEach((player) => recordPlayer(getOrCreatePlayer(accumulators, player), player, false, match.loser, match.gameLength));
   });
 
   const playerNames = Array.from(accumulators.keys()).sort();
@@ -484,8 +484,7 @@ function buildRecentMatches(matches: NormalizedMatch[]): TeamAnalysisRecentMatch
       map: match.map,
       winner: displayLineupName(sortNames(match.winner.map((player) => player.name))),
       loser: displayLineupName(sortNames(match.loser.map((player) => player.name))),
-      startTime: match.startTime,
-      isRandomSelected: match.isRandomSelected
+      startTime: match.startTime
     }));
 }
 
@@ -562,7 +561,7 @@ function buildPlayerPentagons(players: TeamAnalysisPlayer[]): TeamAnalysisPlayer
     },
     {
       title: "종족 역량 오각형",
-      description: "프로토스, 저그, 테란별 실제 승률과 랜덤 선택 경기 승률, 전체 승률을 한 번에 비교합니다.",
+      description: "프로토스, 저그, 테란별 실제 승률과 선수별 랜덤 선택 승률, 전체 승률을 한 번에 비교합니다.",
       axes: ["프로토스", "저그", "테란", "랜덤", "전체 역량"],
       players: topPlayers.map((player, index) => ({
         name: player.name,
@@ -748,7 +747,6 @@ export function createTeamAnalysisPageModel({ gamesResponse }: { gamesResponse?:
   const topPlayer = displayPlayers[0]?.name ?? "NO_DATA";
   const topLineup = displayLineups[0]?.players.join(" + ") ?? "NO_DATA";
   const strongestComposition = raceCompositions.find((composition) => composition.qualified)?.composition ?? "표본 부족";
-  const randomSelectedGames = matches.filter((match) => match.isRandomSelected).length;
 
   return {
     summary: {
@@ -757,8 +755,7 @@ export function createTeamAnalysisPageModel({ gamesResponse }: { gamesResponse?:
       lineupsTracked: lineups.length,
       topPlayer,
       topLineup,
-      strongestComposition,
-      randomSelectedGames
+      strongestComposition
     },
     players: displayPlayers,
     lineups: displayLineups,

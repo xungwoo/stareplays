@@ -348,6 +348,20 @@ func (_u *PlayerUpdate) SetNillableIsWinner(v *bool) *PlayerUpdate {
 	return _u
 }
 
+// SetIsRandomSelected sets the "is_random_selected" field.
+func (_u *PlayerUpdate) SetIsRandomSelected(v bool) *PlayerUpdate {
+	_u.mutation.SetIsRandomSelected(v)
+	return _u
+}
+
+// SetNillableIsRandomSelected sets the "is_random_selected" field if the given value is not nil.
+func (_u *PlayerUpdate) SetNillableIsRandomSelected(v *bool) *PlayerUpdate {
+	if v != nil {
+		_u.SetIsRandomSelected(*v)
+	}
+	return _u
+}
+
 // SetResult sets the "result" field.
 func (_u *PlayerUpdate) SetResult(v string) *PlayerUpdate {
 	_u.mutation.SetResult(v)
@@ -539,6 +553,9 @@ func (_u *PlayerUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.IsWinner(); ok {
 		_spec.SetField(player.FieldIsWinner, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.IsRandomSelected(); ok {
+		_spec.SetField(player.FieldIsRandomSelected, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.Result(); ok {
 		_spec.SetField(player.FieldResult, field.TypeString, value)
@@ -912,6 +929,20 @@ func (_u *PlayerUpdateOne) SetNillableIsWinner(v *bool) *PlayerUpdateOne {
 	return _u
 }
 
+// SetIsRandomSelected sets the "is_random_selected" field.
+func (_u *PlayerUpdateOne) SetIsRandomSelected(v bool) *PlayerUpdateOne {
+	_u.mutation.SetIsRandomSelected(v)
+	return _u
+}
+
+// SetNillableIsRandomSelected sets the "is_random_selected" field if the given value is not nil.
+func (_u *PlayerUpdateOne) SetNillableIsRandomSelected(v *bool) *PlayerUpdateOne {
+	if v != nil {
+		_u.SetIsRandomSelected(*v)
+	}
+	return _u
+}
+
 // SetResult sets the "result" field.
 func (_u *PlayerUpdateOne) SetResult(v string) *PlayerUpdateOne {
 	_u.mutation.SetResult(v)
@@ -1133,6 +1164,9 @@ func (_u *PlayerUpdateOne) sqlSave(ctx context.Context) (_node *Player, err erro
 	}
 	if value, ok := _u.mutation.IsWinner(); ok {
 		_spec.SetField(player.FieldIsWinner, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.IsRandomSelected(); ok {
+		_spec.SetField(player.FieldIsRandomSelected, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.Result(); ok {
 		_spec.SetField(player.FieldResult, field.TypeString, value)

@@ -185,6 +185,20 @@ func (_c *PlayerCreate) SetNillableIsWinner(v *bool) *PlayerCreate {
 	return _c
 }
 
+// SetIsRandomSelected sets the "is_random_selected" field.
+func (_c *PlayerCreate) SetIsRandomSelected(v bool) *PlayerCreate {
+	_c.mutation.SetIsRandomSelected(v)
+	return _c
+}
+
+// SetNillableIsRandomSelected sets the "is_random_selected" field if the given value is not nil.
+func (_c *PlayerCreate) SetNillableIsRandomSelected(v *bool) *PlayerCreate {
+	if v != nil {
+		_c.SetIsRandomSelected(*v)
+	}
+	return _c
+}
+
 // SetResult sets the "result" field.
 func (_c *PlayerCreate) SetResult(v string) *PlayerCreate {
 	_c.mutation.SetResult(v)
@@ -263,6 +277,10 @@ func (_c *PlayerCreate) defaults() {
 		v := player.DefaultIsWinner
 		_c.mutation.SetIsWinner(v)
 	}
+	if _, ok := _c.mutation.IsRandomSelected(); !ok {
+		v := player.DefaultIsRandomSelected
+		_c.mutation.SetIsRandomSelected(v)
+	}
 	if _, ok := _c.mutation.Result(); !ok {
 		v := player.DefaultResult
 		_c.mutation.SetResult(v)
@@ -299,6 +317,9 @@ func (_c *PlayerCreate) check() error {
 	}
 	if _, ok := _c.mutation.IsWinner(); !ok {
 		return &ValidationError{Name: "is_winner", err: errors.New(`ent: missing required field "Player.is_winner"`)}
+	}
+	if _, ok := _c.mutation.IsRandomSelected(); !ok {
+		return &ValidationError{Name: "is_random_selected", err: errors.New(`ent: missing required field "Player.is_random_selected"`)}
 	}
 	if _, ok := _c.mutation.Result(); !ok {
 		return &ValidationError{Name: "result", err: errors.New(`ent: missing required field "Player.result"`)}
@@ -390,6 +411,10 @@ func (_c *PlayerCreate) createSpec() (*Player, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.IsWinner(); ok {
 		_spec.SetField(player.FieldIsWinner, field.TypeBool, value)
 		_node.IsWinner = value
+	}
+	if value, ok := _c.mutation.IsRandomSelected(); ok {
+		_spec.SetField(player.FieldIsRandomSelected, field.TypeBool, value)
+		_node.IsRandomSelected = value
 	}
 	if value, ok := _c.mutation.Result(); ok {
 		_spec.SetField(player.FieldResult, field.TypeString, value)

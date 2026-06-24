@@ -5,10 +5,11 @@ import (
 	"testing"
 )
 
-func TestParseCSVDetectsRandomMarkersAndForcesSeasonSevenEight(t *testing.T) {
+func TestParseCSVDetectsPlayerRandomSelectionsAndForcesSeasonSevenEight(t *testing.T) {
 	input := strings.Join([]string{
 		"시즌2,,,,,,,,,",
 		"12/06,랜(프),랜(저),랜(테),승,,프,프,저,",
+		"12/06,랜(프),랜(저),랜(테),승,,랜(프),랜(프),랜(저),",
 		"12/06,프,프,테,승,,프,프,저,",
 		"시즌7,,,,,,,,,",
 		"06/01,프,프,테,승,,프,프,저,",
@@ -20,22 +21,42 @@ func TestParseCSVDetectsRandomMarkersAndForcesSeasonSevenEight(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseCSV returned error: %v", err)
 	}
-	if len(records) != 4 {
-		t.Fatalf("len(records) = %d, want 4", len(records))
+	if len(records) != 5 {
+		t.Fatalf("len(records) = %d, want 5", len(records))
 	}
 
-	if !records[0].IsRandomSelected {
-		t.Fatalf("season2 row with 랜 marker was not marked random")
+	wantPartial := []bool{true, true, true, false, false, false}
+	if got := records[0].PlayerRandomSelections; !equalBools(got, wantPartial) {
+		t.Fatalf("partial row PlayerRandomSelections = %v, want %v", got, wantPartial)
 	}
-	if records[1].IsRandomSelected {
-		t.Fatalf("season2 fixed-race row was marked random")
+
+	wantAll := []bool{true, true, true, true, true, true}
+	if got := records[1].PlayerRandomSelections; !equalBools(got, wantAll) {
+		t.Fatalf("all-random row PlayerRandomSelections = %v, want %v", got, wantAll)
 	}
-	if !records[2].IsRandomSelected {
-		t.Fatalf("season7 row should be forced random")
+
+	wantFixed := []bool{false, false, false, false, false, false}
+	if got := records[2].PlayerRandomSelections; !equalBools(got, wantFixed) {
+		t.Fatalf("fixed row PlayerRandomSelections = %v, want %v", got, wantFixed)
 	}
-	if !records[3].IsRandomSelected {
-		t.Fatalf("season8 row should be forced random")
+	if got := records[3].PlayerRandomSelections; !equalBools(got, wantAll) {
+		t.Fatalf("season7 row PlayerRandomSelections = %v, want %v", got, wantAll)
 	}
+	if got := records[4].PlayerRandomSelections; !equalBools(got, wantAll) {
+		t.Fatalf("season8 row PlayerRandomSelections = %v, want %v", got, wantAll)
+	}
+}
+
+func equalBools(left []bool, right []bool) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index] != right[index] {
+			return false
+		}
+	}
+	return true
 }
 
 func TestBySeasonPreservesSeasonOrder(t *testing.T) {

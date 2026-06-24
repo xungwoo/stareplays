@@ -60,16 +60,15 @@ func TestBuildSeasonSummariesIncludesGameDataWhenRequested(t *testing.T) {
 	seasonNo := 8
 	games := []*ent.Game{
 		{
-			ID:               101,
-			MapName:          "Team Arena",
-			StartTime:        time.Date(2026, 6, 23, 21, 0, 0, 0, time.UTC),
-			SeasonLabel:      &seasonLabel,
-			SeasonNo:         &seasonNo,
-			WinnerTeam:       1,
-			IsRandomSelected: true,
+			ID:          101,
+			MapName:     "Team Arena",
+			StartTime:   time.Date(2026, 6, 23, 21, 0, 0, 0, time.UTC),
+			SeasonLabel: &seasonLabel,
+			SeasonNo:    &seasonNo,
+			WinnerTeam:  1,
 			Edges: ent.GameEdges{
 				Players: []*ent.Player{
-					{Name: "3x3_GG", Race: "P", Team: 1},
+					{Name: "3x3_GG", Race: "P", Team: 1, IsRandomSelected: true},
 				},
 			},
 		},
@@ -86,8 +85,8 @@ func TestBuildSeasonSummariesIncludesGameDataWhenRequested(t *testing.T) {
 	if got := summaries[0].GamesData[0].Edges.Players[0].Name; got != "3x3_GG" {
 		t.Fatalf("GamesData[0].Edges.Players[0].Name = %q, want 3x3_GG", got)
 	}
-	if !summaries[0].GamesData[0].IsRandomSelected {
-		t.Fatalf("GamesData[0].IsRandomSelected = false, want true")
+	if !summaries[0].GamesData[0].Edges.Players[0].IsRandomSelected {
+		t.Fatalf("GamesData[0].Edges.Players[0].IsRandomSelected = false, want true")
 	}
 }
 

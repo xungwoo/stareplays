@@ -9,14 +9,13 @@ test("lists stareplays tools and serves a prompt bundle through tool calls", asy
     json: async () => ({
       schemaVersion: "stareplays.team-analysis.raw.v2",
       compatibility: { recommendedMcpVersion: "0.2.0" },
-      source: { randomSelectedGames: 6 },
       analysis: {
-        summary: { gamesAnalyzed: 12, topPlayer: "성우", randomSelectedGames: 6 },
-        players: [{ name: "성우", winRate: 66.7 }]
+        summary: { gamesAnalyzed: 12, topPlayer: "성우" },
+        players: [{ name: "성우", winRate: 66.7, randomSelectedGames: 4 }]
       },
       llm: {
         promptTitle: "3x3 팀 전적 분석",
-        analysisGuidance: ["isRandomSelected=true면 랜덤 선택 경기로 해석하세요."],
+        analysisGuidance: ["player.isRandomSelected=true면 해당 선수가 랜덤을 선택한 것으로 해석하세요."],
         relatedLinks: [{ label: "시즌7 시즌 전적", url: "https://stareplays.up.railway.app/seasons/%EC%8B%9C%EC%A6%8C7", description: "시즌 상세" }],
         suggestedQuestions: ["최적 조합을 추천해줘"]
       }
@@ -43,8 +42,8 @@ test("lists stareplays tools and serves a prompt bundle through tool calls", asy
   });
 
   assert.match(prompt.result.content[0].text, /시즌7/);
-  assert.match(prompt.result.content[0].text, /랜덤 선택 경기: 6/);
-  assert.match(prompt.result.content[0].text, /isRandomSelected=true/);
+  assert.doesNotMatch(prompt.result.content[0].text, /randomSelectedGames/);
+  assert.match(prompt.result.content[0].text, /player\.isRandomSelected=true/);
   assert.match(prompt.result.content[0].text, /https:\/\/stareplays\.up\.railway\.app\/seasons/);
   assert.match(prompt.result.content[0].text, /최적 조합을 추천해줘/);
 });

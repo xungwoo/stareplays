@@ -12,6 +12,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/xungwoo/stareplays/ent"
 	"github.com/xungwoo/stareplays/ent/game"
+	"github.com/xungwoo/stareplays/ent/player"
 	"github.com/xungwoo/stareplays/internal/randomselect"
 )
 
@@ -68,6 +69,9 @@ func backfill(ctx context.Context, client *ent.Client, bySeason map[string][]ran
 		records := bySeason[label]
 		games, err := client.Game.Query().
 			Where(game.SeasonLabelEQ(label)).
+			WithPlayers(func(query *ent.PlayerQuery) {
+				query.Order(ent.Asc(player.FieldTeam), ent.Asc(player.FieldID))
+			}).
 			Order(ent.Asc(game.FieldStartTime), ent.Asc(game.FieldCreatedAt), ent.Asc(game.FieldID)).
 			All(ctx)
 		if err != nil {
@@ -79,29 +83,38 @@ func backfill(ctx context.Context, client *ent.Client, bySeason map[string][]ran
 		if forcedRandom {
 			matched = len(games)
 		}
-		changed := 0
+		playerChanged := 0
 		for index := 0; index < matched; index++ {
-			next := forcedRandom || records[index].IsRandomSelected
-			if games[index].IsRandomSelected == next {
-				continue
-			}
-			changed++
-			if apply {
-				if _, err := client.Game.UpdateOneID(games[index].ID).
-					SetIsRandomSelected(next).
-					Save(ctx); err != nil {
-					return fmt.Errorf("update game %d: %w", games[index].ID, err)
+			playerSelections := randomSelectionsForGame(records, index, len(games[index].Edges.Players), forcedRandom)
+
+			players := games[index].Edges.Players
+			playerMatched := min(len(playerSelections), len(players))
+			for playerIndex := 0; playerIndex < playerMatched; playerIndex++ {
+				nextPlayerRandom := playerSelections[playerIndex]
+				if players[playerIndex].IsRandomSelected == nextPlayerRandom {
+					continue
 				}
+				playerChanged++
+				if apply {
+					if _, err := client.Player.UpdateOneID(players[playerIndex].ID).
+						SetIsRandomSelected(nextPlayerRandom).
+						Save(ctx); err != nil {
+						return fmt.Errorf("update player %d: %w", players[playerIndex].ID, err)
+					}
+				}
+			}
+			if len(playerSelections) != len(players) {
+				log.Printf("warn %s game_id=%d: csv/db player count mismatch; csv_players=%d db_players=%d", label, games[index].ID, len(playerSelections), len(players))
 			}
 		}
 
 		totalMatched += matched
-		totalChanged += changed
+		totalChanged += playerChanged
 		mode := "dry-run"
 		if apply {
 			mode = "applied"
 		}
-		log.Printf("%s %s: csv_games=%d db_games=%d matched=%d changed=%d forced_random=%t", mode, label, len(records), len(games), matched, changed, forcedRandom)
+		log.Printf("%s %s: csv_games=%d db_games=%d matched=%d player_changed=%d forced_random=%t", mode, label, len(records), len(games), matched, playerChanged, forcedRandom)
 		if !forcedRandom && len(records) != len(games) {
 			log.Printf("warn %s: csv/db game count mismatch; extra rows are left unchanged", label)
 		}
@@ -109,4 +122,18 @@ func backfill(ctx context.Context, client *ent.Client, bySeason map[string][]ran
 
 	log.Printf("random selection backfill complete: matched=%d changed=%d apply=%t", totalMatched, totalChanged, apply)
 	return nil
+}
+
+func randomSelectionsForGame(records []randomselect.GameRecord, index int, playerCount int, forcedRandom bool) []bool {
+	if forcedRandom {
+		selections := make([]bool, playerCount)
+		for playerIndex := range selections {
+			selections[playerIndex] = true
+		}
+		return selections
+	}
+	if index >= len(records) {
+		return nil
+	}
+	return records[index].PlayerRandomSelections
 }

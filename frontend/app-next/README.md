@@ -97,7 +97,7 @@ GET /api/team-analysis/raw?season_label=시즌7
 
 - 현재 별도 인증이 없습니다.
 - 3x3 팀 분석 page model과 LLM prompt context를 JSON으로 반환합니다.
-- raw v2는 경기 단위 `isRandomSelected` 정보를 `features`, `source`, `analysis.summary`, `analysis.recentMatches`에 노출합니다.
+- raw v2는 선수별 `is_random_selected` 정보를 API player row와 player analysis에 노출합니다. 경기 단위 랜덤 선택 요약 필드는 제공하지 않습니다.
 - 응답 계약은 `mcp/stareplays-mcp/README.md`의 “Raw endpoint 데이터” 섹션을 기준으로 관리합니다.
 - 민감 데이터나 비공개 replay 원본 URL을 포함하지 않도록 주의합니다.
 

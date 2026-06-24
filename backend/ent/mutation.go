@@ -1699,7 +1699,6 @@ type GameMutation struct {
 	addupload_count     *int
 	winner_team         *uint8
 	addwinner_team      *int8
-	is_random_selected  *bool
 	season_label        *string
 	season_no           *int
 	addseason_no        *int
@@ -2465,42 +2464,6 @@ func (m *GameMutation) ResetWinnerTeam() {
 	m.addwinner_team = nil
 }
 
-// SetIsRandomSelected sets the "is_random_selected" field.
-func (m *GameMutation) SetIsRandomSelected(b bool) {
-	m.is_random_selected = &b
-}
-
-// IsRandomSelected returns the value of the "is_random_selected" field in the mutation.
-func (m *GameMutation) IsRandomSelected() (r bool, exists bool) {
-	v := m.is_random_selected
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldIsRandomSelected returns the old "is_random_selected" field's value of the Game entity.
-// If the Game object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *GameMutation) OldIsRandomSelected(ctx context.Context) (v bool, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldIsRandomSelected is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldIsRandomSelected requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldIsRandomSelected: %w", err)
-	}
-	return oldValue.IsRandomSelected, nil
-}
-
-// ResetIsRandomSelected resets all changes to the "is_random_selected" field.
-func (m *GameMutation) ResetIsRandomSelected() {
-	m.is_random_selected = nil
-}
-
 // SetSeasonLabel sets the "season_label" field.
 func (m *GameMutation) SetSeasonLabel(s string) {
 	m.season_label = &s
@@ -2912,7 +2875,7 @@ func (m *GameMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GameMutation) Fields() []string {
-	fields := make([]string, 0, 17)
+	fields := make([]string, 0, 16)
 	if m.host != nil {
 		fields = append(fields, game.FieldHost)
 	}
@@ -2948,9 +2911,6 @@ func (m *GameMutation) Fields() []string {
 	}
 	if m.winner_team != nil {
 		fields = append(fields, game.FieldWinnerTeam)
-	}
-	if m.is_random_selected != nil {
-		fields = append(fields, game.FieldIsRandomSelected)
 	}
 	if m.season_label != nil {
 		fields = append(fields, game.FieldSeasonLabel)
@@ -2996,8 +2956,6 @@ func (m *GameMutation) Field(name string) (ent.Value, bool) {
 		return m.UploadCount()
 	case game.FieldWinnerTeam:
 		return m.WinnerTeam()
-	case game.FieldIsRandomSelected:
-		return m.IsRandomSelected()
 	case game.FieldSeasonLabel:
 		return m.SeasonLabel()
 	case game.FieldSeasonNo:
@@ -3039,8 +2997,6 @@ func (m *GameMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldUploadCount(ctx)
 	case game.FieldWinnerTeam:
 		return m.OldWinnerTeam(ctx)
-	case game.FieldIsRandomSelected:
-		return m.OldIsRandomSelected(ctx)
 	case game.FieldSeasonLabel:
 		return m.OldSeasonLabel(ctx)
 	case game.FieldSeasonNo:
@@ -3141,13 +3097,6 @@ func (m *GameMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetWinnerTeam(v)
-		return nil
-	case game.FieldIsRandomSelected:
-		v, ok := value.(bool)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetIsRandomSelected(v)
 		return nil
 	case game.FieldSeasonLabel:
 		v, ok := value.(string)
@@ -3405,9 +3354,6 @@ func (m *GameMutation) ResetField(name string) error {
 		return nil
 	case game.FieldWinnerTeam:
 		m.ResetWinnerTeam()
-		return nil
-	case game.FieldIsRandomSelected:
-		m.ResetIsRandomSelected()
 		return nil
 	case game.FieldSeasonLabel:
 		m.ResetSeasonLabel()
@@ -6025,6 +5971,7 @@ type PlayerMutation struct {
 	redundancy             *int
 	addredundancy          *int
 	is_winner              *bool
+	is_random_selected     *bool
 	result                 *string
 	created_at             *time.Time
 	clearedFields          map[string]struct{}
@@ -6962,6 +6909,42 @@ func (m *PlayerMutation) ResetIsWinner() {
 	m.is_winner = nil
 }
 
+// SetIsRandomSelected sets the "is_random_selected" field.
+func (m *PlayerMutation) SetIsRandomSelected(b bool) {
+	m.is_random_selected = &b
+}
+
+// IsRandomSelected returns the value of the "is_random_selected" field in the mutation.
+func (m *PlayerMutation) IsRandomSelected() (r bool, exists bool) {
+	v := m.is_random_selected
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsRandomSelected returns the old "is_random_selected" field's value of the Player entity.
+// If the Player object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PlayerMutation) OldIsRandomSelected(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsRandomSelected is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsRandomSelected requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsRandomSelected: %w", err)
+	}
+	return oldValue.IsRandomSelected, nil
+}
+
+// ResetIsRandomSelected resets all changes to the "is_random_selected" field.
+func (m *PlayerMutation) ResetIsRandomSelected() {
+	m.is_random_selected = nil
+}
+
 // SetResult sets the "result" field.
 func (m *PlayerMutation) SetResult(s string) {
 	m.result = &s
@@ -7107,7 +7090,7 @@ func (m *PlayerMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *PlayerMutation) Fields() []string {
-	fields := make([]string, 0, 16)
+	fields := make([]string, 0, 17)
 	if m.name != nil {
 		fields = append(fields, player.FieldName)
 	}
@@ -7149,6 +7132,9 @@ func (m *PlayerMutation) Fields() []string {
 	}
 	if m.is_winner != nil {
 		fields = append(fields, player.FieldIsWinner)
+	}
+	if m.is_random_selected != nil {
+		fields = append(fields, player.FieldIsRandomSelected)
 	}
 	if m.result != nil {
 		fields = append(fields, player.FieldResult)
@@ -7192,6 +7178,8 @@ func (m *PlayerMutation) Field(name string) (ent.Value, bool) {
 		return m.Redundancy()
 	case player.FieldIsWinner:
 		return m.IsWinner()
+	case player.FieldIsRandomSelected:
+		return m.IsRandomSelected()
 	case player.FieldResult:
 		return m.Result()
 	case player.FieldCreatedAt:
@@ -7233,6 +7221,8 @@ func (m *PlayerMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldRedundancy(ctx)
 	case player.FieldIsWinner:
 		return m.OldIsWinner(ctx)
+	case player.FieldIsRandomSelected:
+		return m.OldIsRandomSelected(ctx)
 	case player.FieldResult:
 		return m.OldResult(ctx)
 	case player.FieldCreatedAt:
@@ -7343,6 +7333,13 @@ func (m *PlayerMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetIsWinner(v)
+		return nil
+	case player.FieldIsRandomSelected:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsRandomSelected(v)
 		return nil
 	case player.FieldResult:
 		v, ok := value.(string)
@@ -7628,6 +7625,9 @@ func (m *PlayerMutation) ResetField(name string) error {
 		return nil
 	case player.FieldIsWinner:
 		m.ResetIsWinner()
+		return nil
+	case player.FieldIsRandomSelected:
+		m.ResetIsRandomSelected()
 		return nil
 	case player.FieldResult:
 		m.ResetResult()

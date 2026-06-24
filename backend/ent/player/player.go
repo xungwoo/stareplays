@@ -42,6 +42,8 @@ const (
 	FieldRedundancy = "redundancy"
 	// FieldIsWinner holds the string denoting the is_winner field in the database.
 	FieldIsWinner = "is_winner"
+	// FieldIsRandomSelected holds the string denoting the is_random_selected field in the database.
+	FieldIsRandomSelected = "is_random_selected"
 	// FieldResult holds the string denoting the result field in the database.
 	FieldResult = "result"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -76,6 +78,7 @@ var Columns = []string{
 	FieldStartDirection,
 	FieldRedundancy,
 	FieldIsWinner,
+	FieldIsRandomSelected,
 	FieldResult,
 	FieldCreatedAt,
 }
@@ -108,6 +111,8 @@ var (
 	RaceValidator func(string) error
 	// DefaultIsWinner holds the default value on creation for the "is_winner" field.
 	DefaultIsWinner bool
+	// DefaultIsRandomSelected holds the default value on creation for the "is_random_selected" field.
+	DefaultIsRandomSelected bool
 	// DefaultResult holds the default value on creation for the "result" field.
 	DefaultResult string
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
@@ -190,6 +195,11 @@ func ByRedundancy(opts ...sql.OrderTermOption) OrderOption {
 // ByIsWinner orders the results by the is_winner field.
 func ByIsWinner(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldIsWinner, opts...).ToFunc()
+}
+
+// ByIsRandomSelected orders the results by the is_random_selected field.
+func ByIsRandomSelected(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIsRandomSelected, opts...).ToFunc()
 }
 
 // ByResult orders the results by the result field.

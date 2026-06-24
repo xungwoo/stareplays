@@ -125,6 +125,11 @@ func IsWinner(v bool) predicate.Player {
 	return predicate.Player(sql.FieldEQ(FieldIsWinner, v))
 }
 
+// IsRandomSelected applies equality check predicate on the "is_random_selected" field. It's identical to IsRandomSelectedEQ.
+func IsRandomSelected(v bool) predicate.Player {
+	return predicate.Player(sql.FieldEQ(FieldIsRandomSelected, v))
+}
+
 // Result applies equality check predicate on the "result" field. It's identical to ResultEQ.
 func Result(v string) predicate.Player {
 	return predicate.Player(sql.FieldEQ(FieldResult, v))
@@ -828,6 +833,16 @@ func IsWinnerEQ(v bool) predicate.Player {
 // IsWinnerNEQ applies the NEQ predicate on the "is_winner" field.
 func IsWinnerNEQ(v bool) predicate.Player {
 	return predicate.Player(sql.FieldNEQ(FieldIsWinner, v))
+}
+
+// IsRandomSelectedEQ applies the EQ predicate on the "is_random_selected" field.
+func IsRandomSelectedEQ(v bool) predicate.Player {
+	return predicate.Player(sql.FieldEQ(FieldIsRandomSelected, v))
+}
+
+// IsRandomSelectedNEQ applies the NEQ predicate on the "is_random_selected" field.
+func IsRandomSelectedNEQ(v bool) predicate.Player {
+	return predicate.Player(sql.FieldNEQ(FieldIsRandomSelected, v))
 }
 
 // ResultEQ applies the EQ predicate on the "result" field.

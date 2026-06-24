@@ -1,10 +1,12 @@
 # Random Selection Field Implementation Plan
 
+> Superseded: this plan incorrectly modeled random selection as a game-level field. The active contract is player-level `players.is_random_selected`; game-level random selection fields are intentionally removed.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a game-level `isRandomSelected` contract from DB through season/team-analysis/MCP surfaces, with CSV-based backfill support.
+**Goal:** Superseded historical plan; do not use this as the active random-selection contract.
 
-**Architecture:** Store the canonical value on `games.is_random_selected` with default `false`. Expose it in game DTOs and Next API types, summarize it in the raw team-analysis payload, and keep MCP thin by reading API-provided LLM guidance plus raw JSON. Use a small Go CSV parser/backfill command for existing season data.
+**Architecture:** The active design stores random selection on `players.is_random_selected` only. Game-level random selection fields and summaries are intentionally removed to avoid ambiguous interpretation.
 
 **Tech Stack:** Go/Fiber/Ent/Postgres, Next.js TypeScript adapters, Node MCP stdio connector.
 
