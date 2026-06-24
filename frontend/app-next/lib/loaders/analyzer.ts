@@ -26,14 +26,19 @@ export async function loadAnalyzerPageModel(options: AnalyzerLoaderOptions = {})
   }
 
   const games = gamesResponse.games ?? [];
+  const selectedGame =
+    games.find((game) => Number(game.id ?? 0) === options.selectedGameId) ??
+    games[0];
+  const selectedGameId = Number(selectedGame?.id ?? 0);
+  const gamesForInitialInsight = selectedGameId > 0 ? [selectedGame] : [];
   const detailEntries = await Promise.all(
-    games.map(async (game) => [
+    gamesForInitialInsight.map(async (game) => [
       Number(game.id ?? 0),
       await tryFetchApiJson<ApiGameDetailResponse>(`/api/v1/games/${game.id}/detail`, detailOptions)
     ] as const)
   );
   const analyzerEntries = await Promise.all(
-    games.map(async (game) => [
+    gamesForInitialInsight.map(async (game) => [
       Number(game.id ?? 0),
       await tryFetchApiJson<ApiGameAnalyzerResponse>(`/api/v1/games/${game.id}/analyzer`, detailOptions)
     ] as const)

@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"os"
@@ -40,8 +41,33 @@ func Connect() error {
 	if err := Client.Schema.Create(ctx); err != nil {
 		return fmt.Errorf("failed to create schema: %w", err)
 	}
+	if err := ensurePerformanceIndexes(ctx, dsn); err != nil {
+		return fmt.Errorf("failed to ensure performance indexes: %w", err)
+	}
 
 	log.Println("Schema migration completed")
+	return nil
+}
+
+func performanceIndexStatements() []string {
+	return []string{
+		`CREATE INDEX IF NOT EXISTS games_start_time_created_at_idx ON games (start_time DESC, created_at DESC)`,
+		`CREATE INDEX IF NOT EXISTS players_lower_name_idx ON players (lower(name))`,
+	}
+}
+
+func ensurePerformanceIndexes(ctx context.Context, dsn string) error {
+	db, err := sql.Open("postgres", dsn)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	for _, statement := range performanceIndexStatements() {
+		if _, err := db.ExecContext(ctx, statement); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

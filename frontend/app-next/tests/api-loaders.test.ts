@@ -657,6 +657,61 @@ describe("api loaders", () => {
     expect(model.selectedGame.map).toBe("Beta Mesa");
   });
 
+  it("prefetches analyzer detail only for the initially selected game", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+
+      if (url.includes("/games?")) {
+        return createJsonResponse({
+          total: 2,
+          games: [
+            {
+              id: 47,
+              map_name: "Alpha Ridge",
+              winner_team: 1,
+              game_length: 760,
+              start_time: "2026-03-22T00:05:48Z",
+              edges: { players: [] }
+            },
+            {
+              id: 48,
+              map_name: "Beta Mesa",
+              winner_team: 2,
+              game_length: 810,
+              start_time: "2026-03-22T00:15:48Z",
+              edges: { players: [] }
+            }
+          ],
+          analysis_statuses: { 47: "succeeded", 48: "succeeded" }
+        });
+      }
+
+      if (url.includes("/games/47/detail") || url.includes("/games/47/analyzer")) {
+        return createJsonResponse({ detail: {}, tech_tree: {}, resource_spend: {}, unit_production: {}, status: "succeeded", result: { summary: { teams: [], players: [] }, analysis_phase: {}, match_flow: {}, player_timeseries: { players: [] } } });
+      }
+
+      if (url.includes("/games/48/detail") || url.includes("/games/48/analyzer")) {
+        throw new Error(`Unexpected eager analyzer prefetch: ${url}`);
+      }
+
+      throw new Error(`Unexpected url: ${url}`);
+    });
+
+    await loadAnalyzerPageModel({
+      fetchImpl: fetchMock,
+      apiBaseUrl: "http://127.0.0.1:3000",
+      currentUser: CURRENT_USER
+    });
+
+    const urls = fetchMock.mock.calls.map((call) => String(call[0]));
+    expect(urls).toEqual(expect.arrayContaining([
+      "http://127.0.0.1:3000/api/v1/games/47/detail",
+      "http://127.0.0.1:3000/api/v1/games/47/analyzer"
+    ]));
+    expect(urls.some((url) => url.includes("/games/48/detail"))).toBe(false);
+    expect(urls.some((url) => url.includes("/games/48/analyzer"))).toBe(false);
+  });
+
   it("requests enough games for analyzer deep-links exposed by the vault", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
