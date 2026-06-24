@@ -1351,6 +1351,7 @@ func ListGames(c *fiber.Ctx) error {
 	offset := c.QueryInt("offset", 0)
 	userName := strings.TrimSpace(c.Query("user_name"))
 	seasonLabel := strings.TrimSpace(c.Query("season_label"))
+	includeTotal := c.QueryBool("include_total", true)
 	if limit > 100 {
 		limit = 100
 	}
@@ -1369,10 +1370,14 @@ func ListGames(c *fiber.Ctx) error {
 		gameQuery = gameQuery.Where(game.SeasonLabelEQ(seasonLabel))
 	}
 
+	queryLimit := limit
+	if !includeTotal {
+		queryLimit = limit + 1
+	}
 	games, err := gameQuery.
 		WithPlayers().
 		Order(ent.Desc(game.FieldStartTime), ent.Desc(game.FieldCreatedAt)).
-		Limit(limit).
+		Limit(queryLimit).
 		Offset(offset).
 		All(ctx)
 	if err != nil {
@@ -1382,19 +1387,28 @@ func ListGames(c *fiber.Ctx) error {
 		})
 	}
 
-	totalQuery := database.Client.Game.Query()
-	if userName != "" {
-		totalQuery = totalQuery.Where(game.HasPlayersWith(player.NameEqualFold(userName)))
+	hasMore := false
+	if !includeTotal && len(games) > limit {
+		hasMore = true
+		games = games[:limit]
 	}
-	if seasonLabel != "" {
-		totalQuery = totalQuery.Where(game.SeasonLabelEQ(seasonLabel))
-	}
-	total, err := totalQuery.Count(ctx)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error":   "Failed to count games",
-			"details": err.Error(),
-		})
+	total := windowedTotal(offset, len(games), hasMore)
+	if includeTotal {
+		totalQuery := database.Client.Game.Query()
+		if userName != "" {
+			totalQuery = totalQuery.Where(game.HasPlayersWith(player.NameEqualFold(userName)))
+		}
+		if seasonLabel != "" {
+			totalQuery = totalQuery.Where(game.SeasonLabelEQ(seasonLabel))
+		}
+		total, err = totalQuery.Count(ctx)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error":   "Failed to count games",
+				"details": err.Error(),
+			})
+		}
+		hasMore = offset+len(games) < total
 	}
 
 	analysisStatuses, err := buildAnalysisStatusMap(ctx, games)
@@ -1412,9 +1426,18 @@ func ListGames(c *fiber.Ctx) error {
 		"offset":                offset,
 		"user_name":             userName,
 		"season_label":          seasonLabel,
+		"has_more":              hasMore,
 		"reliability_summaries": buildReliabilitySummaryMap(games),
 		"analysis_statuses":     analysisStatuses,
 	})
+}
+
+func windowedTotal(offset int, returnedGames int, hasMore bool) int {
+	total := offset + returnedGames
+	if hasMore {
+		total++
+	}
+	return total
 }
 
 // ListReplayFileHashes returns a compact hash set for idempotent bulk upload tools.

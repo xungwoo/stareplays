@@ -87,6 +87,22 @@ func TestBuildSeasonSummariesIncludesGameDataWhenRequested(t *testing.T) {
 	}
 }
 
+func TestWindowedTotalUsesLookaheadWithoutExactCount(t *testing.T) {
+	total := windowedTotal(12, 12, true)
+
+	if total != 25 {
+		t.Fatalf("total = %d, want 25", total)
+	}
+}
+
+func TestWindowedTotalStopsAtLastPage(t *testing.T) {
+	total := windowedTotal(24, 3, false)
+
+	if total != 27 {
+		t.Fatalf("total = %d, want 27", total)
+	}
+}
+
 func minimalParsedGame(names []string) *parser.ParsedGame {
 	players := make([]parser.ParsedPlayer, 0, len(names))
 	for index, name := range names {

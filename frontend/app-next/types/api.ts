@@ -100,6 +100,7 @@ export interface ApiGameSummary {
 export interface ApiGamesListResponse {
   total?: number;
   games?: ApiGameSummary[];
+  has_more?: boolean;
   analysis_statuses?: Record<string, string>;
 }
 
