@@ -1,117 +1,144 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+이 파일은 Claude Code가 이 레포지토리에서 작업할 때 따르는 루트 지침입니다. Codex는 `AGENTS.md`, Claude는 이 파일을 주로 읽지만, 두 파일의 작업 사이클과 배포 규칙은 동일합니다.
 
-## Mandatory Deployment Guidance
+## 최우선 작업 사이클
 
-Before any Railway production deployment, read `docs/RAILWAY_DEPLOYMENT_GUIDE.md`.
+운영에 반영되는 모든 변경은 feature branch에서 작업한 뒤 `main`에 병합하고, `main` 기준으로만 배포합니다.
 
-The critical rule is that `stareplays-next` must be deployed with `railway up frontend/app-next --path-as-root --service stareplays-next --environment production`. Deploying it from the repository root makes Railway miss `frontend/app-next/railway.toml`, fall back to default detection, and can create a failed production deployment.
+필수 순서:
 
-## Project Overview
+1. `main`을 최신 원격 기준으로 맞춥니다.
+2. 작업별 feature branch를 생성합니다.
+3. feature branch에서 구현과 검증을 완료합니다.
+4. feature branch를 `main`에 병합합니다.
+5. `main`을 `origin/main`에 push합니다.
+6. Railway production은 `main` 기준으로 배포합니다.
+7. 배포 후 상태와 운영 endpoint를 확인합니다.
 
-stareplays is a StarCraft replay statistics and analysis API built with Go. The application parses StarCraft replay files (.rep), extracts game data, stores it in PostgreSQL, and provides a REST API for querying player statistics and game history.
+예시:
 
-**Tech Stack:**
-- Go 1.25.5
-- Fiber v2 (HTTP framework)
-- GORM (ORM)
-- PostgreSQL (database)
-- github.com/icza/screp (StarCraft replay parser library)
-
-## Development Commands
-
-### Running the Application
 ```bash
-# Run in development mode (recommended)
-make dev
+git status --short --branch
+git fetch origin
+git switch main
+git pull --ff-only origin main
+git switch -c feat/<short-task-name>
 
-# Build and run production binary
-make build
-make run
+# work + tests
 
-# Or combine: build then run
-make run
+git switch main
+git pull --ff-only origin main
+git merge --no-ff feat/<short-task-name>
+git push origin main
 ```
 
-### Testing
+`main`에서 직접 작업하거나, feature branch를 main에 병합하지 않은 상태로 운영 배포하지 않습니다.
+
+## Railway 배포 필수 규칙
+
+배포 전 반드시 `docs/RAILWAY_DEPLOYMENT_GUIDE.md`를 읽습니다.
+
+절대 규칙:
+
+- 운영 배포 기준은 `origin/main`입니다.
+- 서비스명을 명시하지 않은 `railway up`은 사용하지 않습니다.
+- `stareplays-next`는 반드시 `frontend/app-next`를 archive root로 배포합니다.
+- `stareplays-next`를 레포 루트에서 배포하지 않습니다. 루트에서 올리면 `frontend/app-next/railway.toml`을 못 읽고 Railpack 기본 감지로 실패합니다.
+- API `stareplays`는 레포 루트의 `railway.api.toml` 기준으로 배포합니다.
+
+프런트 배포:
+
 ```bash
-# Run all tests with verbose output
-make test
-
-# Or use go test directly
-cd backend && go test -v ./...
+railway up frontend/app-next \
+  --path-as-root \
+  --service stareplays-next \
+  --environment production \
+  --detach \
+  --message "<main commit summary>"
 ```
 
-### Maintenance
+임시 worktree에서 Railway link가 없으면 project id를 명시합니다.
+
 ```bash
-# Clean build artifacts and uploads
-make clean
-
-# Tidy dependencies
-make tidy
+railway up frontend/app-next \
+  --path-as-root \
+  --project 838683d6-9fb8-41d6-ad8a-1075e4d00196 \
+  --service stareplays-next \
+  --environment production \
+  --detach \
+  --message "<main commit summary>"
 ```
 
-### Docker (future use)
+API 배포:
+
 ```bash
-make docker-build
-make docker-run
+railway up \
+  --service stareplays \
+  --environment production \
+  --detach \
+  --message "<main commit summary>"
 ```
 
-## Architecture
+배포 확인:
 
-### Project Structure
-
-```
-stareplays/
-├── backend/
-│   ├── cmd/server/           # Application entry point
-│   │   └── main.go           # HTTP server initialization, middleware setup, route definitions
-│   ├── internal/             # Private application code
-│   │   ├── api/              # HTTP layer
-│   │   ├── database/         # Database connection and configuration
-│   │   ├── models/           # Data models
-│   │   └── parser/           # Replay file parsing logic
-│   ├── ent/                  # Ent schema + generated code
-│   └── pkg/                  # Public/reusable packages
-└── frontend/web/             # Static web UI
+```bash
+railway service status --service stareplays --environment production
+railway service status --service stareplays-next --environment production
+railway deployment list --service stareplays --environment production
+railway deployment list --service stareplays-next --environment production
+curl -sS -I https://stareplays-production.up.railway.app/health
+curl -sS -I https://stareplays-next-production.up.railway.app/team-analysis
 ```
 
-### Key Architectural Patterns
+`stareplays-next` 배포에서 `No start command detected`, `RAILPACK`, 빈 manifest가 보이면 잘못된 root로 배포한 것입니다. 즉시 위 프런트 배포 명령으로 재배포합니다.
 
-**Database Layer:**
-- Uses GORM for database abstraction
-- Global `database.DB` variable stores the GORM instance
-- Auto-migration is performed in `database.Connect()` on startup
-- Import path issue: `backend/internal/database/postgres.go:10` references incorrect module path `github.com/yourusername/starcraft-stats` instead of `github.com/xungwoo/stareplays`
+## 현재 시스템 구조
 
-**Data Models:**
-- `models.Replay`: Core entity storing parsed replay file data
-  - Unique constraint on `FileHash` to prevent duplicate uploads
-  - Tracks game metadata (map, length, date), player info (name, race, APM), and result
-- `models.PlayerStats`: Computed statistics (not persisted, used for API responses)
+StaReplays는 StarCraft replay 기반 3x3 전적/분석 시스템입니다.
 
-**HTTP Layer:**
-- Fiber v2 framework with standard middleware (logger, CORS)
-- API versioned at `/api/v1`
-- Currently has stub endpoints:
-  - `GET /health` - health check
-  - `GET /api/v1/replays` - list replays (stub)
-  - `POST /api/v1/replays/upload` - upload replay (stub)
+주요 구성:
 
-**Configuration:**
-- `.env` file for environment variables (loaded via godotenv)
-- Required vars: `PORT`, `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_SSLMODE`
-- Optional: `STORAGE_PATH` (defaults to ./uploads), `JWT_SECRET` (future use)
+- `backend`: Go/Fiber API, Ent ORM, PostgreSQL, replay upload/parser, analyzer/ranking snapshot endpoint
+- `frontend/app-next`: Next.js 운영 대시보드
+- `mcp/stareplays-mcp`: Claude/Codex MCP 로컬 커넥터
+- `railway.*.toml`: Railway 서비스별 배포 설정
+- `docs`: 구조, 명세, 배포, 운영 문서
 
-### Development Workflow
+주요 운영 서비스:
 
-1. **Adding New Endpoints**: Create handlers in `backend/internal/api/handlers/`, register routes in `backend/cmd/server/main.go`
-2. **Database Changes**: Update models in `backend/internal/models/`, GORM will auto-migrate on next startup
-3. **Replay Parsing**: Implement in `backend/internal/parser/` using the `github.com/icza/screp` library
-4. **Testing**: Write `*_test.go` files alongside implementation files
+- `stareplays-next`: Next.js 운영 대시보드
+- `stareplays`: Go API
+- `ranking-job`: 랭킹 snapshot job
+- `analyzer-job`: 종족 조합 snapshot job
+- `replay_analyzer`: replay analyzer worker
+- `Postgres`: Railway managed database
 
-### Known Issues
+## 개발 명령
 
-- Import path in `backend/internal/database/postgres.go:10` references wrong module (`github.com/yourusername/starcraft-stats` should be `github.com/xungwoo/stareplays`)
-- Core functionality (handlers, parser, middleware) are placeholder directories awaiting implementation
+프런트:
+
+```bash
+cd frontend/app-next
+npm test
+npm run typecheck
+npm run build
+```
+
+백엔드:
+
+```bash
+cd backend
+go test ./...
+go build -o bin/server ./cmd/server/main.go
+```
+
+문서만 변경해도 배포 명령, 서비스명, endpoint, 경로가 실제 코드와 맞는지 확인합니다.
+
+## 코드 작업 원칙
+
+- 사용자 변경을 임의로 되돌리지 않습니다.
+- 관련 테스트를 먼저 보강하고 실패를 확인한 뒤 구현합니다.
+- 기능 변경과 문서 변경은 현재 코드/운영 상태를 기준으로 맞춥니다.
+- 배포 방식, endpoint, MCP/raw data 계약이 바뀌면 `README.md`, `docs/RAILWAY_DEPLOYMENT_GUIDE.md`, `frontend/app-next/README.md`, `mcp/stareplays-mcp/README.md`를 함께 확인합니다.
+- 운영 관련 답변은 가능한 한 검증 명령과 실제 결과를 함께 남깁니다.

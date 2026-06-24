@@ -1,20 +1,54 @@
-# Railway Deployment Guide
+# Railway 운영 배포 가이드
 
-This is the operational deployment guide for StaReplays Railway production services.
+이 문서는 StaReplays Railway production 배포의 기준 문서입니다. Claude와 Codex는 배포 전에 반드시 이 문서를 읽고, 여기에 있는 명령만 사용합니다.
 
-## Required Rule
+## 운영 배포 원칙
 
-Do not deploy every service from the repository root with the same `railway up` command.
+운영 배포는 항상 `main` 기준입니다.
 
-Each service has its own Railway root/config expectation. Using the wrong root can make Railway miss the intended `railway.toml`, fall back to default Railpack detection, and create a failed deployment.
+필수 순서:
 
-## Production Services
+1. `origin/main`을 최신 상태로 가져옵니다.
+2. 작업별 feature branch에서 변경합니다.
+3. feature branch에서 테스트와 빌드를 완료합니다.
+4. feature branch를 `main`에 병합합니다.
+5. `main`을 push합니다.
+6. Railway production을 `main` 기준으로 배포합니다.
+7. 배포 상태와 운영 endpoint를 확인합니다.
+
+feature branch를 main에 병합하지 않은 상태로 운영 배포하지 않습니다. `main`에서 직접 작업 후 배포하지 않습니다.
+
+## 사전 확인
+
+```bash
+git status --short --branch
+git fetch origin
+git switch main
+git pull --ff-only origin main
+git log --oneline --decorate -3
+```
+
+배포 직전 `HEAD`와 `origin/main`이 같은 커밋이어야 합니다.
+
+```bash
+git status --short --branch
+```
+
+예상:
+
+```text
+## main...origin/main
+```
+
+## 서비스별 배포 명령
+
+서비스별 archive root와 Railway config 위치가 다릅니다. 모든 서비스를 같은 `railway up` 명령으로 배포하지 않습니다.
 
 ### `stareplays-next`
 
-Next.js frontend service.
+Next.js 운영 대시보드입니다.
 
-Deploy from `frontend/app-next` as the archive root:
+반드시 `frontend/app-next`를 archive root로 배포합니다.
 
 ```bash
 railway up frontend/app-next \
@@ -22,78 +56,168 @@ railway up frontend/app-next \
   --service stareplays-next \
   --environment production \
   --detach \
-  --message "Describe the deployment"
+  --message "<main commit summary>"
 ```
 
-Expected deployment metadata:
+임시 worktree처럼 Railway project link가 없거나 불명확하면 project id를 명시합니다.
 
-- `configFile`: `/railway.toml`
-- `build.builder`: `NIXPACKS`
-- `build.buildCommand`: `npm run build`
-- `deploy.healthcheckPath`: `/team-analysis`
-- `deploy.startCommand`: `npm run start`
+```bash
+railway up frontend/app-next \
+  --path-as-root \
+  --project 838683d6-9fb8-41d6-ad8a-1075e4d00196 \
+  --service stareplays-next \
+  --environment production \
+  --detach \
+  --message "<main commit summary>"
+```
 
-Never deploy `stareplays-next` from the repository root. The service config lives at `frontend/app-next/railway.toml`; root deployment causes Railway to miss it.
+정상 배포 기대값:
+
+- config file: `frontend/app-next/railway.toml`이 archive root에서 `/railway.toml`로 인식
+- builder: `NIXPACKS`
+- build command: `npm run build`
+- start command: `npm run start`
+- healthcheck path: `/team-analysis`
+
+금지:
+
+```bash
+railway up --service stareplays-next --environment production
+railway up . --service stareplays-next --environment production
+```
+
+위처럼 레포 루트에서 배포하면 `frontend/app-next/railway.toml`을 읽지 못하고 Railpack 기본 감지로 실패할 수 있습니다.
 
 ### `stareplays`
 
-Go backend API service.
-
-Deploy from repository root:
+Go API 서버입니다. 레포 루트에서 `railway.api.toml` 기준으로 배포합니다.
 
 ```bash
 railway up \
   --service stareplays \
   --environment production \
   --detach \
-  --message "Describe the deployment"
+  --message "<main commit summary>"
 ```
 
-Expected deployment metadata:
+정상 배포 기대값:
 
-- `configFile`: `/railway.api.toml`
-- `build.builder`: `DOCKERFILE`
-- `build.dockerfilePath`: `backend/Dockerfile.api`
-- `deploy.healthcheckPath`: `/health`
-- `deploy.startCommand`: `/app/server`
+- config file: `railway.api.toml`
+- builder: `DOCKERFILE`
+- dockerfile path: `backend/Dockerfile.api`
+- start command: `/app/server`
+- healthcheck path: `/health`
 
-## Verification
+### `ranking-job`
 
-After deployment, verify service status:
+랭킹 snapshot job입니다. 필요한 경우에만 명시적으로 배포합니다.
 
 ```bash
-railway service status --all --environment production --json
+railway up \
+  --service ranking-job \
+  --environment production \
+  --detach \
+  --message "<main commit summary>"
 ```
 
-Verify latest deployments:
+설정 파일: `railway.ranking.toml`
+
+### `analyzer-job`
+
+종족 조합 snapshot job입니다. 필요한 경우에만 명시적으로 배포합니다.
 
 ```bash
-railway deployment list --service stareplays-next --environment production --json --limit 2
-railway deployment list --service stareplays --environment production --json --limit 2
+railway up \
+  --service analyzer-job \
+  --environment production \
+  --detach \
+  --message "<main commit summary>"
 ```
 
-Verify production endpoints:
+설정 파일: `railway.analyzer.toml`
+
+### `replay_analyzer`
+
+Replay analyzer worker입니다. OpenBW/replay analyzer 의존성이 있으므로 Dockerfile과 환경 변수를 같이 확인한 뒤 배포합니다.
 
 ```bash
-curl -sS -D - -o /tmp/stareplays-team-analysis.json \
+railway up \
+  --service replay_analyzer \
+  --environment production \
+  --detach \
+  --message "<main commit summary>"
+```
+
+설정 파일: `railway.replay-analyzer-worker.toml`
+
+## 배포 상태 확인
+
+서비스별 상태:
+
+```bash
+railway service status --service stareplays --environment production
+railway service status --service stareplays-next --environment production
+```
+
+최근 배포:
+
+```bash
+railway deployment list --service stareplays --environment production
+railway deployment list --service stareplays-next --environment production
+```
+
+운영 endpoint:
+
+```bash
+curl -sS -I https://stareplays-production.up.railway.app/health
+curl -sS -I https://stareplays-next-production.up.railway.app/team-analysis
+curl -sS -I https://stareplays-next-production.up.railway.app/seasons
+curl -sS -I https://stareplays-next-production.up.railway.app/rankings
+```
+
+성능/응답 크기 확인:
+
+```bash
+curl -sS -o /tmp/stareplays-team-analysis.html \
+  -w 'team-analysis total=%{time_total} ttfb=%{time_starttransfer} size=%{size_download}\n' \
+  https://stareplays-next-production.up.railway.app/team-analysis
+
+curl -sS -o /tmp/stareplays-seasons.html \
+  -w 'seasons total=%{time_total} ttfb=%{time_starttransfer} size=%{size_download}\n' \
+  https://stareplays-next-production.up.railway.app/seasons
+```
+
+Raw endpoint:
+
+```bash
+curl -sS -D - -o /tmp/stareplays-team-analysis-raw.json \
   -w '\nHTTP=%{http_code}\nTIME_TOTAL=%{time_total}\nSIZE=%{size_download}\n' \
   'https://stareplays-next-production.up.railway.app/api/team-analysis/raw?season_label=%EC%8B%9C%EC%A6%8C8'
-
-curl -sS -D - -o /tmp/stareplays-health.json \
-  -w '\nHTTP=%{http_code}\nTIME_TOTAL=%{time_total}\nSIZE=%{size_download}\n' \
-  'https://stareplays-production.up.railway.app/health'
 ```
 
-For the raw team-analysis endpoint, expect:
+기대:
 
 ```text
-cache-control: public, s-maxage=60, stale-while-revalidate=300
 HTTP=200
+cache-control: public, s-maxage=60, stale-while-revalidate=300
 ```
 
-## Failed Deployment Recovery
+## 배포 실패 복구
 
-If a `stareplays-next` deployment shows empty `fileServiceManifest` or builder `RAILPACK`, it was uploaded from the wrong root. Immediately redeploy with:
+### `stareplays-next` root 오류
+
+증상:
+
+- `No start command detected`
+- builder가 `RAILPACK`
+- deployment manifest가 비어 있음
+- `frontend/app-next/railway.toml`을 읽지 못함
+
+원인:
+
+- 레포 루트에서 `stareplays-next`를 배포함
+
+복구:
 
 ```bash
 railway up frontend/app-next \
@@ -104,4 +228,34 @@ railway up frontend/app-next \
   --message "Recover frontend deployment root"
 ```
 
-Then re-check `railway deployment list --service stareplays-next --environment production --json --limit 2`.
+복구 후 확인:
+
+```bash
+railway service status --service stareplays-next --environment production
+railway deployment list --service stareplays-next --environment production
+curl -sS -I https://stareplays-next-production.up.railway.app/team-analysis
+```
+
+### 잘못된 서비스 배포
+
+서비스명을 빼고 배포했거나 현재 linked service가 헷갈린 경우:
+
+```bash
+railway status
+railway deployment list --service stareplays --environment production
+railway deployment list --service stareplays-next --environment production
+```
+
+이후 올바른 `--service`와 archive root를 명시해서 다시 배포합니다.
+
+## 배포 전 최종 체크리스트
+
+- [ ] 현재 브랜치가 `main`이다.
+- [ ] `main`이 `origin/main`과 같다.
+- [ ] feature branch 변경이 main에 병합되어 있다.
+- [ ] 필요한 테스트와 빌드가 통과했다.
+- [ ] 배포할 Railway service를 명시했다.
+- [ ] `stareplays-next`는 `frontend/app-next --path-as-root`로 배포한다.
+- [ ] API는 레포 루트에서 `--service stareplays`로 배포한다.
+- [ ] 배포 후 `railway service status`가 `SUCCESS`다.
+- [ ] 운영 endpoint가 200 또는 정상 redirect/header를 반환한다.

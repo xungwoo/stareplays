@@ -156,9 +156,33 @@ go test ./...
 
 변경 범위가 좁아도 최소한 관련 테스트, typecheck, production build는 통과시킨 뒤 main에 올립니다.
 
+## 작업 사이클
+
+운영 반영 작업은 항상 feature branch에서 진행한 뒤 main에 병합합니다. Claude/Codex 공통 지침은 루트의 `AGENTS.md`와 `CLAUDE.md`를 기준으로 합니다.
+
+필수 흐름:
+
+```bash
+git fetch origin
+git switch main
+git pull --ff-only origin main
+git switch -c feat/<short-task-name>
+
+# work + verify
+
+git switch main
+git pull --ff-only origin main
+git merge --no-ff feat/<short-task-name>
+git push origin main
+```
+
+운영 배포는 `origin/main`에 병합된 커밋만 대상으로 합니다. feature branch를 main에 병합하지 않은 상태로 배포하지 않습니다.
+
 ## 운영 배포
 
 운영은 Railway production environment를 사용합니다.
+
+배포 상세와 복구 절차는 [docs/RAILWAY_DEPLOYMENT_GUIDE.md](docs/RAILWAY_DEPLOYMENT_GUIDE.md)를 기준으로 합니다. 이 문서의 명령이 README보다 우선합니다.
 
 | Railway service | 소스/빌드 | 역할 |
 | --- | --- | --- |
@@ -178,24 +202,27 @@ railway up frontend/app-next \
   --path-as-root \
   --service stareplays-next \
   --environment production \
+  --detach \
   --message "Deploy dashboard update"
 ```
 
 임시 worktree에서 배포할 때는 project id를 명시합니다.
 
 ```bash
-railway up /path/to/repo/frontend/app-next \
+railway up frontend/app-next \
   --path-as-root \
   --project 838683d6-9fb8-41d6-ad8a-1075e4d00196 \
-  --environment production \
   --service stareplays-next \
+  --environment production \
+  --detach \
   --message "Deploy dashboard update"
 ```
 
 배포 확인:
 
 ```bash
-railway status --json | jq -r '.environments.edges[].node.serviceInstances.edges[].node | select(.serviceName=="stareplays-next") | .latestDeployment.status'
+railway service status --service stareplays-next --environment production
+railway deployment list --service stareplays-next --environment production
 curl -I https://stareplays-next-production.up.railway.app/team-analysis
 curl -I https://stareplays-next-production.up.railway.app/seasons
 curl -I https://stareplays-next-production.up.railway.app/rankings
@@ -206,9 +233,9 @@ curl -I https://stareplays-next-production.up.railway.app/rankings
 API, job, worker는 서비스별 Railway 설정이 다릅니다. 해당 서비스만 지정해서 배포하고, API schema나 snapshot 로직을 건드렸다면 운영 데이터 확인까지 같이 합니다.
 
 ```bash
-railway up backend --service stareplays --environment production
-railway up backend --service ranking-job --environment production
-railway up backend --service analyzer-job --environment production
+railway up --service stareplays --environment production --detach --message "Deploy API update"
+railway up --service ranking-job --environment production --detach --message "Deploy ranking job update"
+railway up --service analyzer-job --environment production --detach --message "Deploy analyzer job update"
 ```
 
 worker는 replay analyzer/openbw 의존성이 있으므로 Dockerfile과 Railway env를 함께 확인해야 합니다.
