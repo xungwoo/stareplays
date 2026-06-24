@@ -7,6 +7,7 @@
 - [frontend-next-architecture.md](frontend-next-architecture.md): 운영 Next.js 프런트 구조와 데이터 흐름
 - [starprojects-railway-overview.md](starprojects-railway-overview.md): StarProjects GitHub 레포지토리와 Railway 배포 모듈 관계
 - [RAILWAY_DEPLOYMENT_GUIDE.md](RAILWAY_DEPLOYMENT_GUIDE.md): feature branch → main 병합 → Railway production 배포 절차와 실패 복구 기준
+- [RAILWAY_GITHUB_DEPLOYMENT_SETUP.md](RAILWAY_GITHUB_DEPLOYMENT_SETUP.md): Railway CLI 없이 GitHub `main` push로 운영 배포하기 위한 Dashboard 설정표
 
 보조 원칙:
 
