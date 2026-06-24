@@ -239,6 +239,7 @@ worker는 replay analyzer/openbw 의존성이 있으므로 Dockerfile과 Railway
 
 - 현재 시스템 구조: `docs/architecture.md`
 - 현재 기능 명세: `docs/spec.md`
+- StarProjects 레포지토리와 Railway 배포 모듈 개요: `docs/starprojects-railway-overview.md`
 - Next 프런트 현재 구조/legacy parity 상태: `docs/frontend-next-architecture.md`
 - 완료된 작업 기록/검증 runbook: `docs/histories/`
 - 상세 API 예시(보조 문서): `API_USAGE.md`
