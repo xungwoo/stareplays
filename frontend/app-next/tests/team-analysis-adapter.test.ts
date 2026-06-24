@@ -26,6 +26,7 @@ const gamesResponse: ApiGamesListResponse = {
       map_name: "Team Circuit",
       winner_team: 2,
       game_length: 840,
+      is_random_selected: true,
       start_time: "2026-03-02T00:00:00Z",
       edges: {
         players: [
@@ -43,6 +44,7 @@ const gamesResponse: ApiGamesListResponse = {
       map_name: "Neo Junction",
       winner_team: 1,
       game_length: 760,
+      is_random_selected: true,
       start_time: "2026-03-03T00:00:00Z",
       edges: {
         players: [
@@ -86,6 +88,9 @@ describe("team analysis adapter", () => {
       wins: 1,
       losses: 1,
       winRate: 50,
+      randomSelectedGames: 2,
+      randomSelectedWins: 1,
+      randomSelectedWinRate: 50,
       averageApm: 210,
       bestRace: "T"
     });

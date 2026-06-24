@@ -15,6 +15,9 @@ export interface TeamAnalysisPlayer {
   wins: number;
   losses: number;
   winRate: number;
+  randomSelectedGames: number;
+  randomSelectedWins: number;
+  randomSelectedWinRate: number;
   averageApm: number;
   averageEapm: number;
   commandEfficiency: number;
