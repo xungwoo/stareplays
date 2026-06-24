@@ -5,13 +5,14 @@ import { useState } from "react";
 import {
   RaceCompositionTable,
   RankingsTable,
+  RaceRankingsTable,
   type RankingsPageViewModel,
   type RankingsSortBy,
   type RaceSortBy
 } from "@/components/rankings/rankings-tables";
 
 export function RankingsPage({ model }: { model: RankingsPageViewModel }) {
-  const [activeTab, setActiveTab] = useState<"rankings" | "race_comp">("rankings");
+  const [activeTab, setActiveTab] = useState<RankingsPageViewModel["tabs"][number]["id"]>("rankings");
   const [rankingsSortBy, setRankingsSortBy] = useState<RankingsSortBy>("win_rate");
   const [rankingsSortDesc, setRankingsSortDesc] = useState(true);
   const [raceSortBy, setRaceSortBy] = useState<RaceSortBy>("games");
@@ -66,6 +67,8 @@ export function RankingsPage({ model }: { model: RankingsPageViewModel }) {
           sortDesc={rankingsSortDesc}
           onSortChange={updateRankingsSort}
         />
+      ) : activeTab === "race_rankings" ? (
+        <RaceRankingsTable model={model} currentUser={currentUser} />
       ) : (
         <RaceCompositionTable
           model={model}

@@ -1,7 +1,14 @@
-import { formatStartTime } from "@/lib/utils/format";
+import { formatStartTime, getRaceLetter } from "@/lib/utils/format";
 import { getPlayerColor } from "@/lib/utils/player-colors";
 import { displayLineupName, displayPlayerName, displayPlayerNames } from "@/lib/utils/player-display";
 import type { ApiGamePlayer, ApiGameSummary, ApiSeasonsResponse } from "@/types/api";
+import type { RaceCode } from "@/types/common";
+
+export interface SeasonGameRecordPlayer {
+  name: string;
+  race: RaceCode;
+  isRandomSelected: boolean;
+}
 
 export interface SeasonGameRecord {
   id: number;
@@ -12,6 +19,8 @@ export interface SeasonGameRecord {
   durationMinutes: number;
   winner: string[];
   loser: string[];
+  winnerPlayers: SeasonGameRecordPlayer[];
+  loserPlayers: SeasonGameRecordPlayer[];
   winnerLabel: string;
   loserLabel: string;
 }
@@ -88,8 +97,11 @@ type NormalizedGame = {
   startTime: string;
   mapName: string;
   durationMinutes: number;
+  isRandomSelected: boolean;
   winner: string[];
   loser: string[];
+  winnerPlayers: SeasonGameRecordPlayer[];
+  loserPlayers: SeasonGameRecordPlayer[];
   players: Array<{
     name: string;
     displayName: string;
@@ -141,6 +153,14 @@ function playersForTeam(game: ApiGameSummary, team: number) {
   return (game.edges?.players ?? []).filter((player) => isTrackedPlayer(player) && toNumber(player.team) === team);
 }
 
+function seasonGameRecordPlayers(players: ApiGamePlayer[], isRandomSelected: boolean): SeasonGameRecordPlayer[] {
+  return players.map((player) => ({
+    name: displayPlayerName(player.name ?? "Unknown"),
+    race: getRaceLetter(player.race ?? "P"),
+    isRandomSelected
+  }));
+}
+
 function normalizeGame(game: ApiGameSummary, fallbackSeasonLabel: string, fallbackSeasonNo: number | null): NormalizedGame | null {
 	const winnerTeam = toNumber(game.winner_team);
 	if (winnerTeam <= 0) return null;
@@ -157,6 +177,7 @@ function normalizeGame(game: ApiGameSummary, fallbackSeasonLabel: string, fallba
   const seasonNo = game.season_no ?? fallbackSeasonNo;
   const allTrackedPlayers = [...winnerPlayers, ...loserPlayers];
   const analysisPlayers = game.season_analysis?.players ?? {};
+  const isRandomSelected = game.is_random_selected === true;
 
   return {
     id: toNumber(game.id),
@@ -166,8 +187,11 @@ function normalizeGame(game: ApiGameSummary, fallbackSeasonLabel: string, fallba
     startTime: formatStartTime(startTimeRaw),
     mapName: game.map_name?.trim() || "Unknown Map",
     durationMinutes: round(toNumber(game.game_length) / 60, 1),
+    isRandomSelected,
     winner: displayPlayerNames(winnerPlayers.map((player) => player.name ?? "")),
     loser: displayPlayerNames(loserPlayers.map((player) => player.name ?? "")),
+    winnerPlayers: seasonGameRecordPlayers(winnerPlayers, isRandomSelected),
+    loserPlayers: seasonGameRecordPlayers(loserPlayers, isRandomSelected),
     players: allTrackedPlayers.map((player) => ({
       name: player.name ?? "Unknown",
       displayName: displayPlayerName(player.name ?? "Unknown"),
@@ -309,6 +333,8 @@ function buildGameRecords(games: NormalizedGame[]): SeasonGameRecord[] {
     durationMinutes: game.durationMinutes,
     winner: game.winner,
     loser: game.loser,
+    winnerPlayers: game.winnerPlayers,
+    loserPlayers: game.loserPlayers,
     winnerLabel: displayLineupName(game.winner),
     loserLabel: displayLineupName(game.loser)
   }));

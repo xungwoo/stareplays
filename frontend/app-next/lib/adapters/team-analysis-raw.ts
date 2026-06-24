@@ -27,6 +27,11 @@ export interface TeamAnalysisRawPayload {
     promptTitle: string;
     promptContext: string;
     analysisGuidance: string[];
+    relatedLinks: Array<{
+      label: string;
+      url: string;
+      description: string;
+    }>;
     suggestedQuestions: string[];
   };
 }
@@ -48,6 +53,8 @@ export function createTeamAnalysisRawPayload({
   const analysis = createTeamAnalysisPageModel({ gamesResponse });
   const games = gamesResponse?.games ?? [];
   const seasonText = seasonLabel ? `${seasonLabel} 기준` : "전체 시즌 기준";
+  const appBaseUrl = "https://stareplays.up.railway.app";
+  const seasonHref = seasonLabel ? `${appBaseUrl}/seasons/${encodeURIComponent(seasonLabel)}` : `${appBaseUrl}/seasons`;
 
   return {
     schemaVersion: "stareplays.team-analysis.raw.v2",
@@ -83,6 +90,23 @@ export function createTeamAnalysisRawPayload({
         "isRandomSelected=true인 경기는 실제 종족이 P/T/Z로 기록되어도 선택 룰은 랜덤입니다.",
         "랜덤 선택 경기 수와 전체 경기 수를 함께 언급해 종족 통계의 해석 범위를 분리하세요.",
         "selectedRace 원천 데이터가 없으면 실제 종족만으로 개별 선수의 선택 종족을 단정하지 마세요."
+      ],
+      relatedLinks: [
+        {
+          label: seasonLabel ? `${seasonLabel} 시즌 전적` : "전체 시즌 전적",
+          url: seasonHref,
+          description: "시즌별 경기 전적, 선수별 추세, 경기별 종족/랜덤 선택 정보를 확인합니다."
+        },
+        {
+          label: "3v3 랭킹",
+          url: `${appBaseUrl}/rankings`,
+          description: "전체 랭킹, 종족별 랭킹, 종족 조합 승률을 확인합니다."
+        },
+        {
+          label: "팀 분석",
+          url: seasonLabel ? `${appBaseUrl}/team-analysis?season_label=${encodeURIComponent(seasonLabel)}` : `${appBaseUrl}/team-analysis`,
+          description: "선수, 조합, 종족 구성 기반 3x3 팀 분석 화면입니다."
+        }
       ],
       suggestedQuestions: [
         "이번 시즌 최적 3인 조합을 추천해줘.",

@@ -18,6 +18,7 @@ function createModel(overrides: Partial<RankingsPageTestModel> = {}): RankingsPa
     tabs: overrides.tabs ?? getRankingsPageModel().tabs,
     summary: overrides.summary ?? getRankingsPageModel().summary,
     rankings: overrides.rankings ?? getRankingsPageModel().rankings,
+    raceRankings: overrides.raceRankings ?? getRankingsPageModel().raceRankings,
     raceCompositions: overrides.raceCompositions ?? getRankingsPageModel().raceCompositions
   };
 }
@@ -70,6 +71,26 @@ describe("rankings page", () => {
     await user.click(screen.getByRole("button", { name: /rankings_3v3/i }));
     expect(screen.getByRole("button", { name: /avg apm/i })).toHaveTextContent("▲");
     expectDocumentOrder(screen.getByText("성우"), screen.getByText("성민"));
+  });
+
+  it("renders race rankings including random-selection rankings", async () => {
+    render(
+      <RankingsPage
+        model={createModel({
+          raceRankings: [
+            { race: "T", rank: 1, user: "3x3_alpha", games: 2, wins: 1, losses: 1, winRate: 50, avgApm: 170 },
+            { race: "R", rank: 1, user: "3x3_alpha", games: 1, wins: 1, losses: 0, winRate: 100, avgApm: 180 }
+          ]
+        })}
+      />
+    );
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: /race_rankings/i }));
+
+    expect(screen.getByRole("heading", { name: /race_rankings/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /random_rankings/i })).toBeInTheDocument();
+    expect(screen.getAllByText("3x3_alpha").length).toBeGreaterThan(0);
   });
 
   it("sorts win rate and race composition ties with the legacy tie-break cascade", async () => {

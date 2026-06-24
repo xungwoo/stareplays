@@ -18,12 +18,14 @@ export const raceStyles: Record<RaceCode, { backgroundColor: string; color: stri
   }
 };
 
-export function RaceBadge({ race, size = "sm" }: { race: RaceCode; size?: "sm" | "md" }) {
+export function RaceBadge({ race, size = "sm", randomSelected = false }: { race: RaceCode; size?: "sm" | "md"; randomSelected?: boolean }) {
   const sizeClass = size === "md" ? "w-6 h-6 text-xs" : "w-5 h-5 text-[10px]";
+  const label = randomSelected ? `R${race}` : race;
+  const textClass = randomSelected ? "text-[9px]" : "";
 
   return (
-    <span className={`inline-flex items-center justify-center rounded font-bold font-mono ${sizeClass}`} style={raceStyles[race]}>
-      {race}
+    <span className={`inline-flex items-center justify-center rounded font-bold font-mono ${sizeClass} ${textClass}`} style={raceStyles[race]}>
+      {label}
     </span>
   );
 }

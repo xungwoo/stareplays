@@ -13,8 +13,9 @@ import {
   YAxis
 } from "recharts";
 
-import { PlayerBadge, PlayerBadgeGroup } from "@/components/shared/player-badge";
-import type { SeasonAnalysisPageModel } from "@/lib/adapters/season-analysis";
+import { PlayerBadge } from "@/components/shared/player-badge";
+import { RaceBadge } from "@/components/shared/race-badge";
+import type { SeasonAnalysisPageModel, SeasonGameRecordPlayer } from "@/lib/adapters/season-analysis";
 
 function formatPercent(value: number) {
   return `${value.toFixed(1)}%`;
@@ -223,8 +224,8 @@ function GameRecords({ model }: { model: SeasonAnalysisPageModel }) {
                 <td className="px-3 py-3 text-slate-500">{index + 1}</td>
                 <td className="px-3 py-3 font-semibold text-cyan-100">{game.seasonLabel}</td>
                 <td className="px-3 py-3 text-slate-400">{game.startTime}</td>
-                <td className="px-3 py-3"><PlayerBadgeGroup names={game.winner} compact /></td>
-                <td className="px-3 py-3"><PlayerBadgeGroup names={game.loser} compact /></td>
+                <td className="px-3 py-3"><SeasonTeamPlayers players={game.winnerPlayers} /></td>
+                <td className="px-3 py-3"><SeasonTeamPlayers players={game.loserPlayers} /></td>
                 <td className="px-3 py-3 text-slate-400">{game.mapName}</td>
                 <td className="px-3 py-3 text-slate-400">{game.durationMinutes}분</td>
               </tr>
@@ -233,6 +234,19 @@ function GameRecords({ model }: { model: SeasonAnalysisPageModel }) {
         </table>
       </div>
     </Panel>
+  );
+}
+
+function SeasonTeamPlayers({ players }: { players: SeasonGameRecordPlayer[] }) {
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1.5">
+      {players.map((player) => (
+        <span key={player.name} className="inline-flex items-center gap-1 rounded-md bg-slate-800/70 px-1.5 py-1 text-xs font-semibold text-slate-100">
+          <RaceBadge race={player.race} randomSelected={player.isRandomSelected} />
+          <span>{player.name}</span>
+        </span>
+      ))}
+    </span>
   );
 }
 

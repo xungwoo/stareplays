@@ -4,6 +4,7 @@ export function createPromptBundle(rawPayload, { seasonLabel } = {}) {
   const lineups = rawPayload?.analysis?.lineups ?? [];
   const insights = rawPayload?.analysis?.insights?.cards ?? [];
   const analysisGuidance = rawPayload?.llm?.analysisGuidance ?? [];
+  const relatedLinks = rawPayload?.llm?.relatedLinks ?? [];
   const suggestedQuestions = rawPayload?.llm?.suggestedQuestions ?? [];
   const title = rawPayload?.llm?.promptTitle ?? "3x3 팀 전적 분석";
   const seasonText = seasonLabel || rawPayload?.scope?.seasonLabel || "전체 시즌";
@@ -38,6 +39,9 @@ export function createPromptBundle(rawPayload, { seasonLabel } = {}) {
     "",
     "## 추천 질문",
     ...suggestedQuestions.map((question) => `- ${question}`),
+    "",
+    "## 관련 링크",
+    ...(relatedLinks.length > 0 ? relatedLinks.map((link) => `- ${link.label}: ${link.url}${link.description ? ` (${link.description})` : ""}`) : ["- 관련 링크 없음"]),
     "",
     "## Raw JSON",
     "```json",

@@ -17,6 +17,7 @@ const seasonsResponse: ApiSeasonsResponse = {
           map_name: "Neo Super",
           game_length: 600,
           winner_team: 1,
+          is_random_selected: true,
           season_analysis: {
             status: "succeeded",
             data_source: "detail_analysis+replay_analyzer",
@@ -117,6 +118,12 @@ describe("season analysis adapter", () => {
       winner: ["성우", "민혁", "명진"],
       loser: ["필균", "성민", "기용"]
     });
+    expect(model.gameRecords[0].winnerPlayers).toEqual([
+      { name: "성우", race: "P", isRandomSelected: true },
+      { name: "민혁", race: "T", isRandomSelected: true },
+      { name: "명진", race: "Z", isRandomSelected: true }
+    ]);
+    expect(model.gameRecords[1].winnerPlayers[0]).toMatchObject({ name: "필균", race: "P", isRandomSelected: false });
 
     const seongwoo = model.playerStandings.find((player) => player.name === "성우");
     expect(seongwoo).toMatchObject({

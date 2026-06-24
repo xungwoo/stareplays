@@ -46,6 +46,10 @@ describe("team analysis raw payload", () => {
     expect(payload.analysis.players.map((player) => player.name)).toEqual(expect.arrayContaining(["성우", "민혁", "성민"]));
     expect(payload.llm.promptTitle).toContain("3x3 팀 전적 분석");
     expect(payload.llm.analysisGuidance.join("\n")).toContain("isRandomSelected=true");
+    expect(payload.llm.relatedLinks.map((link) => link.url)).toEqual(expect.arrayContaining([
+      "https://stareplays.up.railway.app/seasons/%EC%8B%9C%EC%A6%8C7",
+      "https://stareplays.up.railway.app/rankings"
+    ]));
     expect(payload.llm.suggestedQuestions.length).toBeGreaterThanOrEqual(4);
   });
 });
