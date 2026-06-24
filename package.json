@@ -1,0 +1,18 @@
+{
+  "name": "stareplays",
+  "private": true,
+  "version": "0.1.0",
+  "description": "StaReplays monorepo helper package.",
+  "bin": {
+    "stareplays-mcp": "./mcp/stareplays-mcp/bin/stareplays-mcp.mjs",
+    "stareplays-mcp-server": "./mcp/stareplays-mcp/bin/stareplays-mcp-server.mjs"
+  },
+  "files": [
+    "mcp/stareplays-mcp/bin",
+    "mcp/stareplays-mcp/lib",
+    "mcp/stareplays-mcp/README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}

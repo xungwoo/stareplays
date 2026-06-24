@@ -20,21 +20,29 @@ https://stareplays-next-production.up.railway.app/api/team-analysis/raw
 ## 사전 조건
 
 - Node.js 18 이상
-- 이 저장소를 로컬에 clone한 상태
 - Claude Desktop 또는 Codex MCP 클라이언트
 
 ## 빠른 설치
 
 ```bash
-node mcp/stareplays-mcp/bin/stareplays-mcp-install.mjs --client both --api-base-url https://stareplays-next-production.up.railway.app
+npx -y --package github:xungwoo/stareplays#main stareplays-mcp install --client both
 ```
 
-기본 설치는 로컬 캐시 TTL 300초, API 타임아웃 10초를 함께 설정합니다. 조정하려면:
+Codex만 설정하고 런타임 설치 위치를 지정하려면:
 
 ```bash
-node mcp/stareplays-mcp/bin/stareplays-mcp-install.mjs \
+npx -y --package github:xungwoo/stareplays#main stareplays-mcp install \
+  --client codex \
+  --install-dir ~/.local/share/stareplays-mcp
+```
+
+기본 설치는 운영 API, 로컬 캐시 TTL 300초, API 타임아웃 10초, Node TLS용 CA bundle 자동 감지를 함께 설정합니다. 조정하려면:
+
+```bash
+npx -y --package github:xungwoo/stareplays#main stareplays-mcp install \
   --client both \
   --api-base-url https://stareplays-next-production.up.railway.app \
+  --install-dir ~/.local/share/stareplays-mcp \
   --cache-ttl-seconds 300 \
   --timeout-ms 10000 \
   --extra-ca-certs /opt/homebrew/etc/ca-certificates/cert.pem
@@ -61,7 +69,7 @@ MCP 서버가 도구 목록을 반환하는지 로컬에서 확인할 수 있습
 
 ```bash
 printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' \
-  | node mcp/stareplays-mcp/bin/stareplays-mcp-server.mjs
+  | node ~/.local/share/stareplays-mcp/bin/stareplays-mcp-server.mjs
 ```
 
 정상이라면 `get_team_analysis_raw`, `get_team_analysis_prompt_bundle`가 포함된 JSON-RPC 응답이 출력됩니다.
@@ -119,7 +127,7 @@ NODE_EXTRA_CA_CERTS = "/opt/homebrew/etc/ca-certificates/cert.pem"
 다른 API 서버를 사용하려면 설치 시 base URL을 바꿉니다.
 
 ```bash
-node mcp/stareplays-mcp/bin/stareplays-mcp-install.mjs --client both --api-base-url http://127.0.0.1:3100
+npx -y --package github:xungwoo/stareplays#main stareplays-mcp install --client both --api-base-url http://127.0.0.1:3100
 ```
 
 또는 서버 실행 시 환경변수로 지정합니다.
