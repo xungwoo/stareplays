@@ -17,7 +17,7 @@
 - `main`에 merge 후 `origin/main`에 push되면 Railway가 자동 배포합니다.
 - 자동 배포가 꺼져 있으면 Railway Dashboard에서 `CMD + K` -> `Deploy Latest Commit`으로 현재 연결 브랜치의 최신 커밋을 배포합니다.
 - 가능하면 `Wait for CI`를 켭니다. GitHub Actions가 실패하면 Railway 배포가 skip되어야 합니다.
-- Watch Paths를 설정했다면 공통 설정 파일 변경이 누락되어 배포가 skip되지 않는지 확인합니다.
+- Watch Paths는 런타임에 영향을 주는 코드/설정 파일만 포함합니다.
 
 ## 서비스별 Dashboard 설정표
 
@@ -25,8 +25,8 @@ Railway Dashboard에서 각 service -> Settings 기준으로 확인합니다.
 
 | Service | Source Repo | Branch | Root Directory | Railway Config File | Watch Paths 권장값 |
 | --- | --- | --- | --- | --- | --- |
-| `stareplays-next` | `xungwoo/stareplays` | `main` | `frontend/app-next` | `/frontend/app-next/railway.toml` | `/frontend/app-next/**`, `/docs/**`, `/AGENTS.md`, `/CLAUDE.md` |
-| `stareplays` | `xungwoo/stareplays` | `main` | 비움 | `/railway.api.toml` | `/backend/**`, `/railway.api.toml`, `/go.mod`, `/go.sum`, `/docs/**` |
+| `stareplays-next` | `xungwoo/stareplays` | `main` | `frontend/app-next` | `/frontend/app-next/railway.toml` | `/frontend/app-next/**` |
+| `stareplays` | `xungwoo/stareplays` | `main` | 비움 | `/railway.api.toml` | `/backend/**`, `/railway.api.toml`, `/go.mod`, `/go.sum` |
 | `ranking-job` | `xungwoo/stareplays` | `main` | 비움 | `/railway.ranking.toml` | `/backend/**`, `/railway.ranking.toml`, `/go.mod`, `/go.sum` |
 | `analyzer-job` | `xungwoo/stareplays` | `main` | 비움 | `/railway.analyzer.toml` | `/backend/**`, `/railway.analyzer.toml`, `/go.mod`, `/go.sum` |
 | `replay_analyzer` | `xungwoo/stareplays` | `main` | 비움 | `/railway.replay-analyzer-worker.toml` | `/backend/**`, `/railway.replay-analyzer-worker.toml`, `/go.mod`, `/go.sum` |
@@ -38,6 +38,7 @@ Railway Dashboard에서 각 service -> Settings 기준으로 확인합니다.
 - Railway Dashboard에서 Config File을 입력할 때 `stareplays-next`는 `/frontend/app-next/railway.toml`을 먼저 사용합니다. Dashboard가 Root Directory 기준 상대 경로만 허용하는 UI로 바뀐 경우에는 `railway.toml`을 입력하고, 첫 배포의 deployment details에서 설정 출처가 `frontend/app-next/railway.toml`인지 확인합니다.
 - `stareplays-next`의 Root Directory를 비워두면 `frontend/app-next/railway.toml`을 읽지 못하거나 잘못된 root에서 build될 수 있습니다.
 - Root Directory를 `frontend/app-next`로 지정하면 Railway가 해당 디렉터리만 deployment source로 사용합니다.
+- 문서 변경만으로 프런트 배포 이벤트가 생기지 않도록 `stareplays-next` watch paths에는 `/docs/**`, `README.md`, `AGENTS.md`, `CLAUDE.md`, `mcp/**`를 넣지 않습니다.
 
 ## GitHub Autodeploy 설정 절차
 
@@ -48,8 +49,8 @@ Railway Dashboard에서 각 service -> Settings 기준으로 확인합니다.
 5. Root Directory와 Railway Config File을 위 표대로 설정합니다.
 6. Autodeploy를 Enable합니다.
 7. GitHub Actions가 있다면 Wait for CI를 Enable합니다.
-8. Watch Paths를 쓰는 service는 위 표의 권장값을 넣고, 첫 전환 시에는 배포가 정상 동작하는지 확인한 뒤 좁힙니다.
-9. `main`에 문서-only 커밋을 push하거나 Dashboard에서 `Deploy Latest Commit`을 실행해 trigger 동작을 확인합니다.
+8. Watch Paths를 쓰는 service는 위 표의 권장값을 넣습니다.
+9. Watch Paths에 포함되는 코드/설정 변경을 `main`에 push하거나 Dashboard에서 `Deploy Latest Commit`을 실행해 trigger 동작을 확인합니다.
 
 ## 배포하는 사람의 절차
 

@@ -3,6 +3,7 @@
 현재 기준의 정식 문서는 아래 파일입니다.
 
 - [architecture.md](architecture.md): 시스템 구조, 컴포넌트 책임, Railway 운영 배포 토폴로지
+- [DEVELOPMENT_GUIDE.md](DEVELOPMENT_GUIDE.md): 신규 개발자를 위한 repo 역할, 작업 방식, 배포 방식 요약
 - [spec.md](spec.md): 현재 기능 명세, 도메인 규칙, API/백그라운드 작업 동작
 - [frontend-next-architecture.md](frontend-next-architecture.md): 운영 Next.js 프런트 구조와 데이터 흐름
 - [starprojects-railway-overview.md](starprojects-railway-overview.md): StarProjects GitHub 레포지토리와 Railway 배포 모듈 관계
