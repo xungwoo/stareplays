@@ -156,6 +156,9 @@ Railway service:
 
 - 서비스명: `stareplays-next`
 - 설정 파일: `frontend/app-next/railway.toml`
+- Dashboard Root Directory: `frontend/app-next`
+- Dashboard Railway Config File: `/frontend/app-next/railway.toml`
+- Trigger branch: `main`
 - Build command: `npm run build`
 - Start command: `npm run start`
 - Healthcheck path: `/team-analysis`
@@ -164,9 +167,12 @@ Railway service:
 
 - feature branch 작업이 `main`에 병합되어 있어야 합니다.
 - `main`이 `origin/main`과 같아야 합니다.
-- 자세한 절차는 루트의 `AGENTS.md`, `CLAUDE.md`, `docs/RAILWAY_DEPLOYMENT_GUIDE.md`를 따릅니다.
+- 기본 배포 경로는 GitHub `main` push -> Railway Autodeploy입니다.
+- 자세한 절차는 루트의 `AGENTS.md`, `CLAUDE.md`, `docs/RAILWAY_DEPLOYMENT_GUIDE.md`, `docs/RAILWAY_GITHUB_DEPLOYMENT_SETUP.md`를 따릅니다.
 
-수동 배포:
+CLI 복구용 수동 배포:
+
+아래 명령은 팀 공용 배포 경로가 아니라 Railway CLI 권한이 있는 운영자 복구용입니다.
 
 ```bash
 railway up frontend/app-next \

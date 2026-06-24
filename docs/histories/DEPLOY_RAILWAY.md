@@ -1,6 +1,6 @@
 # Railway 배포 체크리스트
 
-이 문서는 `stareplays` API를 Railway에 배포할 때 필요한 최소 단계를 정리한 체크리스트입니다.
+이 문서는 초기 `stareplays` API Railway 배포 기록입니다. 현재 운영 배포 절차는 [../RAILWAY_DEPLOYMENT_GUIDE.md](../RAILWAY_DEPLOYMENT_GUIDE.md)와 [../RAILWAY_GITHUB_DEPLOYMENT_SETUP.md](../RAILWAY_GITHUB_DEPLOYMENT_SETUP.md)를 우선합니다.
 
 ## 0. 사전 확인 (로컬)
 
@@ -17,7 +17,7 @@
 ## 2. API 서비스 설정
 
 - [ ] Root Directory가 저장소 루트(`/`)인지 확인
-- [ ] `railway.toml`가 적용되는지 확인
+- [ ] `/railway.api.toml`이 적용되는지 확인
 - [ ] Health Check 경로를 `/health`로 확인
 
 ## 3. 환경변수 설정 (API 서비스)

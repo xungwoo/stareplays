@@ -11,8 +11,8 @@
 3. feature branch에서 구현, 테스트, 문서 갱신을 끝낸다.
 4. feature branch를 `main`에 병합한다.
 5. `main`을 원격에 push한다.
-6. Railway production은 `main` 기준으로만 배포한다.
-7. 배포 후 service status, deployment list, 운영 endpoint를 확인한다.
+6. Railway production은 GitHub `main` push 기반 Autodeploy로만 배포한다.
+7. 배포 후 Railway Dashboard와 운영 endpoint를 확인한다.
 
 작업 중 바로 `main`에서 수정하거나, feature branch 변경을 main 병합 없이 배포하지 않는다. 긴급 수정도 feature branch를 만들고 검증 후 main에 병합한다.
 
@@ -72,12 +72,23 @@ git push origin main
 중요 규칙:
 
 - 운영 배포 기준은 항상 `origin/main`이다.
+- 기본 배포 경로는 Railway CLI가 아니라 GitHub `main` push -> Railway Autodeploy다.
+- Dashboard 설정은 [docs/RAILWAY_GITHUB_DEPLOYMENT_SETUP.md](docs/RAILWAY_GITHUB_DEPLOYMENT_SETUP.md)의 서비스별 표와 일치해야 한다.
 - `stareplays-next`는 반드시 `frontend/app-next`를 archive root로 배포한다.
 - `stareplays-next`를 레포 루트에서 `railway up`으로 배포하지 않는다. 이 경우 `frontend/app-next/railway.toml`을 못 읽고 Railpack 기본 감지로 실패한다.
 - API `stareplays`는 레포 루트에서 `railway.api.toml` 기준으로 배포한다.
-- 서비스명을 명시하지 않은 `railway up`은 사용하지 않는다.
+- Railway CLI 명령은 운영자 복구용이다. 팀원용 배포 안내에서는 CLI를 기본 경로로 제시하지 않는다.
+- CLI를 사용할 때도 서비스명을 명시하지 않은 `railway up`은 사용하지 않는다.
 
-프런트 배포:
+GitHub Autodeploy 필수 설정:
+
+- 모든 service source repo: `xungwoo/stareplays`
+- 모든 service trigger branch: `main`
+- `stareplays-next` Root Directory: `frontend/app-next`
+- `stareplays-next` Railway Config File: `/frontend/app-next/railway.toml`
+- API `stareplays` Railway Config File: `/railway.api.toml`
+
+CLI 권한이 있는 운영자 복구용 프런트 배포:
 
 ```bash
 railway up frontend/app-next \
@@ -100,7 +111,7 @@ railway up frontend/app-next \
   --message "<main commit summary>"
 ```
 
-API 배포:
+CLI 권한이 있는 운영자 복구용 API 배포:
 
 ```bash
 railway up \
@@ -110,7 +121,7 @@ railway up \
   --message "<main commit summary>"
 ```
 
-배포 확인:
+CLI 권한이 있는 운영자 확인:
 
 ```bash
 railway service status --service stareplays --environment production

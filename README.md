@@ -182,20 +182,28 @@ git push origin main
 
 운영은 Railway production environment를 사용합니다.
 
-배포 상세와 복구 절차는 [docs/RAILWAY_DEPLOYMENT_GUIDE.md](docs/RAILWAY_DEPLOYMENT_GUIDE.md)를 기준으로 합니다. 이 문서의 명령이 README보다 우선합니다.
+기본 배포 경로는 **GitHub `main` push -> Railway Autodeploy**입니다. 팀원은 Railway CLI 권한 없이 feature branch를 `main`에 병합하고 push하는 방식으로 운영 배포를 발생시킵니다.
+
+배포 상세와 복구 절차는 [docs/RAILWAY_DEPLOYMENT_GUIDE.md](docs/RAILWAY_DEPLOYMENT_GUIDE.md)를 기준으로 합니다. Railway Dashboard 설정표는 [docs/RAILWAY_GITHUB_DEPLOYMENT_SETUP.md](docs/RAILWAY_GITHUB_DEPLOYMENT_SETUP.md)를 기준으로 합니다. 이 문서들이 README보다 우선합니다.
 
 | Railway service | 소스/빌드 | 역할 |
 | --- | --- | --- |
-| `stareplays-next` | `frontend/app-next`, `frontend/app-next/railway.toml` | 운영 웹 대시보드 |
-| `stareplays` | `backend/Dockerfile.api`, `railway.api.toml` | 공개 API |
-| `ranking-job` | `backend/cmd/ranking-job`, `railway.ranking.toml` | 랭킹 snapshot cron/job |
-| `analyzer-job` | `backend/cmd/analyzer-job`, `railway.analyzer.toml` | 종족 조합 snapshot cron/job |
-| `replay_analyzer` | `backend/Dockerfile.replay-analyzer-worker` | replay analyzer worker |
+| `stareplays-next` | Root `frontend/app-next`, config `/frontend/app-next/railway.toml` | 운영 웹 대시보드 |
+| `stareplays` | Root 비움, config `/railway.api.toml` | 공개 API |
+| `ranking-job` | Root 비움, config `/railway.ranking.toml` | 랭킹 snapshot cron/job |
+| `analyzer-job` | Root 비움, config `/railway.analyzer.toml` | 종족 조합 snapshot cron/job |
+| `replay_analyzer` | Root 비움, config `/railway.replay-analyzer-worker.toml` | replay analyzer worker |
 | `Postgres` | Railway managed Postgres | 영속 저장소 |
 
-### 프런트 수동 배포
+### GitHub Autodeploy 준비
 
-main에 변경을 푸시한 뒤 Next 앱만 배포할 때:
+Railway Dashboard에서 각 service의 source repo를 `xungwoo/stareplays`, trigger branch를 `main`으로 설정합니다. `stareplays-next`는 반드시 Root Directory를 `frontend/app-next`, Railway Config File을 `/frontend/app-next/railway.toml`로 둡니다.
+
+자동 배포가 켜져 있으면 `git push origin main` 이후 Railway가 production deployment를 생성합니다. 자동 배포가 꺼져 있다면 Dashboard에서 `CMD + K` -> `Deploy Latest Commit`으로 연결된 `main` 최신 커밋을 배포합니다.
+
+### CLI 복구용 프런트 배포
+
+아래 명령은 팀 공용 경로가 아니라 Railway CLI 권한이 있는 운영자 복구용입니다. main에 변경을 푸시한 뒤 Next 앱만 수동 복구 배포할 때 사용합니다.
 
 ```bash
 railway up frontend/app-next \
@@ -228,9 +236,9 @@ curl -I https://stareplays-next-production.up.railway.app/seasons
 curl -I https://stareplays-next-production.up.railway.app/rankings
 ```
 
-### API/worker/job 배포
+### CLI 복구용 API/worker/job 배포
 
-API, job, worker는 서비스별 Railway 설정이 다릅니다. 해당 서비스만 지정해서 배포하고, API schema나 snapshot 로직을 건드렸다면 운영 데이터 확인까지 같이 합니다.
+아래 명령은 팀 공용 경로가 아니라 Railway CLI 권한이 있는 운영자 복구용입니다. API, job, worker는 서비스별 Railway 설정이 다릅니다. 해당 서비스만 지정해서 배포하고, API schema나 snapshot 로직을 건드렸다면 운영 데이터 확인까지 같이 합니다.
 
 ```bash
 railway up --service stareplays --environment production --detach --message "Deploy API update"
@@ -267,6 +275,8 @@ worker는 replay analyzer/openbw 의존성이 있으므로 Dockerfile과 Railway
 - 현재 시스템 구조: `docs/architecture.md`
 - 현재 기능 명세: `docs/spec.md`
 - StarProjects 레포지토리와 Railway 배포 모듈 개요: `docs/starprojects-railway-overview.md`
+- Railway GitHub Dashboard 배포 설정: `docs/RAILWAY_GITHUB_DEPLOYMENT_SETUP.md`
+- Railway 운영 배포/복구 가이드: `docs/RAILWAY_DEPLOYMENT_GUIDE.md`
 - Next 프런트 현재 구조/legacy parity 상태: `docs/frontend-next-architecture.md`
 - 완료된 작업 기록/검증 runbook: `docs/histories/`
 - 상세 API 예시(보조 문서): `API_USAGE.md`
