@@ -3,7 +3,7 @@ import { buildCurrentUserSessionCookie } from "@/lib/utils/current-user-session"
 import { loadAnalyzerPageModel } from "@/lib/loaders/analyzer";
 import { loadDashboardPageModel } from "@/lib/loaders/dashboard";
 import { loadRankingsPageModel } from "@/lib/loaders/rankings";
-import { loadTeamAnalysisPageModel } from "@/lib/loaders/team-analysis";
+import { loadSeasonAnalysisPageModel, loadTeamAnalysisPageModel } from "@/lib/loaders/team-analysis";
 import { loadVaultPageModel } from "@/lib/loaders/vault";
 
 function createJsonResponse(payload: unknown) {
@@ -201,46 +201,38 @@ describe("api loaders", () => {
     expect(model.summary[1]?.value).toBe("2");
   });
 
-  it("loads the team analysis dashboard from official season games", async () => {
+  it("loads the team analysis dashboard from paged game records without fetching heavyweight seasons", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
 
       if (url.includes("/api/v1/seasons")) {
-        return createJsonResponse({
-          total: 1,
-          seasons: [
-            {
-              season_label: "시즌1",
-              season_no: 1,
-              games: 1,
-              games_data: [
-                {
-                  id: 88,
-                  map_name: "Team Arena",
-                  winner_team: 1,
-                  game_length: 900,
-                  start_time: "2026-03-22T00:05:48Z",
-                  edges: {
-                    players: [
-                      { name: "3x3_GG", race: "P", team: 1, apm: 180, eapm: 150 },
-                      { name: "3x3_mh", race: "T", team: 1, apm: 170, eapm: 140 },
-                      { name: "3x3_smwoo", race: "P", team: 1, apm: 220, eapm: 190 },
-                      { name: "3x3_Kiyong", race: "Z", team: 2, apm: 160, eapm: 130 },
-                      { name: "3x3_pil", race: "P", team: 2, apm: 140, eapm: 110 },
-                      { name: "3x3_syntax", race: "T", team: 2, apm: 200, eapm: 170 }
-                    ]
-                  }
-                }
-              ]
-            }
-          ]
-        });
+        throw new Error("team analysis should not fetch /api/v1/seasons");
       }
 
       if (url.includes("/api/v1/games?limit=100&offset=0")) {
         return createJsonResponse({
-          total: 0,
-          games: []
+          total: 1,
+          games: [
+            {
+              id: 88,
+              season_label: "시즌1",
+              season_no: 1,
+              map_name: "Team Arena",
+              winner_team: 1,
+              game_length: 900,
+              start_time: "2026-03-22T00:05:48Z",
+              edges: {
+                players: [
+                  { name: "3x3_GG", race: "P", team: 1, apm: 180, eapm: 150 },
+                  { name: "3x3_mh", race: "T", team: 1, apm: 170, eapm: 140 },
+                  { name: "3x3_smwoo", race: "P", team: 1, apm: 220, eapm: 190 },
+                  { name: "3x3_Kiyong", race: "Z", team: 2, apm: 160, eapm: 130 },
+                  { name: "3x3_pil", race: "P", team: 2, apm: 140, eapm: 110 },
+                  { name: "3x3_syntax", race: "T", team: 2, apm: 200, eapm: 170 }
+                ]
+              }
+            }
+          ]
         });
       }
 
@@ -252,8 +244,12 @@ describe("api loaders", () => {
       apiBaseUrl: "http://127.0.0.1:3000"
     });
 
-    expect(fetchMock).toHaveBeenCalledWith(
+    expect(fetchMock).not.toHaveBeenCalledWith(
       "http://127.0.0.1:3000/api/v1/seasons",
+      expect.anything()
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:3000/api/v1/games?limit=100&offset=0",
       expect.objectContaining({
         next: expect.objectContaining({ revalidate: 300 })
       })
@@ -265,6 +261,78 @@ describe("api loaders", () => {
     expect(model.chartData.ratingComparison.length).toBe(6);
     expect(model.chartData.apmLeaderboard.map((player) => player.name).join(", ")).not.toContain("3x3_");
     expect(model.chartData.apmLeaderboard.map((player) => player.name)).toEqual(expect.arrayContaining(["성우", "민혁", "성민", "기용", "필균", "명진"]));
+  });
+
+  it("builds the seasons page model from paged game records and lightweight season metadata", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+
+      if (url.includes("/api/v1/seasons")) {
+        return createJsonResponse({
+          current: { season_label: "시즌1", season_no: 1 },
+          total: 1,
+          seasons: [
+            {
+              season_label: "시즌1",
+              season_no: 1,
+              games: 1,
+              game_ids: [88],
+              wins_by_team: { "1": 1 }
+            }
+          ]
+        });
+      }
+
+      if (url.includes("/api/v1/games?limit=100&offset=0")) {
+        return createJsonResponse({
+          total: 1,
+          games: [
+            {
+              id: 88,
+              season_label: "시즌1",
+              season_no: 1,
+              map_name: "Team Arena",
+              winner_team: 1,
+              game_length: 900,
+              start_time: "2026-03-22T00:05:48Z",
+              edges: {
+                players: [
+                  { name: "3x3_GG", race: "P", team: 1, apm: 180, eapm: 150 },
+                  { name: "3x3_mh", race: "T", team: 1, apm: 170, eapm: 140 },
+                  { name: "3x3_smwoo", race: "P", team: 1, apm: 220, eapm: 190 },
+                  { name: "3x3_Kiyong", race: "Z", team: 2, apm: 160, eapm: 130 },
+                  { name: "3x3_pil", race: "P", team: 2, apm: 140, eapm: 110 },
+                  { name: "3x3_syntax", race: "T", team: 2, apm: 200, eapm: 170 }
+                ]
+              }
+            }
+          ]
+        });
+      }
+
+      throw new Error(`Unexpected url: ${url}`);
+    });
+
+    const model = await loadSeasonAnalysisPageModel({
+      fetchImpl: fetchMock,
+      apiBaseUrl: "http://127.0.0.1:3000"
+    });
+
+    expect(model.summary.totalGames).toBe(1);
+    expect(model.seasonSummaries[0]?.label).toBe("시즌1");
+    expect(model.gameRecords).toHaveLength(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:3000/api/v1/seasons",
+      expect.objectContaining({
+        next: expect.objectContaining({ revalidate: 300 })
+      })
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:3000/api/v1/games?limit=100&offset=0",
+      expect.objectContaining({
+        next: expect.objectContaining({ revalidate: 300 })
+      })
+    );
   });
 
   it("prefers the current user cookie before fixture fallback in the rankings loader", async () => {

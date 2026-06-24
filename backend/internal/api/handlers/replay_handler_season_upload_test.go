@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/xungwoo/stareplays/ent"
 	"github.com/xungwoo/stareplays/internal/parser"
 )
 
@@ -25,6 +26,64 @@ func TestProcessParsedReplayRejectsNonThreeVsThreePlayersBeforeDBWrite(t *testin
 	}
 	if len(nonPlayers) != 1 || nonPlayers[0] != "outsider" {
 		t.Fatalf("non_players = %v, want [outsider]", nonPlayers)
+	}
+}
+
+func TestBuildSeasonSummariesOmitsGameDataByDefault(t *testing.T) {
+	seasonLabel := "시즌8"
+	seasonNo := 8
+	games := []*ent.Game{
+		{
+			ID:          101,
+			StartTime:   time.Date(2026, 6, 23, 21, 0, 0, 0, time.UTC),
+			SeasonLabel: &seasonLabel,
+			SeasonNo:    &seasonNo,
+			WinnerTeam:  1,
+		},
+	}
+
+	summaries := buildSeasonSummaries(games, false)
+
+	if len(summaries) != 1 {
+		t.Fatalf("len(summaries) = %d, want 1", len(summaries))
+	}
+	if summaries[0].GamesData != nil {
+		t.Fatalf("GamesData = %#v, want nil for lightweight season response", summaries[0].GamesData)
+	}
+	if len(summaries[0].GameIDs) != 1 || summaries[0].GameIDs[0] != 101 {
+		t.Fatalf("GameIDs = %v, want [101]", summaries[0].GameIDs)
+	}
+}
+
+func TestBuildSeasonSummariesIncludesGameDataWhenRequested(t *testing.T) {
+	seasonLabel := "시즌8"
+	seasonNo := 8
+	games := []*ent.Game{
+		{
+			ID:          101,
+			MapName:     "Team Arena",
+			StartTime:   time.Date(2026, 6, 23, 21, 0, 0, 0, time.UTC),
+			SeasonLabel: &seasonLabel,
+			SeasonNo:    &seasonNo,
+			WinnerTeam:  1,
+			Edges: ent.GameEdges{
+				Players: []*ent.Player{
+					{Name: "3x3_GG", Race: "P", Team: 1},
+				},
+			},
+		},
+	}
+
+	summaries := buildSeasonSummaries(games, true)
+
+	if len(summaries) != 1 {
+		t.Fatalf("len(summaries) = %d, want 1", len(summaries))
+	}
+	if len(summaries[0].GamesData) != 1 {
+		t.Fatalf("len(GamesData) = %d, want 1", len(summaries[0].GamesData))
+	}
+	if got := summaries[0].GamesData[0].Edges.Players[0].Name; got != "3x3_GG" {
+		t.Fatalf("GamesData[0].Edges.Players[0].Name = %q, want 3x3_GG", got)
 	}
 }
 

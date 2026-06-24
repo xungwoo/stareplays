@@ -88,6 +88,15 @@ type gameResponseDTO struct {
 	SeasonAnalysis *seasonGameAnalysisDTO `json:"season_analysis,omitempty"`
 }
 
+type seasonSummary struct {
+	SeasonLabel string            `json:"season_label"`
+	SeasonNo    *int              `json:"season_no,omitempty"`
+	Games       int               `json:"games"`
+	WinsByTeam  map[string]int    `json:"wins_by_team"`
+	GameIDs     []int             `json:"game_ids"`
+	GamesData   []gameResponseDTO `json:"games_data,omitempty"`
+}
+
 type seasonRequest struct {
 	SeasonLabel string `json:"season_label"`
 	SeasonNo    *int   `json:"season_no,omitempty"`
@@ -1489,6 +1498,7 @@ func GetGame(c *fiber.Ctx) error {
 // ListSeasons returns distinct seasons with lightweight records.
 func ListSeasons(c *fiber.Ctx) error {
 	ctx := c.Context()
+	includeGames := c.QueryBool("include_games", false)
 	current, err := getCurrentSeason(ctx)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -1497,36 +1507,45 @@ func ListSeasons(c *fiber.Ctx) error {
 		})
 	}
 
-	games, err := database.Client.Game.Query().
+	query := database.Client.Game.Query().
 		Where(game.SeasonLabelNotNil()).
-		WithPlayers().
-		WithReplayFiles().
-		WithGameDetail().
-		WithAnalysis().
-		Order(ent.Asc(game.FieldSeasonNo), ent.Asc(game.FieldStartTime), ent.Asc(game.FieldCreatedAt)).
-		All(ctx)
+		Order(ent.Asc(game.FieldSeasonNo), ent.Asc(game.FieldStartTime), ent.Asc(game.FieldCreatedAt))
+	if includeGames {
+		query = query.
+			WithPlayers().
+			WithReplayFiles().
+			WithGameDetail().
+			WithAnalysis()
+	}
+
+	games, err := query.All(ctx)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to fetch seasons",
 			"details": err.Error(),
 		})
 	}
-	if err := ensureSeasonAnalysisRows(ctx, games); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error":   "Failed to queue missing season analyses",
-			"details": err.Error(),
-		})
+	if includeGames {
+		if err := ensureSeasonAnalysisRows(ctx, games); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error":   "Failed to queue missing season analyses",
+				"details": err.Error(),
+			})
+		}
 	}
 
-	type seasonSummary struct {
-		SeasonLabel string            `json:"season_label"`
-		SeasonNo    *int              `json:"season_no,omitempty"`
-		Games       int               `json:"games"`
-		WinsByTeam  map[string]int    `json:"wins_by_team"`
-		GameIDs     []int             `json:"game_ids"`
-		GamesData   []gameResponseDTO `json:"games_data"`
-	}
+	summaries := buildSeasonSummaries(games, includeGames)
+	return c.JSON(fiber.Map{
+		"current": fiber.Map{
+			"season_label": current.SeasonLabel,
+			"season_no":    current.SeasonNo,
+		},
+		"seasons": summaries,
+		"total":   len(summaries),
+	})
+}
 
+func buildSeasonSummaries(games []*ent.Game, includeGames bool) []*seasonSummary {
 	summaries := make([]*seasonSummary, 0)
 	byLabel := make(map[string]*seasonSummary)
 	for _, g := range games {
@@ -1541,27 +1560,23 @@ func ListSeasons(c *fiber.Ctx) error {
 				SeasonNo:    g.SeasonNo,
 				WinsByTeam:  map[string]int{},
 				GameIDs:     []int{},
-				GamesData:   []gameResponseDTO{},
+			}
+			if includeGames {
+				summary.GamesData = []gameResponseDTO{}
 			}
 			byLabel[label] = summary
 			summaries = append(summaries, summary)
 		}
 		summary.Games += 1
 		summary.GameIDs = append(summary.GameIDs, g.ID)
-		summary.GamesData = append(summary.GamesData, buildGameResponseDTO(g))
+		if includeGames {
+			summary.GamesData = append(summary.GamesData, buildGameResponseDTO(g))
+		}
 		if g.WinnerTeam > 0 {
 			summary.WinsByTeam[strconv.Itoa(int(g.WinnerTeam))] += 1
 		}
 	}
-
-	return c.JSON(fiber.Map{
-		"current": fiber.Map{
-			"season_label": current.SeasonLabel,
-			"season_no":    current.SeasonNo,
-		},
-		"seasons": summaries,
-		"total":   len(summaries),
-	})
+	return summaries
 }
 
 func ensureSeasonAnalysisRows(ctx context.Context, games []*ent.Game) error {

@@ -1,6 +1,5 @@
 import { SeasonAnalysisPage } from "@/components/seasons/season-analysis-page";
-import { createSeasonAnalysisPageModel } from "@/lib/adapters/season-analysis";
-import { loadSeasonsResponse } from "@/lib/loaders/team-analysis";
+import { loadSeasonAnalysisPageModel } from "@/lib/loaders/team-analysis";
 
 interface SeasonDetailPageProps {
   params: Promise<{
@@ -20,11 +19,7 @@ export async function generateMetadata({ params }: SeasonDetailPageProps) {
 export default async function SeasonDetailPage({ params }: SeasonDetailPageProps) {
   const { season } = await params;
   const label = decodeURIComponent(season);
-  const seasonsResponse = await loadSeasonsResponse();
-  const model = createSeasonAnalysisPageModel({
-    seasonsResponse,
-    selectedSeasonLabel: label
-  });
+  const model = await loadSeasonAnalysisPageModel({}, label);
 
   return <SeasonAnalysisPage model={model} />;
 }
