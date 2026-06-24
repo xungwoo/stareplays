@@ -1352,6 +1352,7 @@ func ListGames(c *fiber.Ctx) error {
 	userName := strings.TrimSpace(c.Query("user_name"))
 	seasonLabel := strings.TrimSpace(c.Query("season_label"))
 	includeTotal := c.QueryBool("include_total", true)
+	exactUserName := c.QueryBool("exact_user_name", false)
 	if limit > 100 {
 		limit = 100
 	}
@@ -1364,7 +1365,11 @@ func ListGames(c *fiber.Ctx) error {
 
 	gameQuery := database.Client.Game.Query()
 	if userName != "" {
-		gameQuery = gameQuery.Where(game.HasPlayersWith(player.NameEqualFold(userName)))
+		if exactUserName {
+			gameQuery = gameQuery.Where(game.HasPlayersWith(player.NameEQ(userName)))
+		} else {
+			gameQuery = gameQuery.Where(game.HasPlayersWith(player.NameEqualFold(userName)))
+		}
 	}
 	if seasonLabel != "" {
 		gameQuery = gameQuery.Where(game.SeasonLabelEQ(seasonLabel))
@@ -1396,7 +1401,11 @@ func ListGames(c *fiber.Ctx) error {
 	if includeTotal {
 		totalQuery := database.Client.Game.Query()
 		if userName != "" {
-			totalQuery = totalQuery.Where(game.HasPlayersWith(player.NameEqualFold(userName)))
+			if exactUserName {
+				totalQuery = totalQuery.Where(game.HasPlayersWith(player.NameEQ(userName)))
+			} else {
+				totalQuery = totalQuery.Where(game.HasPlayersWith(player.NameEqualFold(userName)))
+			}
 		}
 		if seasonLabel != "" {
 			totalQuery = totalQuery.Where(game.SeasonLabelEQ(seasonLabel))
@@ -1426,6 +1435,7 @@ func ListGames(c *fiber.Ctx) error {
 		"offset":                offset,
 		"user_name":             userName,
 		"season_label":          seasonLabel,
+		"exact_user_name":       exactUserName,
 		"has_more":              hasMore,
 		"reliability_summaries": buildReliabilitySummaryMap(games),
 		"analysis_statuses":     analysisStatuses,

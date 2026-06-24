@@ -418,6 +418,7 @@ describe("api loaders", () => {
 
     expect(model.games).toHaveLength(1);
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain("include_total=false");
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("exact_user_name=true");
     expect(model.games[0]?.analyzerStatus).toBe("DONE");
     expect(model.games[0]?.winnerTeam[0]?.name).toBe(CURRENT_USER);
     expect(model.games[0]?.loserTeam[1]?.race).toBe("Z");
@@ -602,6 +603,7 @@ describe("api loaders", () => {
 
     expect(model.selectedGame.keyPlayer).toBe(CURRENT_USER);
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain("include_total=false");
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("exact_user_name=true");
     expect(model.selectedGame.worstPlayer).toBe("3x3_Kiyong");
     expect(model.timeline[0]?.event).toBe("Cybernetics Core");
     expect(model.comparison.kills.winner).toBe(18);

@@ -17,7 +17,7 @@ export async function loadAnalyzerPageModel(options: AnalyzerLoaderOptions = {})
   const listOptions = { ...options, revalidateSeconds: options.revalidateSeconds ?? 60 };
   const detailOptions = { ...options, revalidateSeconds: options.revalidateSeconds ?? 180 };
   const gamesResponse = await tryFetchApiJson<ApiGamesListResponse>(
-    `/api/v1/games?limit=12&offset=0&include_total=false${userQuery}`,
+    `/api/v1/games?limit=12&offset=0&include_total=false&exact_user_name=true${userQuery}`,
     listOptions
   );
 

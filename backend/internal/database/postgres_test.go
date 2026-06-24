@@ -15,6 +15,9 @@ func TestPerformanceIndexStatementsCoverGamesAndPlayerLookup(t *testing.T) {
 	if !strings.Contains(joined, "players_lower_name_idx") {
 		t.Fatalf("performance indexes = %q, want case-insensitive player lookup index", joined)
 	}
+	if !strings.Contains(joined, "players_name_game_idx") {
+		t.Fatalf("performance indexes = %q, want exact player-name game lookup index", joined)
+	}
 	if !strings.Contains(joined, "lower(name)") {
 		t.Fatalf("performance indexes = %q, want functional lower(name) index", joined)
 	}

@@ -52,6 +52,7 @@ func Connect() error {
 func performanceIndexStatements() []string {
 	return []string{
 		`CREATE INDEX IF NOT EXISTS games_start_time_created_at_idx ON games (start_time DESC, created_at DESC)`,
+		`CREATE INDEX IF NOT EXISTS players_name_game_idx ON players (name, game_players)`,
 		`CREATE INDEX IF NOT EXISTS players_lower_name_idx ON players (lower(name))`,
 	}
 }
