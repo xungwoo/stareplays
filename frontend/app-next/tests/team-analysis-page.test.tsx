@@ -36,6 +36,8 @@ describe("team analysis page", () => {
     expect(screen.getByText(/선수 역량 매트릭스/i)).toBeInTheDocument();
     expect(screen.getByText(/조합별 성적/i)).toBeInTheDocument();
     expect(screen.getAllByText(/종족 조합/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/AI 훈련 피드백/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/훈련|연습|보강|다듬/i).length).toBeGreaterThan(0);
     expect(screen.queryByText(/최근 3x3 분석 입력/i)).not.toBeInTheDocument();
 
     const playerRows = screen.getAllByTestId("team-analysis-player-row");

@@ -101,6 +101,9 @@ describe("team analysis adapter", () => {
     expect(alpha?.bradleyTerryRank).toBeGreaterThan(0);
     expect(alpha?.trueSkill).not.toBe(0);
     expect(alpha?.trueSkillRank).toBeGreaterThan(0);
+    expect(alpha?.trainingFeedback.length).toBeGreaterThan(0);
+    expect(model.players.every((player) => player.trainingFeedback.length > 0)).toBe(true);
+    expect(model.players.flatMap((player) => player.trainingFeedback).some((feedback) => /훈련|연습|보강|다듬/.test(feedback))).toBe(true);
 
     const firstLineup = model.lineups[0];
     expect(firstLineup?.players).toHaveLength(3);

@@ -34,6 +34,7 @@ export interface TeamAnalysisPlayer {
   worstRace: RaceCode;
   strength: string;
   weakness: string;
+  trainingFeedback: string[];
   raceStats: TeamAnalysisRaceStat[];
   bestPartners: string[];
 }
