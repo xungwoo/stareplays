@@ -58,13 +58,13 @@ npx -y --package github:xungwoo/stareplays#main stareplays-mcp install --client 
 기본 API:
 
 ```text
-https://stareplays-next-production.up.railway.app/api/team-analysis/raw
+https://stareplays.up.railway.app/api/team-analysis/raw
 ```
 
 시즌 필터:
 
 ```text
-https://stareplays-next-production.up.railway.app/api/team-analysis/raw?season_label=시즌7
+https://stareplays.up.railway.app/api/team-analysis/raw?season_label=시즌7
 ```
 
 ## 자주 쓰는 옵션
@@ -72,7 +72,7 @@ https://stareplays-next-production.up.railway.app/api/team-analysis/raw?season_l
 ```bash
 npx -y --package github:xungwoo/stareplays#main stareplays-mcp install \
   --client all \
-  --api-base-url https://stareplays-next-production.up.railway.app \
+  --api-base-url https://stareplays.up.railway.app \
   --cache-ttl-seconds 300 \
   --timeout-ms 10000
 ```
@@ -99,7 +99,7 @@ GitHub npx가 로컬 인증서 문제로 실패하는 환경에서는 raw instal
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/xungwoo/stareplays/main/mcp/stareplays-mcp/bin/stareplays-mcp-remote-install.mjs \
-  | node - --client all --api-base-url https://stareplays-next-production.up.railway.app
+  | node - --client all --api-base-url https://stareplays.up.railway.app
 ```
 
 저장소를 이미 clone한 개발자는 로컬 CLI를 직접 실행할 수 있습니다.
@@ -114,7 +114,7 @@ node mcp/stareplays-mcp/bin/stareplays-mcp-install.mjs --client all
 
 ```bash
 claude mcp add stareplays \
-  -e STAREPLAYS_API_BASE_URL=https://stareplays-next-production.up.railway.app \
+  -e STAREPLAYS_API_BASE_URL=https://stareplays.up.railway.app \
   -e STAREPLAYS_MCP_CACHE_TTL_SECONDS=300 \
   -e STAREPLAYS_MCP_TIMEOUT_MS=10000 \
   -- node /ABSOLUTE/PATH/TO/stareplays/mcp/stareplays-mcp/bin/stareplays-mcp-server.mjs

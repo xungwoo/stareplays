@@ -3,7 +3,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
-export const DEFAULT_API_BASE_URL = "https://stareplays-next-production.up.railway.app";
+export const DEFAULT_API_BASE_URL = "https://stareplays.up.railway.app";
 export const DEFAULT_CACHE_TTL_SECONDS = 300;
 export const DEFAULT_TIMEOUT_MS = 10000;
 

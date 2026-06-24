@@ -129,7 +129,7 @@ railway service status --service stareplays-next --environment production
 railway deployment list --service stareplays --environment production
 railway deployment list --service stareplays-next --environment production
 curl -sS -I https://stareplays-production.up.railway.app/health
-curl -sS -I https://stareplays-next-production.up.railway.app/team-analysis
+curl -sS -I https://stareplays.up.railway.app/team-analysis
 ```
 
 ## 실패 복구

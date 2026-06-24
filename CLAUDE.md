@@ -98,7 +98,7 @@ railway service status --service stareplays-next --environment production
 railway deployment list --service stareplays --environment production
 railway deployment list --service stareplays-next --environment production
 curl -sS -I https://stareplays-production.up.railway.app/health
-curl -sS -I https://stareplays-next-production.up.railway.app/team-analysis
+curl -sS -I https://stareplays.up.railway.app/team-analysis
 ```
 
 `stareplays-next` 배포에서 `No start command detected`, `RAILPACK`, 빈 manifest가 보이면 잘못된 root로 배포한 것입니다. 즉시 위 프런트 배포 명령으로 재배포합니다.

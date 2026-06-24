@@ -205,9 +205,9 @@ railway deployment list --service stareplays-next --environment production
 
 ```bash
 curl -sS -I https://stareplays-production.up.railway.app/health
-curl -sS -I https://stareplays-next-production.up.railway.app/team-analysis
-curl -sS -I https://stareplays-next-production.up.railway.app/seasons
-curl -sS -I https://stareplays-next-production.up.railway.app/rankings
+curl -sS -I https://stareplays.up.railway.app/team-analysis
+curl -sS -I https://stareplays.up.railway.app/seasons
+curl -sS -I https://stareplays.up.railway.app/rankings
 ```
 
 성능/응답 크기 확인:
@@ -215,11 +215,11 @@ curl -sS -I https://stareplays-next-production.up.railway.app/rankings
 ```bash
 curl -sS -o /tmp/stareplays-team-analysis.html \
   -w 'team-analysis total=%{time_total} ttfb=%{time_starttransfer} size=%{size_download}\n' \
-  https://stareplays-next-production.up.railway.app/team-analysis
+  https://stareplays.up.railway.app/team-analysis
 
 curl -sS -o /tmp/stareplays-seasons.html \
   -w 'seasons total=%{time_total} ttfb=%{time_starttransfer} size=%{size_download}\n' \
-  https://stareplays-next-production.up.railway.app/seasons
+  https://stareplays.up.railway.app/seasons
 ```
 
 Raw endpoint:
@@ -227,7 +227,7 @@ Raw endpoint:
 ```bash
 curl -sS -D - -o /tmp/stareplays-team-analysis-raw.json \
   -w '\nHTTP=%{http_code}\nTIME_TOTAL=%{time_total}\nSIZE=%{size_download}\n' \
-  'https://stareplays-next-production.up.railway.app/api/team-analysis/raw?season_label=%EC%8B%9C%EC%A6%8C8'
+  'https://stareplays.up.railway.app/api/team-analysis/raw?season_label=%EC%8B%9C%EC%A6%8C8'
 ```
 
 기대:
@@ -268,7 +268,7 @@ railway up frontend/app-next \
 ```bash
 railway service status --service stareplays-next --environment production
 railway deployment list --service stareplays-next --environment production
-curl -sS -I https://stareplays-next-production.up.railway.app/team-analysis
+curl -sS -I https://stareplays.up.railway.app/team-analysis
 ```
 
 ### 잘못된 서비스 배포

@@ -235,9 +235,9 @@ railway up frontend/app-next \
 ```bash
 railway service status --service stareplays-next --environment production
 railway deployment list --service stareplays-next --environment production
-curl -I https://stareplays-next-production.up.railway.app/team-analysis
-curl -I https://stareplays-next-production.up.railway.app/seasons
-curl -I https://stareplays-next-production.up.railway.app/rankings
+curl -I https://stareplays.up.railway.app/team-analysis
+curl -I https://stareplays.up.railway.app/seasons
+curl -I https://stareplays.up.railway.app/rankings
 ```
 
 ### CLI 복구용 API/worker/job 배포
@@ -467,19 +467,19 @@ make run
 Stareplays 팀 분석 raw data를 개인 Claude Desktop, Claude Code, Codex에서 MCP 도구처럼 조회하려면 아래 가이드를 참고하세요.
 
 - 설치 가이드: `mcp/stareplays-mcp/README.md`
-- 운영 raw endpoint: `https://stareplays-next-production.up.railway.app/api/team-analysis/raw`
+- 운영 raw endpoint: `https://stareplays.up.railway.app/api/team-analysis/raw`
 
 소스코드 checkout 없는 GitHub npx 설치:
 
 ```bash
-npx -y --package github:xungwoo/stareplays#main stareplays-mcp install --client all --api-base-url https://stareplays-next-production.up.railway.app
+npx -y --package github:xungwoo/stareplays#main stareplays-mcp install --client all --api-base-url https://stareplays.up.railway.app
 ```
 
 GitHub npx가 로컬 인증서 문제로 실패할 때 대체 설치:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/xungwoo/stareplays/main/mcp/stareplays-mcp/bin/stareplays-mcp-remote-install.mjs \
-  | node - --client all --api-base-url https://stareplays-next-production.up.railway.app
+  | node - --client all --api-base-url https://stareplays.up.railway.app
 ```
 
 저장소를 clone한 개발자용 설치:
