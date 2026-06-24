@@ -375,19 +375,13 @@ Stareplays 팀 분석 raw data를 개인 Claude/Codex에서 MCP 도구처럼 조
 - 설치 가이드: `mcp/stareplays-mcp/README.md`
 - 운영 raw endpoint: `https://stareplays-next-production.up.railway.app/api/team-analysis/raw`
 
-소스코드 checkout 없는 빠른 설치:
-
-```bash
-npx -y stareplays-mcp install --client both --api-base-url https://stareplays-next-production.up.railway.app
-```
-
-npm publish 전 GitHub npx 설치:
+소스코드 checkout 없는 GitHub npx 설치:
 
 ```bash
 npx -y --package github:xungwoo/stareplays#main stareplays-mcp install --client both --api-base-url https://stareplays-next-production.up.railway.app
 ```
 
-npm publish 전 대체 설치:
+GitHub npx가 로컬 인증서 문제로 실패할 때 대체 설치:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/xungwoo/stareplays/main/mcp/stareplays-mcp/bin/stareplays-mcp-remote-install.mjs \
@@ -400,7 +394,7 @@ curl -fsSL https://raw.githubusercontent.com/xungwoo/stareplays/main/mcp/starepl
 node mcp/stareplays-mcp/bin/stareplays-mcp-install.mjs --client both --api-base-url https://stareplays-next-production.up.railway.app
 ```
 
-설치 후 Claude Desktop 또는 Codex를 재시작하면 `get_team_analysis_raw`, `get_team_analysis_prompt_bundle`, `analyze_team_matchups`를 사용할 수 있습니다. 설치 방식 선택, 수동 설정, 제거, 문제 해결은 `mcp/stareplays-mcp/README.md`를 기준으로 관리합니다.
+설치 후 Claude Desktop 또는 Codex를 재시작하면 `get_team_analysis_raw`, `get_team_analysis_prompt_bundle`, `analyze_team_matchups`를 사용할 수 있습니다. raw endpoint 데이터 구조, 설치 방식 선택, 수동 설정, 제거, 문제 해결은 `mcp/stareplays-mcp/README.md`를 기준으로 관리합니다.
 
 ### 로컬 서버 운영 규칙 (필수)
 
