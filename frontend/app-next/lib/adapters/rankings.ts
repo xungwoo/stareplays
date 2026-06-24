@@ -1,14 +1,16 @@
 import { RACE_COMPOSITIONS_FIXTURE, RANKINGS_FIXTURE } from "@/lib/fixtures/rankings";
 import { CURRENT_USER } from "@/lib/fixtures/common";
 import { getRaceLetter } from "@/lib/utils/format";
-import type { ApiRaceMatchupRow, ApiRaceMatchupsResponse, ApiRankingsResponse } from "@/types/api";
-import type { RankingsPageModel } from "@/types/rankings";
+import type { ApiGamePlayer, ApiGamesListResponse, ApiRaceMatchupRow, ApiRaceMatchupsResponse, ApiRankingsResponse } from "@/types/api";
+import type { RaceCode } from "@/types/common";
+import type { RaceRankingRow, RankingsPageModel } from "@/types/rankings";
 
 export function getRankingsPageModel(currentUser = CURRENT_USER): RankingsPageModel {
   return {
     currentUser,
     tabs: [
       { id: "rankings", label: "Rankings_3v3" },
+      { id: "race_rankings", label: "Race_Rankings" },
       { id: "race_comp", label: "Race_Composition_WinRate" }
     ],
     summary: [
@@ -18,6 +20,7 @@ export function getRankingsPageModel(currentUser = CURRENT_USER): RankingsPageMo
       { label: "Top Win Rate", value: "55.8%", accent: "emerald", hint: "3x3_GG / 3x3_smwoo" }
     ],
     rankings: RANKINGS_FIXTURE,
+    raceRankings: [],
     raceCompositions: RACE_COMPOSITIONS_FIXTURE
   };
 }
@@ -34,6 +37,56 @@ function formatMetricNumber(value: number): string {
 
 function favoriteRaceFor(name: string) {
   return RANKINGS_FIXTURE.find((row) => row.user === name)?.favoriteRace ?? "P";
+}
+
+function isTrackedPlayer(player: ApiGamePlayer) {
+  return Boolean(player.name?.trim().startsWith("3x3"));
+}
+
+function buildRaceRankings(gamesResponse?: ApiGamesListResponse | null): RaceRankingRow[] {
+  const accumulators = new Map<string, { race: RaceCode | "R"; user: string; games: number; wins: number; losses: number; apmTotal: number }>();
+
+  for (const game of gamesResponse?.games ?? []) {
+    const winnerTeam = toNumber(game.winner_team);
+    if (winnerTeam <= 0) continue;
+
+    for (const player of game.edges?.players ?? []) {
+      if (!isTrackedPlayer(player)) continue;
+
+      const race = getRaceLetter(player.race ?? "P");
+      const user = player.name?.trim() || "Unknown";
+      const won = toNumber(player.team) === winnerTeam || player.is_winner === true;
+      const keys: Array<RaceCode | "R"> = game.is_random_selected === true ? [race, "R"] : [race];
+
+      for (const rankingRace of keys) {
+        const key = `${rankingRace}:${user}`;
+        const accumulator = accumulators.get(key) ?? { race: rankingRace, user, games: 0, wins: 0, losses: 0, apmTotal: 0 };
+        accumulator.games += 1;
+        accumulator.wins += won ? 1 : 0;
+        accumulator.losses += won ? 0 : 1;
+        accumulator.apmTotal += toNumber(player.apm);
+        accumulators.set(key, accumulator);
+      }
+    }
+  }
+
+  return (["P", "T", "Z", "R"] as Array<RaceCode | "R">).flatMap((race) => {
+    const rows = Array.from(accumulators.values())
+      .filter((row) => row.race === race)
+      .map((row) => ({
+        race,
+        rank: 0,
+        user: row.user,
+        games: row.games,
+        wins: row.wins,
+        losses: row.losses,
+        winRate: row.games > 0 ? Number(((row.wins / row.games) * 100).toFixed(1)) : 0,
+        avgApm: row.games > 0 ? Number((row.apmTotal / row.games).toFixed(1)) : 0
+      }))
+      .sort((left, right) => right.winRate - left.winRate || right.wins - left.wins || right.games - left.games || left.user.localeCompare(right.user));
+
+    return rows.map((row, index) => ({ ...row, rank: index + 1 }));
+  });
 }
 
 function mapRaceComposition(row: ApiRaceMatchupRow) {
@@ -57,11 +110,13 @@ function mapRaceComposition(row: ApiRaceMatchupRow) {
 export function createRankingsPageModel({
   currentUser = CURRENT_USER,
   rankingsResponse,
-  raceMatchupsResponse
+  raceMatchupsResponse,
+  gamesResponse
 }: {
   currentUser?: string;
   rankingsResponse?: ApiRankingsResponse | null;
   raceMatchupsResponse?: ApiRaceMatchupsResponse | null;
+  gamesResponse?: ApiGamesListResponse | null;
 } = {}): RankingsPageModel {
   const fallback = getRankingsPageModel(currentUser);
   const rankingRows = rankingsResponse?.rankings ?? rankingsResponse?.items;
@@ -82,6 +137,7 @@ export function createRankingsPageModel({
     : fallback.rankings;
   const raceRows = raceMatchupsResponse?.rows ?? raceMatchupsResponse?.items;
   const raceCompositions = raceRows ? raceRows.map(mapRaceComposition) : fallback.raceCompositions;
+  const raceRankings = buildRaceRankings(gamesResponse);
   const maxGames = rankings.length > 0 ? Math.max(...rankings.map((row) => row.games)) : 0;
   const highestApm = rankings.reduce((best, row) => (row.avgApm > best.avgApm ? row : best), rankings[0] ?? fallback.rankings[0]);
   const topWinRate = rankings.length > 0 ? Math.max(...rankings.map((row) => row.winRate)) : 0;
@@ -94,6 +150,7 @@ export function createRankingsPageModel({
     currentUser,
     tabs: fallback.tabs,
     rankings,
+    raceRankings,
     raceCompositions,
     summary: [
       { label: "Total Games", value: String(maxGames || fallback.rankings[0]?.games || 0), accent: "cyan", hint: "Qualified 3v3 games" },

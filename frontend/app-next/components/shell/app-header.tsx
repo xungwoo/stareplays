@@ -10,10 +10,10 @@ import { CurrentUserChip, CurrentUserChipFallback } from "./current-user-chip";
 export function AppHeader({ currentUser = CURRENT_USER }: { currentUser?: string }) {
   return (
     <header
-      className="sticky top-0 z-50 flex items-center justify-between px-6 py-0"
+      className="sticky top-0 z-50 flex items-center justify-between gap-3 px-3 py-0 sm:px-6"
       style={{ backgroundColor: "rgba(18,24,38,0.96)", borderBottom: "1px solid rgba(148,163,184,0.14)", backdropFilter: "blur(12px)" }}
       >
-      <div className="flex items-center gap-8">
+      <div className="flex min-w-0 items-center gap-3 md:gap-8">
         <Link href="/" className="flex items-center gap-2 py-4">
           <Shield className="h-5 w-5 text-cyan-300" />
           <span
@@ -35,9 +35,11 @@ export function AppHeader({ currentUser = CURRENT_USER }: { currentUser?: string
           <AppNav currentUser={currentUser} />
         </Suspense>
       </div>
-      <Suspense fallback={<CurrentUserChipFallback currentUser={currentUser} />}>
-        <CurrentUserChip currentUser={currentUser} />
-      </Suspense>
+      <div className="hidden shrink-0 sm:block">
+        <Suspense fallback={<CurrentUserChipFallback currentUser={currentUser} />}>
+          <CurrentUserChip currentUser={currentUser} />
+        </Suspense>
+      </div>
     </header>
   );
 }

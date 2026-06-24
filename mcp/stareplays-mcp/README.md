@@ -60,6 +60,8 @@ npx -y --package github:xungwoo/stareplays#main stareplays-mcp install --client 
 
 `get_team_analysis_prompt_bundle`는 API 응답의 `llm.promptContext`와 `llm.analysisGuidance`를 우선 사용하고, 마지막에 Raw JSON 전체를 함께 첨부합니다. 새 분석 필드를 LLM이 적극적으로 사용해야 한다면 서비스 raw 응답의 `llm.analysisGuidance`를 함께 갱신하세요.
 
+응답에 `llm.relatedLinks`가 있으면 prompt bundle은 “관련 링크” 섹션을 포함합니다. 시즌 전적, 랭킹, 팀 분석처럼 질문과 연관성이 높은 웹 화면이 있을 때 LLM 답변에서 직접 링크를 안내할 수 있습니다.
+
 `get_mcp_update_status`는 raw endpoint의 `compatibility.recommendedMcpVersion`과 로컬 MCP 버전을 비교해 업데이트 필요 여부와 재설치 명령을 알려줍니다. MCP가 실행 중인 자기 파일을 자동으로 덮어쓰지는 않습니다.
 
 기본 API:

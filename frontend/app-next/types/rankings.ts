@@ -24,13 +24,25 @@ export interface RaceCompositionRow {
   teamBWins: number;
 }
 
+export interface RaceRankingRow {
+  race: RaceCode | "R";
+  rank: number;
+  user: string;
+  games: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+  avgApm: number;
+}
+
 export interface RankingsPageModel {
   currentUser: string;
   tabs: Array<{
-    id: "rankings" | "race_comp";
+    id: "rankings" | "race_rankings" | "race_comp";
     label: string;
   }>;
   summary: MetricItem[];
   rankings: RankingRow[];
+  raceRankings: RaceRankingRow[];
   raceCompositions: RaceCompositionRow[];
 }

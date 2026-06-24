@@ -9,7 +9,7 @@ import { RaceBadge, RaceGroup } from "@/components/shared/race-badge";
 import { SectionAccent } from "@/components/shared/section-accent";
 import { CYAN_PANEL_STYLE, CYAN_SECTION_DIVIDER_STYLE, INNER_PANEL_STYLE } from "@/lib/constants/ui-styles";
 import { displayPlayerName } from "@/lib/utils/player-display";
-import type { RankingRow, RaceCompositionRow, RankingsPageModel } from "@/types/rankings";
+import type { RaceRankingRow, RankingRow, RaceCompositionRow, RankingsPageModel } from "@/types/rankings";
 
 const CARD_STYLE = CYAN_PANEL_STYLE;
 
@@ -345,6 +345,83 @@ export function RaceCompositionTable({
             </div>
           ))
         )}
+      </div>
+    </div>
+  );
+}
+
+function RaceRankingPanel({ race, rows }: { race: RaceRankingRow["race"]; rows: RaceRankingRow[] }) {
+  const title = race === "R" ? "RANDOM_RANKINGS" : `${race}_RANKINGS`;
+
+  return (
+    <div className="overflow-hidden rounded-xl" style={CARD_STYLE}>
+      <div className="flex items-center gap-2 px-4 py-3" style={{ backgroundColor: "#081428", ...CYAN_SECTION_DIVIDER_STYLE }}>
+        {race === "R" ? (
+          <span className="inline-flex h-6 w-6 items-center justify-center rounded font-mono text-xs font-bold" style={{ backgroundColor: "rgba(34, 211, 238, 0.16)", color: "#67e8f9", border: "1px solid rgba(34, 211, 238, 0.35)" }}>R</span>
+        ) : (
+          <RaceBadge race={race} size="md" />
+        )}
+        <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-slate-300">{title}</h3>
+      </div>
+      <div className="grid px-4 py-2" style={{ gridTemplateColumns: "44px 1fr 66px 82px 72px", backgroundColor: "rgba(8,20,40,0.72)" }}>
+        <span className="text-[10px] font-mono font-semibold uppercase text-slate-600">R</span>
+        <span className="text-[10px] font-mono font-semibold uppercase text-slate-600">USER</span>
+        <span className="text-[10px] font-mono font-semibold uppercase text-slate-600">G</span>
+        <span className="text-[10px] font-mono font-semibold uppercase text-slate-600">WIN%</span>
+        <span className="text-[10px] font-mono font-semibold uppercase text-slate-600">APM</span>
+      </div>
+      {rows.length === 0 ? (
+        <div className="px-4 py-5 text-center text-[11px] font-mono" style={{ color: "#4A4F59" }}>
+          NO_{race}_DATA
+        </div>
+      ) : (
+        rows.map((row) => (
+          <div key={`${row.race}-${row.user}`} className="grid items-center px-4 py-3 hover:bg-slate-800/30" style={{ gridTemplateColumns: "44px 1fr 66px 82px 72px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+            <span className="text-xs font-mono font-bold text-slate-500">#{row.rank}</span>
+            <div className="flex items-center gap-2">
+              <PlayerBadge name={displayPlayerName(row.user)} compact />
+            </div>
+            <span className="text-xs font-mono text-slate-300">{row.games}</span>
+            <span className="text-xs font-mono font-semibold" style={{ color: row.winRate >= 50 ? "#34d399" : "#f87171" }}>{row.winRate.toFixed(1)}%</span>
+            <span className="text-xs font-mono font-semibold text-cyan-300">{row.avgApm.toFixed(1)}</span>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+export function RaceRankingsTable({ model, currentUser }: { model: RankingsPageViewModel; currentUser: string }) {
+  const rowsByRace = {
+    P: model.raceRankings.filter((row) => row.race === "P"),
+    T: model.raceRankings.filter((row) => row.race === "T"),
+    Z: model.raceRankings.filter((row) => row.race === "Z"),
+    R: model.raceRankings.filter((row) => row.race === "R")
+  };
+  const totalRows = model.raceRankings.length;
+
+  return (
+    <div>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <SectionAccent />
+          <h2 className="text-sm font-mono font-bold uppercase tracking-widest text-slate-200">Race_Rankings</h2>
+          <span className="text-[10px] font-mono text-slate-600">RACES: P/T/Z/RANDOM | ROWS: {totalRows}</span>
+        </div>
+        <Link
+          href={`/rankings?currentUser=${encodeURIComponent(currentUser)}`}
+          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-mono text-slate-400 transition-all hover:text-slate-200"
+          style={{ border: "1px solid rgba(255,255,255,0.1)" }}
+        >
+          <RefreshCw className="h-3 w-3" />
+          REFRESH
+        </Link>
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
+        <RaceRankingPanel race="P" rows={rowsByRace.P} />
+        <RaceRankingPanel race="T" rows={rowsByRace.T} />
+        <RaceRankingPanel race="Z" rows={rowsByRace.Z} />
+        <RaceRankingPanel race="R" rows={rowsByRace.R} />
       </div>
     </div>
   );

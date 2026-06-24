@@ -17,6 +17,7 @@ test("lists stareplays tools and serves a prompt bundle through tool calls", asy
       llm: {
         promptTitle: "3x3 팀 전적 분석",
         analysisGuidance: ["isRandomSelected=true면 랜덤 선택 경기로 해석하세요."],
+        relatedLinks: [{ label: "시즌7 시즌 전적", url: "https://stareplays.up.railway.app/seasons/%EC%8B%9C%EC%A6%8C7", description: "시즌 상세" }],
         suggestedQuestions: ["최적 조합을 추천해줘"]
       }
     })
@@ -44,6 +45,7 @@ test("lists stareplays tools and serves a prompt bundle through tool calls", asy
   assert.match(prompt.result.content[0].text, /시즌7/);
   assert.match(prompt.result.content[0].text, /랜덤 선택 경기: 6/);
   assert.match(prompt.result.content[0].text, /isRandomSelected=true/);
+  assert.match(prompt.result.content[0].text, /https:\/\/stareplays\.up\.railway\.app\/seasons/);
   assert.match(prompt.result.content[0].text, /최적 조합을 추천해줘/);
 });
 
