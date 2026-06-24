@@ -47,6 +47,11 @@ type PlayerAccumulator = {
   partnerWins: Map<string, number>;
 };
 
+type TrainingFeedbackCandidate = {
+  score: number;
+  text: string;
+};
+
 const INITIAL_TRUESKILL_MU = 25;
 const INITIAL_TRUESKILL_SIGMA = 8.333;
 const MIN_PLAYER_RACE_GAMES = 3;
@@ -360,6 +365,83 @@ function rankPlayers(players: TeamAnalysisPlayer[], key: keyof Pick<TeamAnalysis
   });
 }
 
+function raceLabel(race: RaceCode): string {
+  if (race === "P") return "프로토스";
+  if (race === "Z") return "저그";
+  if (race === "T") return "테란";
+
+  return "랜덤";
+}
+
+function feedbackGap(value: number, values: number[]): number {
+  const normalized = normalizeMetric(value, values);
+
+  return Number.isFinite(normalized) ? Math.max(0, 100 - normalized) : 0;
+}
+
+function buildTrainingFeedback(player: TeamAnalysisPlayer, peers: TeamAnalysisPlayer[]): string[] {
+  const apmValues = peers.map((peer) => peer.averageApm);
+  const eapmValues = peers.map((peer) => peer.averageEapm);
+  const productionValues = peers.map((peer) => peer.productionAbility);
+  const winRateValues = peers.map((peer) => peer.winRate);
+  const candidates: TrainingFeedbackCandidate[] = [];
+  const weakRace = player.raceStats.find((stat) => stat.race === player.worstRace);
+
+  candidates.push({
+    score: feedbackGap(player.averageApm, apmValues),
+    text: `APM이 느린 편입니다. 피지컬을 올리려면 초반 5분 생산-정찰-부대지정 루틴을 쉬지 않고 반복하는 훈련이 좋습니다.`
+  });
+  candidates.push({
+    score: feedbackGap(player.averageEapm, eapmValues),
+    text: `EAPM이 아쉽습니다. 손은 움직이는데 결과로 이어지는 명령이 부족할 수 있어서, 화면 전환 후 한 번에 정확히 찍는 연습을 추천합니다.`
+  });
+  candidates.push({
+    score: feedbackGap(player.productionAbility, productionValues),
+    text: `생산능력 보강이 필요합니다. 교전 직전에도 게이트, 해처리, 팩토리 큐가 비지 않도록 생산 단축키 루틴부터 박아두면 효과가 큽니다.`
+  });
+  candidates.push({
+    score: Math.max(0, 80 - player.commandEfficiency),
+    text: `명령 효율이 흔들립니다. 의미 없는 반복 클릭을 줄이고, 이동-생산-교전 명령을 짧고 선명하게 끊어 치는 훈련이 맞습니다.`
+  });
+  candidates.push({
+    score: Math.max(0, 78 - player.tempoStability),
+    text: `템포 안정성이 낮습니다. 중반 이후 멀티, 업글, 병력 충원 타이밍을 체크리스트처럼 고정하면 후반에 덜 흔들립니다.`
+  });
+  candidates.push({
+    score: feedbackGap(player.winRate, winRateValues),
+    text: `승률 지표가 낮은 편입니다. 무리한 교전보다 팀 합류 타이밍과 생존 우선 판단을 먼저 다듬는 쪽이 승수 올리기에 빠릅니다.`
+  });
+
+  if (weakRace) {
+    const sampleNote = weakRace.qualified ? "" : " 표본은 적지만";
+    candidates.push({
+      score: Math.max(35, 100 - weakRace.winRate),
+      text: `${raceLabel(weakRace.race)} 경기에서${sampleNote} 약점 신호가 보입니다. 초반 빌드 하나를 고정해서 운영 전환까지 같은 루트로 5판 이상 반복해보세요.`
+    });
+  }
+
+  if (player.randomSelectedGames > 0 && player.randomSelectedWinRate < player.winRate) {
+    candidates.push({
+      score: Math.max(40, player.winRate - player.randomSelectedWinRate),
+      text: `랜덤 선택 경기 승률이 평소보다 낮습니다. 랜덤은 감으로 열기보다 종족별 첫 3분 대응표를 만들어두는 게 좋습니다.`
+    });
+  }
+
+  const unique = new Map<string, TrainingFeedbackCandidate>();
+  candidates.forEach((candidate) => {
+    if (candidate.score <= 0) return;
+    const existing = unique.get(candidate.text);
+    if (!existing || existing.score < candidate.score) unique.set(candidate.text, candidate);
+  });
+
+  const feedback = Array.from(unique.values())
+    .sort((left, right) => right.score - left.score || left.text.localeCompare(right.text, "ko"))
+    .slice(0, 3)
+    .map((candidate) => candidate.text);
+
+  return feedback.length > 0 ? feedback : ["지표상 큰 구멍은 없습니다. 지금은 새 빌드보다 잘 되는 루틴을 더 안정적으로 반복하는 훈련이 좋습니다."];
+}
+
 function buildPlayers(matches: NormalizedMatch[]): TeamAnalysisPlayer[] {
   const accumulators = new Map<string, PlayerAccumulator>();
 
@@ -407,6 +489,7 @@ function buildPlayers(matches: NormalizedMatch[]): TeamAnalysisPlayer[] {
       worstRace,
       strength: raceStrengthLabel(raceStats, bestRace),
       weakness: raceStrengthLabel(raceStats, worstRace),
+      trainingFeedback: [] as string[],
       raceStats,
       bestPartners: partnerWins
     };
@@ -415,6 +498,9 @@ function buildPlayers(matches: NormalizedMatch[]): TeamAnalysisPlayer[] {
   rankPlayers(players, "averageApm");
   rankPlayers(players, "bradleyTerry");
   rankPlayers(players, "trueSkill");
+  players.forEach((player) => {
+    player.trainingFeedback = buildTrainingFeedback(player, players);
+  });
 
   return players.sort((left, right) => right.trueSkill - left.trueSkill || right.bradleyTerry - left.bradleyTerry || left.name.localeCompare(right.name));
 }

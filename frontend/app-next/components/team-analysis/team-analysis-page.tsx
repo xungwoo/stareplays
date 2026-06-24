@@ -387,6 +387,17 @@ function PlayerInsightCard({ player }: { player: TeamAnalysisPlayer }) {
           <Badge key={partner} accent="cyan">{partner}</Badge>
         ))}
       </div>
+      <div className="mt-4 rounded-md border border-slate-700/70 bg-slate-950/35 p-3">
+        <p className="text-xs font-bold text-slate-100">AI 훈련 피드백</p>
+        <ul className="mt-2 space-y-1.5 text-xs leading-5 text-slate-300">
+          {player.trainingFeedback.map((feedback) => (
+            <li key={feedback} className="flex gap-2">
+              <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-300" aria-hidden="true" />
+              <span>{feedback}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
     </article>
   );
 }
