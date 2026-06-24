@@ -33,7 +33,9 @@ function usage() {
     "  server                          Run the MCP server over stdio",
     "",
     "Install options:",
-    "  --client claude|codex|both       MCP client config to update. Default: both",
+    "  --client claude-desktop|claude-code|codex|both|all",
+    "                                   MCP client config to update. Default: both",
+    "                                   both = Claude Desktop + Codex",
     "  --api-base-url <url>             Stareplays app base URL. Default: production",
     "  --install-dir <path>             Install directory. Default: ~/.stareplays/mcp/stareplays-mcp",
     "  --cache-ttl-seconds <seconds>    Local cache TTL. Default: 300",
@@ -42,6 +44,8 @@ function usage() {
     "",
     "Examples:",
     "  npx -y --package github:xungwoo/stareplays#main stareplays-mcp install --client codex",
+    "  npx -y --package github:xungwoo/stareplays#main stareplays-mcp install --client claude-code",
+    "  npx -y --package github:xungwoo/stareplays#main stareplays-mcp install --client all",
     "  npx -y --package github:xungwoo/stareplays#main stareplays-mcp install --client codex --install-dir ~/.local/share/stareplays-mcp"
   ].join("\n");
 }
@@ -80,6 +84,7 @@ async function install() {
   console.log(`Stareplays MCP runtime installed into ${installDir}`);
   if (result.claudeConfigPath) console.log(`Claude Desktop: ${result.claudeConfigPath}`);
   if (result.codexConfigPath) console.log(`Codex: ${result.codexConfigPath}`);
+  if (result.claudeCodeConfigPath) console.log(`Claude Code: ${result.claudeCodeConfigPath}`);
   if (result.extraCaCerts) console.log(`Extra CA certificates: ${result.extraCaCerts}`);
   console.log("Restart the target client so it reloads MCP configuration.");
 }

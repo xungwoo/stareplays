@@ -18,5 +18,6 @@ const result = await installMcpConfig({ client, apiBaseUrl, cacheTtlSeconds, tim
 console.log("Stareplays MCP config installed.");
 if (result.claudeConfigPath) console.log(`Claude Desktop: ${result.claudeConfigPath}`);
 if (result.codexConfigPath) console.log(`Codex: ${result.codexConfigPath}`);
+if (result.claudeCodeConfigPath) console.log(`Claude Code: ${result.claudeCodeConfigPath}`);
 if (result.extraCaCerts) console.log(`Extra CA certificates: ${result.extraCaCerts}`);
 console.log("Restart the target client so it reloads MCP configuration.");

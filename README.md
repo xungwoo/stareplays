@@ -2,6 +2,10 @@
 
 StarCraft: Brood War replay 파싱/저장 API 서버입니다.
 
+## 빠른 링크
+
+- MCP 설치 가이드: [`mcp/stareplays-mcp/README.md`](mcp/stareplays-mcp/README.md)
+
 ## 문서
 
 - 현재 시스템 구조: `docs/architecture.md`
@@ -9,7 +13,7 @@ StarCraft: Brood War replay 파싱/저장 API 서버입니다.
 - Next 프런트 현재 구조/legacy parity 상태: `docs/frontend-next-architecture.md`
 - 완료된 작업 기록/검증 runbook: `docs/histories/`
 - 상세 API 예시(보조 문서): `API_USAGE.md`
-- Claude/Codex MCP 로컬 커넥터 설치: `mcp/stareplays-mcp/README.md`
+- Claude Desktop/Claude Code/Codex MCP 로컬 커넥터 설치: `mcp/stareplays-mcp/README.md`
 
 ## 핵심 기능
 
@@ -134,9 +138,9 @@ cd backend && go run ./cmd/server
 make run
 ```
 
-## Claude/Codex MCP 로컬 커넥터
+## Claude Desktop/Claude Code/Codex MCP 로컬 커넥터
 
-Stareplays 팀 분석 raw data를 개인 Claude/Codex에서 MCP 도구처럼 조회하려면 아래 가이드를 참고하세요.
+Stareplays 팀 분석 raw data를 개인 Claude Desktop, Claude Code, Codex에서 MCP 도구처럼 조회하려면 아래 가이드를 참고하세요.
 
 - 설치 가이드: `mcp/stareplays-mcp/README.md`
 - 운영 raw endpoint: `https://stareplays-next-production.up.railway.app/api/team-analysis/raw`
@@ -144,12 +148,12 @@ Stareplays 팀 분석 raw data를 개인 Claude/Codex에서 MCP 도구처럼 조
 빠른 설치:
 
 ```bash
-npx -y --package github:xungwoo/stareplays#main stareplays-mcp install --client both
+npx -y --package github:xungwoo/stareplays#main stareplays-mcp install --client all
 ```
 
 기본 설치는 운영 API, 로컬 캐시 TTL 300초, API 타임아웃 10초, Node TLS용 CA bundle 자동 감지를 함께 설정합니다.
 
-설치 후 Claude Desktop 또는 Codex를 재시작하면 `get_team_analysis_raw`, `get_team_analysis_prompt_bundle`, `analyze_team_matchups`를 사용할 수 있습니다.
+설치 후 Claude Desktop, Claude Code, Codex를 재시작하면 `get_team_analysis_raw`, `get_team_analysis_prompt_bundle`, `analyze_team_matchups`를 사용할 수 있습니다. 기존 호환 옵션인 `--client both`는 Claude Desktop + Codex만 설정합니다.
 
 ### 로컬 서버 운영 규칙 (필수)
 
