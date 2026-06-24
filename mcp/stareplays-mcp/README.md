@@ -29,6 +29,16 @@ https://stareplays-next-production.up.railway.app/api/team-analysis/raw
 node mcp/stareplays-mcp/bin/stareplays-mcp-install.mjs --client both --api-base-url https://stareplays-next-production.up.railway.app
 ```
 
+기본 설치는 로컬 캐시 TTL 300초, API 타임아웃 10초를 함께 설정합니다. 조정하려면:
+
+```bash
+node mcp/stareplays-mcp/bin/stareplays-mcp-install.mjs \
+  --client both \
+  --api-base-url https://stareplays-next-production.up.railway.app \
+  --cache-ttl-seconds 300 \
+  --timeout-ms 10000
+```
+
 지원 클라이언트:
 
 - `--client claude`
@@ -71,7 +81,9 @@ curl -s https://stareplays-next-production.up.railway.app/api/team-analysis/raw 
       "command": "node",
       "args": ["/ABSOLUTE/PATH/TO/stareplays/mcp/stareplays-mcp/bin/stareplays-mcp-server.mjs"],
       "env": {
-        "STAREPLAYS_API_BASE_URL": "https://stareplays-next-production.up.railway.app"
+        "STAREPLAYS_API_BASE_URL": "https://stareplays-next-production.up.railway.app",
+        "STAREPLAYS_MCP_CACHE_TTL_SECONDS": "300",
+        "STAREPLAYS_MCP_TIMEOUT_MS": "10000"
       }
     }
   }
@@ -91,6 +103,8 @@ args = ["/ABSOLUTE/PATH/TO/stareplays/mcp/stareplays-mcp/bin/stareplays-mcp-serv
 
 [mcp_servers.stareplays.env]
 STAREPLAYS_API_BASE_URL = "https://stareplays-next-production.up.railway.app"
+STAREPLAYS_MCP_CACHE_TTL_SECONDS = "300"
+STAREPLAYS_MCP_TIMEOUT_MS = "10000"
 ```
 
 `args` 경로는 clone한 저장소의 절대 경로로 바꿔야 합니다.
@@ -107,7 +121,35 @@ node mcp/stareplays-mcp/bin/stareplays-mcp-install.mjs --client both --api-base-
 
 ```bash
 STAREPLAYS_API_BASE_URL=https://stareplays-next-production.up.railway.app \
+STAREPLAYS_MCP_CACHE_TTL_SECONDS=300 \
+STAREPLAYS_MCP_TIMEOUT_MS=10000 \
 node mcp/stareplays-mcp/bin/stareplays-mcp-server.mjs
+```
+
+## 캐시와 오류 처리
+
+- 캐시 위치 기본값: `~/.stareplays/mcp/cache`
+- 캐시 키: API base URL + `seasonLabel`
+- 신선한 캐시가 있으면 원격 API를 호출하지 않습니다.
+- 캐시가 만료됐고 원격 API가 실패하면 stale 캐시를 반환합니다.
+- 캐시가 없고 원격 API가 실패하면 JSON-RPC 오류를 request id와 함께 반환합니다.
+- TLS 인증서, 타임아웃, HTTP status 오류는 `error.data.code`에 분류됩니다.
+
+예시:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "error": {
+    "code": -32000,
+    "message": "Stareplays API TLS certificate validation failed",
+    "data": {
+      "code": "STAREPLAYS_API_TLS_CERT",
+      "status": null
+    }
+  }
+}
 ```
 
 ## 사용 예시

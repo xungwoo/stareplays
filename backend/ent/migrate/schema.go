@@ -103,6 +103,11 @@ var (
 				Unique:  false,
 				Columns: []*schema.Column{GamesColumns[10]},
 			},
+			{
+				Name:    "game_season_label_start_time_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{GamesColumns[13], GamesColumns[2], GamesColumns[15]},
+			},
 		},
 	}
 	// GameAnalysesColumns holds the columns for the "game_analyses" table.

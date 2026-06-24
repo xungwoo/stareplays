@@ -41,3 +41,50 @@ test("lists stareplays tools and serves a prompt bundle through tool calls", asy
   assert.match(prompt.result.content[0].text, /시즌7/);
   assert.match(prompt.result.content[0].text, /최적 조합을 추천해줘/);
 });
+
+test("returns request-scoped API errors from tool calls", async () => {
+  const fetchImpl = async () => {
+    const cause = new Error("unable to get local issuer certificate");
+    cause.code = "UNABLE_TO_GET_ISSUER_CERT_LOCALLY";
+    throw new TypeError("fetch failed", { cause });
+  };
+
+  const response = await handleMcpRequest({
+    request: {
+      jsonrpc: "2.0",
+      id: 77,
+      method: "tools/call",
+      params: { name: "get_team_analysis_raw", arguments: { seasonLabel: "시즌8" } }
+    },
+    apiBaseUrl: "https://stareplays.example",
+    fetchImpl
+  });
+
+  assert.equal(response.id, 77);
+  assert.equal(response.error.code, -32000);
+  assert.equal(response.error.data.code, "STAREPLAYS_API_TLS_CERT");
+  assert.match(response.error.message, /TLS certificate/);
+});
+
+test("rejects unknown tools before fetching remote data", async () => {
+  let fetchCalls = 0;
+  const fetchImpl = async () => {
+    fetchCalls += 1;
+    throw new Error("should not fetch");
+  };
+
+  const response = await handleMcpRequest({
+    request: {
+      jsonrpc: "2.0",
+      id: 88,
+      method: "tools/call",
+      params: { name: "missing_tool", arguments: { seasonLabel: "시즌8" } }
+    },
+    apiBaseUrl: "https://stareplays.example",
+    fetchImpl
+  });
+
+  assert.equal(response.id, 88);
+  assert.equal(response.error.code, -32602);
+  assert.equal(fetchCalls, 0);
+});

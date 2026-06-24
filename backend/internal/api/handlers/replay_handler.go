@@ -1239,7 +1239,7 @@ func ListGames(c *fiber.Ctx) error {
 
 	games, err := gameQuery.
 		WithPlayers().
-		Order(ent.Desc(game.FieldStartTime), ent.Desc(game.FieldCreatedAt)).
+		Order(ent.Desc(game.FieldStartTime), ent.Desc(game.FieldCreatedAt), ent.Desc(game.FieldID)).
 		Limit(limit).
 		Offset(offset).
 		All(ctx)
