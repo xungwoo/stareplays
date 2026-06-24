@@ -169,6 +169,7 @@ Railway service:
 - `main`이 `origin/main`과 같아야 합니다.
 - 기본 배포 경로는 GitHub `main` push -> Railway Autodeploy입니다.
 - 자세한 절차는 루트의 `AGENTS.md`, `CLAUDE.md`, `docs/RAILWAY_DEPLOYMENT_GUIDE.md`, `docs/RAILWAY_GITHUB_DEPLOYMENT_SETUP.md`를 따릅니다.
+- 프런트 자동 배포 검증은 `frontend/app-next/**` 변경 커밋을 `main`에 병합한 뒤 `stareplays-next` Deployments 탭에 새 배포가 생기는지 확인합니다.
 
 CLI 복구용 수동 배포:
 
