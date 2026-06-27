@@ -475,7 +475,7 @@ function PlayerInsightCard({ player }: { player: TeamAnalysisPlayer }) {
   );
 }
 
-type PlayerSortKey = "name" | "record" | "winRate" | "apm" | "bradleyTerry" | "trueSkill" | "strength" | "weakness";
+type PlayerSortKey = "name" | "record" | "winRate" | "apm" | "bradleyTerry" | "trueSkill" | "strength" | "weakness" | "raceP" | "raceT" | "raceZ";
 type SortDirection = "asc" | "desc";
 
 const playerMatrixHeaders: Array<{ key: PlayerSortKey; label: string; align?: "left" | "center" }> = [
@@ -485,6 +485,18 @@ const playerMatrixHeaders: Array<{ key: PlayerSortKey; label: string; align?: "l
   { key: "apm", label: "APM" },
   { key: "bradleyTerry", label: "BT" },
   { key: "trueSkill", label: "TrueSkill" },
+  { key: "strength", label: "강점" },
+  { key: "weakness", label: "약점" }
+];
+
+const seasonPlayerMatrixHeaders: Array<{ key: PlayerSortKey; label: string; align?: "left" | "center" }> = [
+  { key: "name", label: "선수" },
+  { key: "record", label: "전적" },
+  { key: "winRate", label: "승률" },
+  { key: "apm", label: "APM" },
+  { key: "raceP", label: "P전적" },
+  { key: "raceT", label: "T전적" },
+  { key: "raceZ", label: "Z전적" },
   { key: "strength", label: "강점" },
   { key: "weakness", label: "약점" }
 ];
@@ -501,6 +513,15 @@ function compareText(left: string, right: string, direction: SortDirection) {
 function extractPercentValue(value: string): number {
   const match = value.match(/(\d+(?:\.\d+)?)%/);
   return match ? Number(match[1]) : 0;
+}
+
+function raceStatFor(player: TeamAnalysisPlayer, race: RaceCode) {
+  return player.raceStats.find((stat) => stat.race === race) ?? { race, games: 0, wins: 0, losses: 0, winRate: 0, qualified: false };
+}
+
+function raceRecordLabel(player: TeamAnalysisPlayer, race: RaceCode) {
+  const stat = raceStatFor(player, race);
+  return `${stat.wins}-${stat.losses} / ${formatPercent(stat.winRate)}`;
 }
 
 function comparePlayers(left: TeamAnalysisPlayer, right: TeamAnalysisPlayer, key: PlayerSortKey, direction: SortDirection) {
@@ -523,14 +544,21 @@ function comparePlayers(left: TeamAnalysisPlayer, right: TeamAnalysisPlayer, key
       return compareNumber(extractPercentValue(left.strength), extractPercentValue(right.strength), direction) || compareText(left.name, right.name, "asc");
     case "weakness":
       return compareNumber(extractPercentValue(left.weakness), extractPercentValue(right.weakness), direction) || compareText(left.name, right.name, "asc");
+    case "raceP":
+      return compareNumber(raceStatFor(left, "P").winRate, raceStatFor(right, "P").winRate, direction) || compareNumber(raceStatFor(left, "P").games, raceStatFor(right, "P").games, direction) || compareText(left.name, right.name, "asc");
+    case "raceT":
+      return compareNumber(raceStatFor(left, "T").winRate, raceStatFor(right, "T").winRate, direction) || compareNumber(raceStatFor(left, "T").games, raceStatFor(right, "T").games, direction) || compareText(left.name, right.name, "asc");
+    case "raceZ":
+      return compareNumber(raceStatFor(left, "Z").winRate, raceStatFor(right, "Z").winRate, direction) || compareNumber(raceStatFor(left, "Z").games, raceStatFor(right, "Z").games, direction) || compareText(left.name, right.name, "asc");
   }
 }
 
-function PlayerMatrix({ players }: { players: TeamAnalysisPlayer[] }) {
+function PlayerMatrix({ players, variant = "all" }: { players: TeamAnalysisPlayer[]; variant?: "all" | "season" }) {
   const [sort, setSort] = useState<{ key: PlayerSortKey; direction: SortDirection }>({
-    key: "trueSkill",
+    key: variant === "season" ? "winRate" : "trueSkill",
     direction: "desc"
   });
+  const headers = variant === "season" ? seasonPlayerMatrixHeaders : playerMatrixHeaders;
 
   const sortedPlayers = useMemo(() => {
     return [...players].sort((left, right) => comparePlayers(left, right, sort.key, sort.direction));
@@ -548,7 +576,7 @@ function PlayerMatrix({ players }: { players: TeamAnalysisPlayer[] }) {
       <table className="w-full text-left text-sm">
         <thead className="bg-slate-950 text-xs uppercase text-slate-300">
           <tr>
-            {playerMatrixHeaders.map((header) => {
+            {headers.map((header) => {
               const active = sort.key === header.key;
               const Icon = !active ? ArrowUpDown : sort.direction === "desc" ? ArrowDown : ArrowUp;
 
@@ -575,8 +603,18 @@ function PlayerMatrix({ players }: { players: TeamAnalysisPlayer[] }) {
               <td className="px-3 py-3 text-slate-400">{player.wins}-{player.losses}</td>
               <td className="px-3 py-3"><Badge accent={winRateTone(player.winRate)}>{formatPercent(player.winRate)}</Badge></td>
               <td className="px-3 py-3 text-slate-400">#{player.apmRank} / {player.averageApm}</td>
-              <td className="px-3 py-3 text-cyan-200">#{player.bradleyTerryRank} / {player.bradleyTerry}</td>
-              <td className="px-3 py-3 text-violet-200">#{player.trueSkillRank} / {player.trueSkill}</td>
+              {variant === "all" ? (
+                <>
+                  <td className="px-3 py-3 text-cyan-200">#{player.bradleyTerryRank} / {player.bradleyTerry}</td>
+                  <td className="px-3 py-3 text-violet-200">#{player.trueSkillRank} / {player.trueSkill}</td>
+                </>
+              ) : (
+                <>
+                  <td className="px-3 py-3 text-xs text-slate-300">{raceRecordLabel(player, "P")}</td>
+                  <td className="px-3 py-3 text-xs text-slate-300">{raceRecordLabel(player, "T")}</td>
+                  <td className="px-3 py-3 text-xs text-slate-300">{raceRecordLabel(player, "Z")}</td>
+                </>
+              )}
               <td className="px-3 py-3 text-xs text-slate-300">{player.strength}</td>
               <td className="px-3 py-3 text-xs text-slate-300">{player.weakness}</td>
             </tr>
@@ -842,7 +880,7 @@ export function TeamAnalysisPage({ model }: { model: TeamAnalysisPageModel }) {
                 accent="cyan"
                 help="APM/EAPM과 effective command 필드는 replay parser가 선수별로 저장한 Player 지표만 사용합니다."
               >
-                <PlayerMatrix players={model.players} />
+                <PlayerMatrix players={model.players} variant="season" />
               </Panel>
             </div>
 

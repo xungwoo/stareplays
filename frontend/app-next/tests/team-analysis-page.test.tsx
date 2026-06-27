@@ -95,6 +95,11 @@ describe("team analysis page", () => {
     expect(screen.getByText(/시즌8 기준으로 3x3 플레이어/i)).toBeInTheDocument();
     expect(screen.getByText(/선택 시즌 기준 종족 조합별 승률/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /선수 역량 매트릭스/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /P전적 정렬/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /T전적 정렬/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Z전적 정렬/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /BT 정렬/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /TrueSkill 정렬/i })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /선수별 종족 전적/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /경기 전적 Raw/i })).toBeInTheDocument();
     expect(screen.getAllByText(/P|T|Z/i).length).toBeGreaterThan(0);
