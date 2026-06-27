@@ -94,6 +94,25 @@ const gamesResponse: ApiGamesListResponse = {
 };
 
 describe("team analysis adapter", () => {
+  it("never falls back to fixture matches when an explicit API response has no usable games", () => {
+    const emptyModel = createTeamAnalysisPageModel({
+      gamesResponse: {
+        total: 0,
+        games: []
+      }
+    });
+    const failedModel = createTeamAnalysisPageModel({ gamesResponse: null });
+
+    for (const model of [emptyModel, failedModel]) {
+      expect(model.summary.gamesAnalyzed).toBe(0);
+      expect(model.summary.playersTracked).toBe(0);
+      expect(model.players).toEqual([]);
+      expect(model.lineups).toEqual([]);
+      expect(model.raceCompositions).toEqual([]);
+      expect(model.chartData.playerPentagons.every((chart) => chart.players.length === 0)).toBe(true);
+    }
+  });
+
   it("aggregates only complete 3x3 official matches into player, race, lineup, and rating analysis", () => {
     const model = createTeamAnalysisPageModel({ gamesResponse });
 

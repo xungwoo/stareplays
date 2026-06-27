@@ -83,6 +83,8 @@ analyzer-job
 ## 데이터/지표 가드레일
 
 - 사용자-facing 분석 수치는 hardcoded 운영 값이 아니라 API/model 값으로 계산한다.
+- 명시적 API 응답, 선택 시즌, 선택 유저, raw endpoint처럼 사용자가 특정 데이터 범위를 요청한 경로에서는 프론트 fixture/mock fallback을 절대 사용하지 않는다. 응답이 비었거나 실패하면 빈 상태/오류 상태로 보여주고, 다른 시즌/전체/fixture 데이터로 보정하지 않는다.
+- 시즌별 MVP, 최강/최약 종족, 조합, 오각형 역량, raw table은 해당 시즌에 포함된 경기만으로 계산한다. 백엔드가 이미 필터링하더라도 프론트 loader/model 경계에서 `season_label`을 다시 검증해 교차 시즌 누수를 차단한다.
 - 미수집, 전원 0, 전원 동일, 표본 부족 지표를 의미 있는 역량 점수처럼 보정하지 않는다.
 - 불완전한 analyzer 지표는 UI/인사이트에 쓰기 전에 `docs/metrics/reliability-and-time-bucket-stats.md` 기준으로 사용 가능 여부를 확인한다.
 - `GameDetail` 같은 heavy raw payload는 list API에 직접 노출하지 않는다. 목록은 필요한 파생 summary만 내려주고, 원문은 `/api/v1/games/:id/detail`에서 조회한다.

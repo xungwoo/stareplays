@@ -182,7 +182,7 @@ function normalizeVaultGame(game: VaultGame): NormalizedMatch | null {
 function getMatches(gamesResponse?: ApiGamesListResponse | null): NormalizedMatch[] {
   const apiGames = gamesResponse?.games?.map(normalizeApiGame).filter((game): game is NormalizedMatch => game != null) ?? [];
 
-  if (apiGames.length > 0) {
+  if (gamesResponse !== undefined) {
     return apiGames;
   }
 

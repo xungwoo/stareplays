@@ -3,7 +3,7 @@ import { buildCurrentUserSessionCookie } from "@/lib/utils/current-user-session"
 import { loadAnalyzerPageModel } from "@/lib/loaders/analyzer";
 import { loadDashboardPageModel } from "@/lib/loaders/dashboard";
 import { loadRankingsPageModel } from "@/lib/loaders/rankings";
-import { loadSeasonAnalysisPageModel, loadTeamAnalysisPageModel } from "@/lib/loaders/team-analysis";
+import { loadSeasonAnalysisPageModel, loadSeasonTeamAnalysisPageModel, loadTeamAnalysisPageModel } from "@/lib/loaders/team-analysis";
 import { loadVaultPageModel } from "@/lib/loaders/vault";
 
 function createJsonResponse(payload: unknown) {
@@ -261,6 +261,76 @@ describe("api loaders", () => {
     expect(model.chartData.ratingComparison.length).toBe(6);
     expect(model.chartData.apmLeaderboard.map((player) => player.name).join(", ")).not.toContain("3x3_");
     expect(model.chartData.apmLeaderboard.map((player) => player.name)).toEqual(expect.arrayContaining(["성우", "민혁", "성민", "기용", "필균", "명진"]));
+  });
+
+  it("filters selected-season team analysis strictly to the requested season label", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+
+      if (url.includes("/api/v1/games?limit=100&offset=0&season_label=%EC%8B%9C%EC%A6%8C8")) {
+        return createJsonResponse({
+          total: 2,
+          games: [
+            {
+              id: 188,
+              season_label: "시즌8",
+              season_no: 8,
+              map_name: "Season Eight Arena",
+              winner_team: 1,
+              game_length: 900,
+              start_time: "2026-06-26T00:00:00Z",
+              edges: {
+                players: [
+                  { name: "3x3_GG", race: "P", team: 1, apm: 180, eapm: 150 },
+                  { name: "3x3_mh", race: "T", team: 1, apm: 170, eapm: 140 },
+                  { name: "3x3_smwoo", race: "P", team: 1, apm: 220, eapm: 190 },
+                  { name: "3x3_Kiyong", race: "Z", team: 2, apm: 160, eapm: 130 },
+                  { name: "3x3_pil", race: "P", team: 2, apm: 140, eapm: 110 },
+                  { name: "3x3_syntax", race: "T", team: 2, apm: 200, eapm: 170 }
+                ]
+              }
+            },
+            {
+              id: 44,
+              season_label: "시즌7",
+              season_no: 7,
+              map_name: "Leaked Prior Season",
+              winner_team: 2,
+              game_length: 900,
+              start_time: "2026-06-01T00:00:00Z",
+              edges: {
+                players: [
+                  { name: "3x3_GG", race: "Z", team: 1, apm: 100, eapm: 90 },
+                  { name: "3x3_mh", race: "Z", team: 1, apm: 100, eapm: 90 },
+                  { name: "3x3_smwoo", race: "Z", team: 1, apm: 100, eapm: 90 },
+                  { name: "3x3_Kiyong", race: "P", team: 2, apm: 300, eapm: 260 },
+                  { name: "3x3_pil", race: "P", team: 2, apm: 300, eapm: 260 },
+                  { name: "3x3_syntax", race: "P", team: 2, apm: 300, eapm: 260 }
+                ]
+              }
+            }
+          ]
+        });
+      }
+
+      throw new Error(`Unexpected url: ${url}`);
+    });
+
+    const model = await loadSeasonTeamAnalysisPageModel("시즌8", {
+      fetchImpl: fetchMock,
+      apiBaseUrl: "http://127.0.0.1:3000"
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:3000/api/v1/games?limit=100&offset=0&season_label=%EC%8B%9C%EC%A6%8C8",
+      expect.objectContaining({
+        next: expect.objectContaining({ revalidate: 300 })
+      })
+    );
+    expect(model.summary.gamesAnalyzed).toBe(1);
+    expect(model.recentMatches.map((match) => match.id)).toEqual([188]);
+    expect(model.summary.topPlayer).toBe("성우");
+    expect(model.summary.weakestRace.hint).not.toContain("시즌7");
   });
 
   it("builds the seasons page model from paged game records and lightweight season metadata", async () => {

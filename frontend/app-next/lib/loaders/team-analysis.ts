@@ -10,6 +10,24 @@ async function loadGamesPage(path: string, options: LoaderOptions): Promise<ApiG
   });
 }
 
+function filterGamesResponseBySeason(gamesResponse: ApiGamesListResponse | null, seasonLabel?: string): ApiGamesListResponse | null {
+  const targetSeason = seasonLabel?.trim();
+  if (!gamesResponse || !targetSeason) return gamesResponse;
+
+  const games = (gamesResponse.games ?? []).filter((game) => game.season_label?.trim() === targetSeason);
+  const includedIds = new Set(games.filter((game) => game.id != null).map((game) => String(game.id)));
+
+  return {
+    ...gamesResponse,
+    games,
+    total: games.length,
+    has_more: false,
+    analysis_statuses: Object.fromEntries(
+      Object.entries(gamesResponse.analysis_statuses ?? {}).filter(([gameId]) => includedIds.has(gameId))
+    )
+  };
+}
+
 export async function loadAllGamesResponse(options: LoaderOptions = {}, seasonLabel?: string): Promise<ApiGamesListResponse | null> {
   const pageSize = 100;
   const seasonQuery = seasonLabel ? `&season_label=${encodeURIComponent(seasonLabel)}` : "";
@@ -24,11 +42,13 @@ export async function loadAllGamesResponse(options: LoaderOptions = {}, seasonLa
     games.push(...(page?.games ?? []));
   }
 
-  return {
+  const response = {
     ...first,
     games,
     total
   };
+
+  return filterGamesResponseBySeason(response, seasonLabel);
 }
 
 export async function loadSeasonsResponse(options: LoaderOptions = {}) {
