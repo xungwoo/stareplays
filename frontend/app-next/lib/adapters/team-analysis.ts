@@ -659,7 +659,7 @@ function randomSelectionScore(player: TeamAnalysisPlayer): number {
 
 function raceCapabilityScore(player: TeamAnalysisPlayer, race: RaceCode): number {
   const stat = player.raceStats.find((candidate) => candidate.race === race);
-  if (!stat) return 0;
+  if (!stat) return 50;
   if (stat.qualified) return stat.winRate;
 
   return round(stat.winRate * (stat.games / MIN_PLAYER_RACE_GAMES), 1);
@@ -704,7 +704,7 @@ function buildPlayerPentagons(players: TeamAnalysisPlayer[]): TeamAnalysisPlayer
     },
     {
       title: "종족 역량 오각형",
-      description: "프로토스, 저그, 테란별 실제 승률과 선수별 랜덤 선택 승률, 전체 승률을 한 번에 비교합니다.",
+      description: "프로토스, 저그, 테란별 실제 승률과 선수별 랜덤 선택 승률, 전체 승률을 비교합니다. 전적 없는 종족은 50 기준선으로 표시합니다.",
       axes: ["프로토스", "저그", "테란", "랜덤", "전체 역량"],
       players: topPlayers.map((player, index) => ({
         name: player.name,

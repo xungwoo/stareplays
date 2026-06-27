@@ -147,6 +147,11 @@ describe("team analysis adapter", () => {
     expect(model.chartData.playerPentagons[0]?.axes).toEqual(["승률", "BT", "TrueSkill", "주종", "팀 적응력"]);
     expect(model.chartData.playerPentagons[1]?.axes).toEqual(["프로토스", "저그", "테란", "랜덤", "전체 역량"]);
     expect(model.chartData.playerPentagons[2]?.axes).toEqual(["APM", "EAPM", "명령효율", "유닛 생산량", "자원 소모량"]);
+    const racePentagonPlayers = model.chartData.playerPentagons[1]?.players ?? [];
+    const alphaRaceAxes = racePentagonPlayers.find((player) => player.name === "3x3_alpha")?.axes ?? [];
+    const deltaRaceAxes = racePentagonPlayers.find((player) => player.name === "3x3_delta")?.axes ?? [];
+    expect(alphaRaceAxes.find((axis) => axis.label === "저그")?.value).toBe(50);
+    expect(deltaRaceAxes.find((axis) => axis.label === "저그")?.value).toBe(0);
     expect(model.chartData.playerPentagons.flatMap((chart) => chart.axes)).toEqual(expect.not.arrayContaining(["궁합", "생산능력", "템포안정", "분당 유효명령", "손효율"]));
     expect(model.chartData.playerPentagons.every((chart) => chart.players.length > 0)).toBe(true);
     expect(model.chartData.playerPentagons.flatMap((chart) => chart.players.flatMap((player) => player.axes)).every((axis) => axis.value >= 0 && axis.value <= 100)).toBe(true);

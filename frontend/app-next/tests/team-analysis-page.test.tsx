@@ -15,8 +15,10 @@ describe("team analysis page", () => {
     expect(screen.getByText(/평점 모델 원점수/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Bradley-Terry/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/TrueSkill/i).length).toBeGreaterThan(0);
+    expect(screen.getByTestId("bt-rating-line-chart")).toBeInTheDocument();
+    expect(screen.getByTestId("trueskill-rating-line-chart")).toBeInTheDocument();
     expect(screen.queryByText(/100점은 해당 모델 1위/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/5분위 점수로 바꾸지 않고 실제 모델 점수/i)).toBeInTheDocument();
+    expect(screen.getByText(/5분위 점수로 바꾸지 않고 실제 점수 추이/i)).toBeInTheDocument();
     expect(screen.getByText(/핵심 인사이트/i)).toBeInTheDocument();
     expect(screen.getByText(/최고 조합/i)).toBeInTheDocument();
     expect(screen.getByText(/최악 조합/i)).toBeInTheDocument();
@@ -39,6 +41,8 @@ describe("team analysis page", () => {
     expect(screen.getByText(/선수 역량 매트릭스/i)).toBeInTheDocument();
     expect(screen.getByText(/조합별 성적/i)).toBeInTheDocument();
     expect(screen.getByText(/전체 시즌 기준 관측된 3인 조합/i)).toBeInTheDocument();
+    expect(screen.getAllByTestId("lineup-performance-row")[0]).toHaveClass("grid");
+    expect(screen.getAllByTestId("lineup-performance-row")[0]).toHaveClass("xl:grid-cols-[minmax(260px,1fr)_auto_auto]");
     expect(screen.getAllByText(/종족 조합/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/^MVP$/i)).toBeInTheDocument();
     expect(screen.queryByText(/^추적 조합$/i)).not.toBeInTheDocument();

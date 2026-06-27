@@ -8,6 +8,8 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  Line,
+  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -330,34 +332,58 @@ function SeasonScopeSelector({ model }: { model: TeamAnalysisPageModel }) {
 }
 
 function RatingChart({ model }: { model: TeamAnalysisPageModel }) {
+  const rows = model.chartData.ratingComparison.slice(0, 8);
+
   return (
     <Panel
       title="평점 모델 원점수"
-      description="Bradley-Terry와 TrueSkill을 5분위 점수로 바꾸지 않고 실제 모델 점수로 표시합니다."
+      description="Bradley-Terry와 TrueSkill을 5분위 점수로 바꾸지 않고 실제 점수 추이를 나눠서 표시합니다."
       accent="violet"
       help="Bradley-Terry와 TrueSkill은 단위가 다르므로 같은 축에 섞지 않고, 각 모델의 실제 점수와 순위를 함께 봅니다."
     >
-      <div className="overflow-hidden rounded-lg border border-slate-700/70">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-slate-950/80 text-xs uppercase text-slate-300">
-            <tr>
-              <th className="px-3 py-2 font-medium">선수</th>
-              <th className="px-3 py-2 font-medium">BT</th>
-              <th className="px-3 py-2 font-medium">TrueSkill</th>
-              <th className="px-3 py-2 font-medium">승률</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-800">
-            {model.chartData.ratingComparison.slice(0, 8).map((row) => (
-              <tr key={row.name} className="bg-slate-950/35">
-                <td className="px-3 py-2"><PlayerBadge name={row.name} /></td>
-                <td className="px-3 py-2 text-cyan-200">#{row.bradleyTerryRank} / {row.bradleyTerry}</td>
-                <td className="px-3 py-2 text-violet-200">#{row.trueSkillRank} / {row.trueSkill}</td>
-                <td className="px-3 py-2"><Badge accent={winRateTone(row.winRate)}>{formatPercent(row.winRate)}</Badge></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="grid gap-3 lg:grid-cols-2">
+        <div className="rounded-lg border border-cyan-300/20 bg-slate-950/30 p-3" data-testid="bt-rating-line-chart">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <h3 className="text-sm font-semibold text-cyan-100">Bradley-Terry</h3>
+            <span className="text-xs text-slate-500">원점수</span>
+          </div>
+          <div className="h-[220px] w-full">
+            <ResponsiveContainer minWidth={260} minHeight={220}>
+              <LineChart data={rows} margin={{ top: 10, right: 18, left: 0, bottom: 10 }}>
+                <CartesianGrid stroke="rgba(148,163,184,0.16)" vertical={false} />
+                <XAxis dataKey="name" tick={{ fill: "#cbd5e1", fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} axisLine={false} tickLine={false} width={46} domain={["dataMin - 20", "dataMax + 20"]} />
+                <Tooltip
+                  cursor={{ stroke: "rgba(103,190,207,0.35)" }}
+                  formatter={(value) => [value, "BT"]}
+                  contentStyle={{ backgroundColor: "#020617", border: "1px solid rgba(103,190,207,0.45)", borderRadius: 8, color: "#f8fafc" }}
+                />
+                <Line type="monotone" dataKey="bradleyTerry" stroke="#67becf" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} name="BT" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+        <div className="rounded-lg border border-violet-300/20 bg-slate-950/30 p-3" data-testid="trueskill-rating-line-chart">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <h3 className="text-sm font-semibold text-violet-100">TrueSkill</h3>
+            <span className="text-xs text-slate-500">원점수</span>
+          </div>
+          <div className="h-[220px] w-full">
+            <ResponsiveContainer minWidth={260} minHeight={220}>
+              <LineChart data={rows} margin={{ top: 10, right: 18, left: 0, bottom: 10 }}>
+                <CartesianGrid stroke="rgba(148,163,184,0.16)" vertical={false} />
+                <XAxis dataKey="name" tick={{ fill: "#cbd5e1", fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} axisLine={false} tickLine={false} width={40} domain={["dataMin - 1", "dataMax + 1"]} />
+                <Tooltip
+                  cursor={{ stroke: "rgba(157,139,203,0.35)" }}
+                  formatter={(value) => [value, "TrueSkill"]}
+                  contentStyle={{ backgroundColor: "#020617", border: "1px solid rgba(157,139,203,0.45)", borderRadius: 8, color: "#f8fafc" }}
+                />
+                <Line type="monotone" dataKey="trueSkill" stroke="#9d8bcb" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} name="TrueSkill" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
       </div>
     </Panel>
   );
@@ -675,15 +701,20 @@ function LineupPerformancePanel({ model }: { model: TeamAnalysisPageModel }) {
       {isAllSeasons ? (
         <div className="space-y-3">
           {model.lineups.slice(0, 7).map((lineup) => (
-            <div key={lineup.players.join("-")} className="rounded-lg p-3 transition-colors hover:bg-slate-800/70" style={subtleSurfaceStyle}>
-              <div className="flex items-start justify-between gap-3">
+            <div
+              key={lineup.players.join("-")}
+              data-testid="lineup-performance-row"
+              className="grid items-center gap-3 rounded-lg p-3 transition-colors hover:bg-slate-800/70 xl:grid-cols-[minmax(260px,1fr)_auto_auto]"
+              style={subtleSurfaceStyle}
+            >
+              <div className="min-w-0">
                 <PlayerBadgeGroup names={lineup.players} compact />
+              </div>
+              <div className="flex items-center gap-2">
                 <RaceCompositionBadges composition={lineup.composition} />
-              </div>
-              <div className="mt-3 flex items-center justify-between text-xs text-slate-300">
                 <Badge accent={winRateTone(lineup.winRate)}>{lineup.wins}-{lineup.losses} / {formatPercent(lineup.winRate)}</Badge>
-                <span className="font-semibold text-slate-300">평균 APM {lineup.averageApm}</span>
               </div>
+              <span className="justify-self-start text-xs font-semibold text-slate-300 xl:justify-self-end">평균 APM {lineup.averageApm}</span>
             </div>
           ))}
           <div className="pt-2">
