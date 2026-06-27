@@ -682,7 +682,7 @@ function normalizePositiveMetricBand(value: number, values: number[], floor = 35
   return normalizeMetricBand(value, values, floor, ceiling);
 }
 
-function normalizeAgainstMax(value: number, values: number[], ceiling = 90): number {
+function normalizeAgainstMax(value: number, values: number[], ceiling = 80): number {
   const max = Math.max(...values.filter((candidate) => Number.isFinite(candidate) && candidate > 0), 0);
   if (!Number.isFinite(value) || value <= 0 || max <= 0) return 0;
 

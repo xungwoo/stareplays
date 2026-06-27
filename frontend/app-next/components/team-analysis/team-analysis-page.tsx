@@ -300,16 +300,31 @@ function PentagonChart({ chart, selectedPlayerName, showInlineLegend = false }: 
   );
 }
 
-function PlayerPentagonSection({ charts, leadingChart }: { charts: TeamAnalysisPlayerPentagon[]; leadingChart?: TeamAnalysisPlayerPentagon | null }) {
+function TeamPentagonSection({ chart }: { chart: TeamAnalysisPlayerPentagon | null }) {
+  if (!chart) return null;
+
+  return (
+    <Panel
+      title="팀별 역량 오각형"
+      description="선택 시즌의 승리팀과 패배팀을 묶어 팀원 평균 피지컬을 비교합니다."
+      accent="cyan"
+      help="각 축에서 높은 팀을 80점으로 두고 다른 팀은 원천 평균 비율만큼 낮춰 표시합니다. 승패 라벨이 아니라 실제 평균 수치 기반 비교입니다."
+    >
+      <PentagonChart chart={chart} selectedPlayerName={null} showInlineLegend />
+    </Panel>
+  );
+}
+
+function PlayerPentagonSection({ charts, columns = 3 }: { charts: TeamAnalysisPlayerPentagon[]; columns?: 2 | 3 }) {
   const [selectedPlayerName, setSelectedPlayerName] = useState<string | null>(null);
   const legendPlayers = charts[0]?.players ?? [];
 
-  if (charts.length === 0 && !leadingChart) return null;
+  if (charts.length === 0) return null;
 
   return (
     <Panel
       title="선수 역량 오각형"
-      description={leadingChart ? "팀 비교, 종족 역량, 리플레이 피지컬을 0-100 비교형 지표로 압축했습니다." : "승부 감각, 종족 역량, 리플레이 피지컬을 0-100 비교형 지표로 압축했습니다."}
+      description="승부 감각, 종족 역량, 리플레이 피지컬을 0-100 비교형 지표로 압축했습니다."
       accent="violet"
       help="분당 유닛생산과 자원 소모량은 GameDetail build order 기반 season_analysis 값입니다. 생산은 경기 길이로 보정했고, 값이 있는 경기만 평균에 포함하므로 보조 지표로 해석합니다."
     >
@@ -347,8 +362,7 @@ function PlayerPentagonSection({ charts, leadingChart }: { charts: TeamAnalysisP
           );
         })}
       </div>
-      <div className="grid gap-3 xl:grid-cols-3">
-        {leadingChart ? <PentagonChart chart={leadingChart} selectedPlayerName={null} showInlineLegend /> : null}
+      <div className={columns === 2 ? "grid gap-3 xl:grid-cols-2" : "grid gap-3 xl:grid-cols-3"}>
         {charts.map((chart) => (
           <PentagonChart key={chart.title} chart={chart} selectedPlayerName={selectedPlayerName} />
         ))}
@@ -527,26 +541,31 @@ function PlayerInsightCard({ player }: { player: TeamAnalysisPlayer }) {
 
 type PlayerSortKey = "name" | "record" | "winRate" | "apm" | "unitProduction" | "bradleyTerry" | "trueSkill" | "strength" | "weakness" | "raceP" | "raceT" | "raceZ";
 type SortDirection = "asc" | "desc";
+type PlayerMatrixHeader = { key: PlayerSortKey; label: string; race?: RaceCode; raceMetric?: "record" | "winRate"; align?: "left" | "center" };
 
-const playerMatrixHeaders: Array<{ key: PlayerSortKey; label: string; race?: RaceCode; align?: "left" | "center" }> = [
+const playerMatrixHeaders: PlayerMatrixHeader[] = [
   { key: "name", label: "선수" },
   { key: "record", label: "전적" },
   { key: "winRate", label: "승률" },
   { key: "apm", label: "APM" },
+  { key: "unitProduction", label: "분당 유닛생산" },
+  { key: "raceP", label: "P승률", race: "P", raceMetric: "winRate" },
+  { key: "raceT", label: "T승률", race: "T", raceMetric: "winRate" },
+  { key: "raceZ", label: "Z승률", race: "Z", raceMetric: "winRate" },
   { key: "bradleyTerry", label: "BT" },
   { key: "trueSkill", label: "TrueSkill" },
   { key: "strength", label: "강점" },
   { key: "weakness", label: "약점" }
 ];
 
-const seasonPlayerMatrixHeaders: Array<{ key: PlayerSortKey; label: string; race?: RaceCode; align?: "left" | "center" }> = [
+const seasonPlayerMatrixHeaders: PlayerMatrixHeader[] = [
   { key: "name", label: "선수" },
   { key: "winRate", label: "승률" },
   { key: "apm", label: "APM" },
   { key: "unitProduction", label: "분당 유닛생산" },
-  { key: "raceP", label: "P전적", race: "P" },
-  { key: "raceT", label: "T전적", race: "T" },
-  { key: "raceZ", label: "Z전적", race: "Z" },
+  { key: "raceP", label: "P전적", race: "P", raceMetric: "record" },
+  { key: "raceT", label: "T전적", race: "T", raceMetric: "record" },
+  { key: "raceZ", label: "Z전적", race: "Z", raceMetric: "record" },
   { key: "strength", label: "강점" },
   { key: "weakness", label: "약점" }
 ];
@@ -572,6 +591,11 @@ function raceStatFor(player: TeamAnalysisPlayer, race: RaceCode) {
 function raceRecordLabel(player: TeamAnalysisPlayer, race: RaceCode) {
   const stat = raceStatFor(player, race);
   return `${stat.wins}-${stat.losses} / ${formatPercent(stat.winRate)}`;
+}
+
+function raceWinRateLabel(player: TeamAnalysisPlayer, race: RaceCode) {
+  const stat = raceStatFor(player, race);
+  return stat.games > 0 ? `${formatPercent(stat.winRate)} (${stat.games}경기)` : "전적 없음";
 }
 
 function comparePlayers(left: TeamAnalysisPlayer, right: TeamAnalysisPlayer, key: PlayerSortKey, direction: SortDirection) {
@@ -623,13 +647,13 @@ function PlayerMatrix({ players, variant = "all" }: { players: TeamAnalysisPlaye
     }));
   }
 
-  function renderHeaderLabel(header: (typeof playerMatrixHeaders)[number]) {
+  function renderHeaderLabel(header: PlayerMatrixHeader) {
     if (!header.race) return <span>{header.label}</span>;
 
     return (
       <span className="inline-flex items-center gap-1.5">
         <RaceBadge race={header.race} />
-        <span>전적</span>
+        <span>{header.raceMetric === "winRate" ? "승률" : "전적"}</span>
       </span>
     );
   }
@@ -668,6 +692,10 @@ function PlayerMatrix({ players, variant = "all" }: { players: TeamAnalysisPlaye
               <td className="px-3 py-3 text-slate-400">#{player.apmRank} / {player.averageApm}</td>
               {variant === "all" ? (
                 <>
+                  <td className="px-3 py-3 text-slate-300">{player.unitProduction}</td>
+                  <td className="px-3 py-3 text-xs text-slate-300">{raceWinRateLabel(player, "P")}</td>
+                  <td className="px-3 py-3 text-xs text-slate-300">{raceWinRateLabel(player, "T")}</td>
+                  <td className="px-3 py-3 text-xs text-slate-300">{raceWinRateLabel(player, "Z")}</td>
                   <td className="px-3 py-3 text-cyan-200">#{player.bradleyTerryRank} / {player.bradleyTerry}</td>
                   <td className="px-3 py-3 text-violet-200">#{player.trueSkillRank} / {player.trueSkill}</td>
                 </>
@@ -749,7 +777,7 @@ function LineupPerformancePanel({ model }: { model: TeamAnalysisPageModel }) {
   return (
     <Panel
       title="조합별 성적"
-      description={isAllSeasons ? "전체 시즌 기준 관측된 3인 조합과 듀오 궁합입니다." : "선택 시즌 기준 종족 조합별 승률과 표본 수입니다."}
+      description={isAllSeasons ? "전체 시즌 기준 관측된 3인 조합 기록입니다." : "선택 시즌 기준 종족 조합별 승률과 표본 수입니다."}
       accent="amber"
     >
       {isAllSeasons ? (
@@ -771,17 +799,6 @@ function LineupPerformancePanel({ model }: { model: TeamAnalysisPageModel }) {
               <span className="justify-self-start text-xs font-semibold text-slate-300 xl:justify-self-end">평균 APM {lineup.averageApm}</span>
             </div>
           ))}
-          <div className="pt-2">
-            <h3 className="mb-2 text-sm font-semibold text-slate-100">듀오 궁합</h3>
-            <div className="grid gap-2">
-              {model.insights.duos.slice(0, 5).map((duo) => (
-                <div key={duo.players.join("-")} className="flex items-center justify-between gap-3 rounded-md px-3 py-2 text-xs" style={subtleSurfaceStyle}>
-                  <PlayerBadgeGroup names={duo.players} compact />
-                  <Badge accent={winRateTone(duo.winRate)}>{duo.wins}-{duo.losses} / {formatPercent(duo.winRate)}</Badge>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       ) : (
         <div className="grid gap-2">
@@ -799,6 +816,25 @@ function LineupPerformancePanel({ model }: { model: TeamAnalysisPageModel }) {
           ))}
         </div>
       )}
+    </Panel>
+  );
+}
+
+function DuoCompatibilityPanel({ model }: { model: TeamAnalysisPageModel }) {
+  return (
+    <Panel
+      title="듀오 궁합"
+      description="전체 시즌 기준 함께 출전했을 때 승률이 좋았던 2인 조합입니다."
+      accent="violet"
+    >
+      <div className="grid gap-2">
+        {model.insights.duos.slice(0, 7).map((duo) => (
+          <div key={duo.players.join("-")} className="flex items-center justify-between gap-3 rounded-md px-3 py-2 text-xs" style={subtleSurfaceStyle}>
+            <PlayerBadgeGroup names={duo.players} compact />
+            <Badge accent={winRateTone(duo.winRate)}>{duo.wins}-{duo.losses} / {formatPercent(duo.winRate)}</Badge>
+          </div>
+        ))}
+      </div>
     </Panel>
   );
 }
@@ -869,6 +905,27 @@ export function TeamAnalysisPage({ model }: { model: TeamAnalysisPageModel }) {
               <PlayerPentagonSection charts={model.chartData.playerPentagons} />
             </div>
 
+            <div className="mb-4 grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+              <RatingChart model={model} />
+              <RaceCompositionChart model={model} />
+            </div>
+
+            <div className="mb-4">
+              <Panel
+                title="선수 역량 매트릭스"
+                description="선수별 승패, 승률, APM, 분당 생산, 종족별 승률과 모델 순위를 비교합니다."
+                accent="cyan"
+                help="APM/EAPM과 effective command 필드는 replay parser가 선수별로 저장한 Player 지표만 사용합니다."
+              >
+                <PlayerMatrix players={model.players} />
+              </Panel>
+            </div>
+
+            <div className="mb-4 grid gap-4 xl:grid-cols-2">
+              <LineupPerformancePanel model={model} />
+              <DuoCompatibilityPanel model={model} />
+            </div>
+
             <div className="mb-4">
               <Panel title="핵심 인사이트" description="BEST 조합, 최악의 조합, 랜덤 성향, 듀오 궁합을 해설형 카드로 요약합니다." accent="cyan">
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -877,24 +934,6 @@ export function TeamAnalysisPage({ model }: { model: TeamAnalysisPageModel }) {
                   ))}
                 </div>
               </Panel>
-            </div>
-
-            <div className="mb-4 grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
-              <RatingChart model={model} />
-              <RaceCompositionChart model={model} />
-            </div>
-
-            <div className="mb-4 grid gap-4 xl:grid-cols-[1fr_0.9fr]">
-              <Panel
-                title="선수 역량 매트릭스"
-                description="선수별 승패, 승률, APM 순위, 종족 강점과 모델 순위를 비교합니다."
-                accent="cyan"
-                help="APM/EAPM과 effective command 필드는 replay parser가 선수별로 저장한 Player 지표만 사용합니다."
-              >
-                <PlayerMatrix players={model.players} />
-              </Panel>
-
-              <LineupPerformancePanel model={model} />
             </div>
 
             <div>
@@ -909,8 +948,13 @@ export function TeamAnalysisPage({ model }: { model: TeamAnalysisPageModel }) {
           </>
         ) : (
           <>
-            <div className="mb-4">
-              <PlayerPentagonSection charts={seasonPentagons} leadingChart={model.chartData.teamPentagon} />
+            <div className="mb-4 grid gap-4 xl:grid-cols-3">
+              <div className="xl:col-span-1">
+                <TeamPentagonSection chart={model.chartData.teamPentagon} />
+              </div>
+              <div className="xl:col-span-2">
+                <PlayerPentagonSection charts={seasonPentagons} columns={2} />
+              </div>
             </div>
 
             <div className="mb-4">

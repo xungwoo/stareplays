@@ -43,6 +43,11 @@ describe("team analysis page", () => {
     expect(screen.getByText(/전체 시즌 기준 관측된 3인 조합/i)).toBeInTheDocument();
     expect(screen.getAllByTestId("lineup-performance-row")[0]).toHaveClass("grid");
     expect(screen.getAllByTestId("lineup-performance-row")[0]).toHaveClass("xl:grid-cols-[minmax(260px,1fr)_auto_auto]");
+    expect(screen.getByRole("button", { name: /분당 유닛생산 정렬/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /P승률 정렬/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /T승률 정렬/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Z승률 정렬/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^듀오 궁합$/i })).toBeInTheDocument();
     expect(screen.getAllByText(/종족 조합/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/^MVP$/i)).toBeInTheDocument();
     expect(screen.getByText(/^최강 조합$/i)).toBeInTheDocument();
@@ -54,12 +59,27 @@ describe("team analysis page", () => {
     expect(screen.getAllByText(/훈련|연습|보강|다듬/i).length).toBeGreaterThan(0);
     expect(screen.queryByText(/최근 3x3 분석 입력/i)).not.toBeInTheDocument();
 
+    const playerPentagonHeading = screen.getByRole("heading", { name: /선수 역량 오각형/i });
+    const ratingHeading = screen.getByRole("heading", { name: /평점 모델 원점수/i });
+    const matrixHeading = screen.getByRole("heading", { name: /선수 역량 매트릭스/i });
+    const lineupHeading = screen.getByRole("heading", { name: /조합별 성적/i });
+    const duoHeading = screen.getByRole("heading", { name: /^듀오 궁합$/i });
+    const insightHeading = screen.getByRole("heading", { name: /핵심 인사이트/i });
+    const playerInsightHeading = screen.getByRole("heading", { name: /선수 강점 \/ 약점 카드/i });
+
+    expect(playerPentagonHeading.compareDocumentPosition(ratingHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(ratingHeading.compareDocumentPosition(matrixHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(matrixHeading.compareDocumentPosition(lineupHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(lineupHeading.compareDocumentPosition(duoHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(duoHeading.compareDocumentPosition(insightHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(insightHeading.compareDocumentPosition(playerInsightHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
     const playerRows = screen.getAllByTestId("team-analysis-player-row");
     expect(playerRows.length).toBeGreaterThan(0);
     expect(within(playerRows[0] as HTMLElement).getByText(/성우|민혁|성민|기용|명진|필균/i)).toBeInTheDocument();
     expect(screen.queryByText(/^guest_/i)).not.toBeInTheDocument();
 
-    expect(screen.getByRole("button", { name: /승률 정렬/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^승률 정렬$/i })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /APM 정렬/i }));
     const apmDescRows = screen.getAllByTestId("team-analysis-player-row");

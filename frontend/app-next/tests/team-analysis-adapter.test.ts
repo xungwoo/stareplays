@@ -182,8 +182,8 @@ describe("team analysis adapter", () => {
     const teamApmScores = model.chartData.teamPentagon?.players.map((team) => team.axes.find((axis) => axis.label === "APM")?.value ?? 0) ?? [];
     const rawWinnerApmAverage = (190 + 150 + 175 + 220 + 155 + 180) / 6;
     const rawLoserApmAverage = (200 + 170 + 165 + 165 + 170 + 150) / 6;
-    expect(Math.max(...teamApmScores)).toBe(90);
-    expect(teamApmScores[1]).toBeCloseTo((rawLoserApmAverage / rawWinnerApmAverage) * 90, 1);
+    expect(Math.max(...teamApmScores)).toBe(80);
+    expect(teamApmScores[1]).toBeCloseTo((rawLoserApmAverage / rawWinnerApmAverage) * 80, 1);
     const winnerApmAxis = model.chartData.teamPentagon?.players[0]?.axes.find((axis) => axis.label === "APM");
     expect(winnerApmAxis?.rawValue).toBeCloseTo(rawWinnerApmAverage, 1);
     expect(winnerApmAxis?.displayValue).toMatch(/178\.3/);
