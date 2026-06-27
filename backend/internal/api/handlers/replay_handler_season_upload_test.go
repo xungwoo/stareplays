@@ -161,6 +161,9 @@ func TestListGamesIncludesDetailDerivedSeasonAnalysis(t *testing.T) {
 	if analysis == nil {
 		t.Fatalf("season_analysis is nil, want detail-derived metrics")
 	}
+	if body.Games[0].Edges.GameDetail != nil {
+		t.Fatalf("edges.game_detail is present, want list responses to omit heavy raw detail payload")
+	}
 	player := analysis.Players["3x3_GG"]
 	if player.Production != 2 {
 		t.Fatalf("production = %v, want 2", player.Production)

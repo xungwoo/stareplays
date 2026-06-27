@@ -523,7 +523,6 @@ func buildGameResponseDTO(g *ent.Game) gameResponseDTO {
 			Players:     make([]gamePlayerDTO, 0, len(g.Edges.Players)),
 			ReplayFiles: make([]gameReplayFileDTO, 0, len(g.Edges.ReplayFiles)),
 			Analysis:    g.Edges.Analysis,
-			GameDetail:  g.Edges.GameDetail,
 		},
 	}
 
