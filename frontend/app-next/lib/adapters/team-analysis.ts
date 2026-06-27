@@ -665,6 +665,15 @@ function raceCapabilityScore(player: TeamAnalysisPlayer, race: RaceCode): number
   return round(stat.winRate * (stat.games / MIN_PLAYER_RACE_GAMES), 1);
 }
 
+function teamAdaptabilityScore(player: TeamAnalysisPlayer): number {
+  const partnerCountScore = Math.min(42, player.bestPartners.length * 21);
+  const randomScore = player.randomSelectedGames > 0 ? player.randomSelectedWinRate * 0.24 : player.winRate * 0.12;
+  const raceCoverageScore = Math.min(22, player.raceStats.filter((stat) => stat.games > 0).length * 7.4);
+  const performanceScore = player.winRate * 0.24;
+
+  return Math.min(100, round(partnerCountScore + randomScore + raceCoverageScore + performanceScore, 1));
+}
+
 function buildPlayerPentagons(players: TeamAnalysisPlayer[]): TeamAnalysisPlayerPentagon[] {
   const topPlayers = players.slice(0, 6);
   const apmValues = players.map((player) => player.averageApm);
@@ -678,8 +687,8 @@ function buildPlayerPentagons(players: TeamAnalysisPlayer[]): TeamAnalysisPlayer
   return [
     {
       title: "승부 감각 오각형",
-      description: "승률, Bradley-Terry, TrueSkill, 주종 강점, 듀오 궁합을 묶어 결과 감각을 봅니다.",
-      axes: ["승률", "BT", "TrueSkill", "주종", "궁합"],
+      description: "승률, Bradley-Terry, TrueSkill, 주종 강점, 팀 적응력을 묶어 장기 결과 감각을 봅니다.",
+      axes: ["승률", "BT", "TrueSkill", "주종", "팀 적응력"],
       players: topPlayers.map((player, index) => ({
         name: player.name,
         tone: tones[index % tones.length],
@@ -689,7 +698,7 @@ function buildPlayerPentagons(players: TeamAnalysisPlayer[]): TeamAnalysisPlayer
           { label: "BT", value: normalizeMetricBand(player.bradleyTerry, btValues) },
           { label: "TrueSkill", value: normalizeMetricBand(player.trueSkill, tsValues) },
           { label: "주종", value: Math.max(...player.raceStats.filter((stat) => stat.qualified).map((stat) => stat.winRate), player.winRate) },
-          { label: "궁합", value: Math.min(100, round(player.bestPartners.length * 42 + player.winRate * 0.16, 1)) }
+          { label: "팀 적응력", value: teamAdaptabilityScore(player) }
         ]
       }))
     },

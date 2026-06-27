@@ -22,6 +22,7 @@ describe("team analysis page", () => {
     expect(screen.getByText(/최악 조합/i)).toBeInTheDocument();
     expect(screen.getAllByTestId("player-radar-chart")).toHaveLength(3);
     expect(screen.getByRole("heading", { name: /승부 감각 오각형/i })).toBeInTheDocument();
+    expect(screen.getAllByText(/팀 적응력/i).length).toBeGreaterThan(0);
     expect(screen.getByRole("heading", { name: /종족 역량 오각형/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /리플레이 피지컬 오각형/i })).toBeInTheDocument();
     expect(screen.getAllByTestId("player-radar-chart")[0]).toHaveClass("h-[230px]");
@@ -99,5 +100,7 @@ describe("team analysis page", () => {
     expect(screen.queryByRole("heading", { name: /핵심 인사이트/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/평점 모델 원점수/i)).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: /^듀오 궁합$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /승부 감각 오각형/i })).not.toBeInTheDocument();
+    expect(screen.getAllByTestId("player-radar-chart")).toHaveLength(2);
   });
 });

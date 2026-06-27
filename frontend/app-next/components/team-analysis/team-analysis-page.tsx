@@ -721,6 +721,7 @@ function LineupPerformancePanel({ model }: { model: TeamAnalysisPageModel }) {
 export function TeamAnalysisPage({ model }: { model: TeamAnalysisPageModel }) {
   const scopeLabel = model.scope?.isAllSeasons ? "전체 시즌" : model.scope?.selectedSeasonLabel ?? "최신 시즌";
   const isAllSeasons = model.scope?.isAllSeasons ?? true;
+  const seasonPentagons = model.chartData.playerPentagons.filter((chart) => chart.title !== "승부 감각 오각형");
 
   return (
     <div
@@ -824,7 +825,7 @@ export function TeamAnalysisPage({ model }: { model: TeamAnalysisPageModel }) {
             </div>
 
             <div>
-              <PlayerPentagonSection charts={model.chartData.playerPentagons} />
+              <PlayerPentagonSection charts={seasonPentagons} />
             </div>
           </>
         )}
