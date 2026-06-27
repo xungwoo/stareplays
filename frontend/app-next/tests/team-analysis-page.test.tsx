@@ -45,6 +45,8 @@ describe("team analysis page", () => {
     expect(screen.getAllByTestId("lineup-performance-row")[0]).toHaveClass("xl:grid-cols-[minmax(260px,1fr)_auto_auto]");
     expect(screen.getAllByText(/종족 조합/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/^MVP$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^현재 팀 스코어$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^최약 종족$/i)).toBeInTheDocument();
     expect(screen.queryByText(/^추적 조합$/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/^평점 모델$/i)).not.toBeInTheDocument();
     expect(screen.getAllByText(/AI 훈련 피드백/i).length).toBeGreaterThan(0);
@@ -95,9 +97,11 @@ describe("team analysis page", () => {
     expect(screen.getByText(/시즌8 기준으로 3x3 플레이어/i)).toBeInTheDocument();
     expect(screen.getByText(/선택 시즌 기준 종족 조합별 승률/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /선수 역량 매트릭스/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /평균 유닛생산 정렬/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /P전적 정렬/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /T전적 정렬/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Z전적 정렬/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^전적 정렬$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /BT 정렬/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /TrueSkill 정렬/i })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /선수별 종족 전적/i })).toBeInTheDocument();

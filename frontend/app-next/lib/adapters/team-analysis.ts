@@ -571,6 +571,34 @@ function buildRaceCompositions(matches: NormalizedMatch[]): TeamAnalysisRaceComp
     .sort((left, right) => Number(right.qualified) - Number(left.qualified) || right.winRate - left.winRate || right.games - left.games || left.composition.localeCompare(right.composition));
 }
 
+function buildSingleRaceRecords(matches: NormalizedMatch[]): Array<{ race: RaceCode; games: number; wins: number; losses: number; winRate: number }> {
+  const records = new Map<RaceCode, { race: RaceCode; games: number; wins: number; losses: number }>();
+
+  matches.forEach((match) => {
+    match.winner.forEach((player) => {
+      const record = records.get(player.race) ?? { race: player.race, games: 0, wins: 0, losses: 0 };
+      record.games += 1;
+      record.wins += 1;
+      records.set(player.race, record);
+    });
+    match.loser.forEach((player) => {
+      const record = records.get(player.race) ?? { race: player.race, games: 0, wins: 0, losses: 0 };
+      record.games += 1;
+      record.losses += 1;
+      records.set(player.race, record);
+    });
+  });
+
+  return (["P", "T", "Z"] as RaceCode[]).map((race) => {
+    const record = records.get(race) ?? { race, games: 0, wins: 0, losses: 0 };
+
+    return {
+      ...record,
+      winRate: winRate(record.wins, record.games)
+    };
+  });
+}
+
 function buildDuos(matches: NormalizedMatch[]): TeamAnalysisDuo[] {
   const duos = new Map<string, { players: string[]; games: number; wins: number; losses: number }>();
 
@@ -743,6 +771,34 @@ function lineupLabel(lineup: TeamAnalysisLineup | null | undefined): string {
   return lineup ? displayLineupName(lineup.players) : "데이터 없음";
 }
 
+function buildCurrentLineupScore(lineups: TeamAnalysisLineup[]): TeamAnalysisPageModel["summary"]["currentLineupScore"] {
+  const [first, second] = [...lineups].sort((left, right) => right.wins - left.wins || right.games - left.games || right.winRate - left.winRate);
+
+  if (!first || !second) {
+    return {
+      value: "데이터 없음",
+      hint: "비교할 조합 표본이 부족합니다"
+    };
+  }
+
+  return {
+    value: `${first.wins}승 vs ${second.wins}승`,
+    hint: `${displayLineupName(first.players)} ${first.wins}-${first.losses} / ${displayLineupName(second.players)} ${second.wins}-${second.losses}`
+  };
+}
+
+function buildWeakestRaceSummary(records: ReturnType<typeof buildSingleRaceRecords>): TeamAnalysisPageModel["summary"]["weakestRace"] {
+  const weakest = [...records]
+    .filter((record) => record.games > 0)
+    .sort((left, right) => left.winRate - right.winRate || right.games - left.games || left.race.localeCompare(right.race))[0] ?? { race: "P" as RaceCode, games: 0, wins: 0, losses: 0, winRate: 0 };
+
+  return {
+    race: weakest.race,
+    value: `${raceLabel(weakest.race)} ${formatPercentValue(weakest.winRate)}`,
+    hint: `${weakest.wins}-${weakest.losses}, ${weakest.games}경기 기준 단일 종족 승률`
+  };
+}
+
 function makeInsightCard(card: TeamAnalysisInsightCard): TeamAnalysisInsightCard {
   return card;
 }
@@ -873,6 +929,7 @@ export function createTeamAnalysisPageModel({ gamesResponse }: { gamesResponse?:
   const players = buildPlayers(matches);
   const lineups = buildLineups(matches);
   const raceCompositions = buildRaceCompositions(matches);
+  const singleRaceRecords = buildSingleRaceRecords(matches);
   const duos = buildDuos(matches);
   const insights = buildInsights(players, lineups, raceCompositions, duos);
   const displayPlayers = players.map((player) => ({
@@ -887,6 +944,8 @@ export function createTeamAnalysisPageModel({ gamesResponse }: { gamesResponse?:
   const topPlayer = displayPlayers[0]?.name ?? "NO_DATA";
   const topLineup = displayLineups[0]?.players.join(" + ") ?? "NO_DATA";
   const strongestComposition = raceCompositions.find((composition) => composition.qualified)?.composition ?? "표본 부족";
+  const currentLineupScore = buildCurrentLineupScore(displayLineups);
+  const weakestRace = buildWeakestRaceSummary(singleRaceRecords);
 
   return {
     summary: {
@@ -895,7 +954,9 @@ export function createTeamAnalysisPageModel({ gamesResponse }: { gamesResponse?:
       lineupsTracked: lineups.length,
       topPlayer,
       topLineup,
-      strongestComposition
+      strongestComposition,
+      currentLineupScore,
+      weakestRace
     },
     players: displayPlayers,
     lineups: displayLineups,

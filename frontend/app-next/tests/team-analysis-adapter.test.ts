@@ -100,6 +100,11 @@ describe("team analysis adapter", () => {
     expect(model.summary.gamesAnalyzed).toBe(2);
     expect(model.summary.playersTracked).toBe(6);
     expect(model.summary.lineupsTracked).toBeGreaterThanOrEqual(4);
+    expect(model.summary.currentLineupScore.value).toContain("vs");
+    expect(model.summary.currentLineupScore.hint).toMatch(/\d+-\d+/);
+    expect(model.summary.weakestRace.race).toMatch(/P|T|Z/);
+    expect(model.summary.weakestRace.value).toMatch(/프로토스|테란|저그/);
+    expect(model.summary.weakestRace.hint).toMatch(/승률/);
     expect(model.players.map((player) => player.name)).not.toContain("guest_foxtrot");
     expect(model.players.map((player) => player.name)).not.toContain("solo_alpha");
 

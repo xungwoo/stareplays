@@ -129,6 +129,15 @@ export interface TeamAnalysisPageModel {
     topPlayer: string;
     topLineup: string;
     strongestComposition: string;
+    currentLineupScore: {
+      value: string;
+      hint: string;
+    };
+    weakestRace: {
+      race: RaceCode;
+      value: string;
+      hint: string;
+    };
   };
   players: TeamAnalysisPlayer[];
   lineups: TeamAnalysisLineup[];

@@ -129,7 +129,7 @@ function MetricCard({
   accent = "cyan"
 }: {
   label: string;
-  value: string;
+  value: React.ReactNode;
   hint: string;
   icon: typeof Activity;
   accent?: MetricAccent;
@@ -148,7 +148,7 @@ function MetricCard({
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase text-slate-300">{label}</p>
-          <p className="mt-1.5 text-2xl font-semibold tracking-normal text-slate-50">{value}</p>
+          <p className="mt-1.5 min-w-0 text-2xl font-semibold tracking-normal text-slate-50">{value}</p>
         </div>
         <div className="rounded-md p-2" style={{ backgroundColor: tone.tile, color: tone.text }}>
           <Icon className="h-5 w-5" />
@@ -475,10 +475,10 @@ function PlayerInsightCard({ player }: { player: TeamAnalysisPlayer }) {
   );
 }
 
-type PlayerSortKey = "name" | "record" | "winRate" | "apm" | "bradleyTerry" | "trueSkill" | "strength" | "weakness" | "raceP" | "raceT" | "raceZ";
+type PlayerSortKey = "name" | "record" | "winRate" | "apm" | "unitProduction" | "bradleyTerry" | "trueSkill" | "strength" | "weakness" | "raceP" | "raceT" | "raceZ";
 type SortDirection = "asc" | "desc";
 
-const playerMatrixHeaders: Array<{ key: PlayerSortKey; label: string; align?: "left" | "center" }> = [
+const playerMatrixHeaders: Array<{ key: PlayerSortKey; label: string; race?: RaceCode; align?: "left" | "center" }> = [
   { key: "name", label: "선수" },
   { key: "record", label: "전적" },
   { key: "winRate", label: "승률" },
@@ -489,14 +489,14 @@ const playerMatrixHeaders: Array<{ key: PlayerSortKey; label: string; align?: "l
   { key: "weakness", label: "약점" }
 ];
 
-const seasonPlayerMatrixHeaders: Array<{ key: PlayerSortKey; label: string; align?: "left" | "center" }> = [
+const seasonPlayerMatrixHeaders: Array<{ key: PlayerSortKey; label: string; race?: RaceCode; align?: "left" | "center" }> = [
   { key: "name", label: "선수" },
-  { key: "record", label: "전적" },
   { key: "winRate", label: "승률" },
   { key: "apm", label: "APM" },
-  { key: "raceP", label: "P전적" },
-  { key: "raceT", label: "T전적" },
-  { key: "raceZ", label: "Z전적" },
+  { key: "unitProduction", label: "평균 유닛생산" },
+  { key: "raceP", label: "P전적", race: "P" },
+  { key: "raceT", label: "T전적", race: "T" },
+  { key: "raceZ", label: "Z전적", race: "Z" },
   { key: "strength", label: "강점" },
   { key: "weakness", label: "약점" }
 ];
@@ -536,6 +536,8 @@ function comparePlayers(left: TeamAnalysisPlayer, right: TeamAnalysisPlayer, key
       return compareNumber(left.winRate, right.winRate, direction) || compareText(left.name, right.name, "asc");
     case "apm":
       return compareNumber(left.averageApm, right.averageApm, direction) || compareText(left.name, right.name, "asc");
+    case "unitProduction":
+      return compareNumber(left.unitProduction, right.unitProduction, direction) || compareText(left.name, right.name, "asc");
     case "bradleyTerry":
       return compareNumber(left.bradleyTerry, right.bradleyTerry, direction) || compareText(left.name, right.name, "asc");
     case "trueSkill":
@@ -571,6 +573,17 @@ function PlayerMatrix({ players, variant = "all" }: { players: TeamAnalysisPlaye
     }));
   }
 
+  function renderHeaderLabel(header: (typeof playerMatrixHeaders)[number]) {
+    if (!header.race) return <span>{header.label}</span>;
+
+    return (
+      <span className="inline-flex items-center gap-1.5">
+        <RaceBadge race={header.race} />
+        <span>전적</span>
+      </span>
+    );
+  }
+
   return (
     <div className="overflow-hidden rounded-lg border border-slate-600/70">
       <table className="w-full text-left text-sm">
@@ -588,7 +601,7 @@ function PlayerMatrix({ players, variant = "all" }: { players: TeamAnalysisPlaye
                     className="inline-flex items-center gap-1.5 rounded px-1 py-0.5 text-left font-medium text-slate-300 transition-colors hover:bg-slate-800 hover:text-slate-50"
                     aria-label={`${header.label} 정렬`}
                   >
-                    <span>{header.label}</span>
+                    {renderHeaderLabel(header)}
                     <Icon className="h-3 w-3" aria-hidden="true" />
                   </button>
                 </th>
@@ -600,7 +613,7 @@ function PlayerMatrix({ players, variant = "all" }: { players: TeamAnalysisPlaye
           {sortedPlayers.map((player) => (
             <tr key={player.name} data-testid="team-analysis-player-row" className="bg-slate-950/40 transition-colors hover:bg-slate-800/70">
               <td className="px-3 py-3"><PlayerBadge name={player.name} /></td>
-              <td className="px-3 py-3 text-slate-400">{player.wins}-{player.losses}</td>
+              {variant === "all" ? <td className="px-3 py-3 text-slate-400">{player.wins}-{player.losses}</td> : null}
               <td className="px-3 py-3"><Badge accent={winRateTone(player.winRate)}>{formatPercent(player.winRate)}</Badge></td>
               <td className="px-3 py-3 text-slate-400">#{player.apmRank} / {player.averageApm}</td>
               {variant === "all" ? (
@@ -610,6 +623,7 @@ function PlayerMatrix({ players, variant = "all" }: { players: TeamAnalysisPlaye
                 </>
               ) : (
                 <>
+                  <td className="px-3 py-3 text-slate-300">{player.unitProduction}</td>
                   <td className="px-3 py-3 text-xs text-slate-300">{raceRecordLabel(player, "P")}</td>
                   <td className="px-3 py-3 text-xs text-slate-300">{raceRecordLabel(player, "T")}</td>
                   <td className="px-3 py-3 text-xs text-slate-300">{raceRecordLabel(player, "Z")}</td>
@@ -822,9 +836,28 @@ export function TeamAnalysisPage({ model }: { model: TeamAnalysisPageModel }) {
           </div>
         </section>
 
-        <div className="mb-4 grid gap-3 md:grid-cols-2">
+        <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <MetricCard label="MVP" value={model.summary.topPlayer} hint="보수적 TrueSkill 기준 1위" icon={BrainCircuit} accent="emerald" />
           <MetricCard label="최강 종족" value={model.summary.strongestComposition} hint="최소 표본을 통과한 종족 조합만 반영" icon={Gauge} accent="amber" />
+          <MetricCard
+            label="현재 팀 스코어"
+            value={<span className="block truncate text-lg leading-8">{model.summary.currentLineupScore.value}</span>}
+            hint={model.summary.currentLineupScore.hint}
+            icon={Activity}
+            accent="cyan"
+          />
+          <MetricCard
+            label="최약 종족"
+            value={(
+              <span className="inline-flex min-w-0 items-center gap-2">
+                <RaceBadge race={model.summary.weakestRace.race} size="md" />
+                <span className="truncate">{model.summary.weakestRace.value}</span>
+              </span>
+            )}
+            hint={model.summary.weakestRace.hint}
+            icon={Gauge}
+            accent="rose"
+          />
         </div>
 
         {isAllSeasons ? (
