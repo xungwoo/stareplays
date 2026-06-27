@@ -307,6 +307,35 @@ function PlayerPentagonSection({ charts }: { charts: TeamAnalysisPlayerPentagon[
   );
 }
 
+function TeamPentagonSection({ chart }: { chart: TeamAnalysisPlayerPentagon | null }) {
+  if (!chart) return null;
+
+  return (
+    <Panel
+      title="팀별 역량 오각형"
+      description="선택 시즌의 주요 두 팀을 A Team vs B Team으로 비교합니다."
+      accent="cyan"
+      help="A/B Team은 선택 시즌에서 가장 많이 등장한 두 3인 조합입니다. APM과 분당 생산은 팀 평균/총합을 경기 길이로 보정하고, P/T/Z는 해당 팀 선수들의 종족별 승률입니다."
+    >
+      <div className="mb-3 flex flex-wrap gap-2">
+        {chart.players.map((team) => (
+          <span
+            key={team.name}
+            className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-semibold"
+            style={{ borderColor: `${team.color}99`, backgroundColor: `${team.color}18`, color: team.color }}
+          >
+            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: team.color }} />
+            {team.name}
+          </span>
+        ))}
+      </div>
+      <div className="max-w-[520px]">
+        <PentagonChart chart={chart} selectedPlayerName={null} />
+      </div>
+    </Panel>
+  );
+}
+
 function SeasonScopeSelector({ model }: { model: TeamAnalysisPageModel }) {
   const options = model.scope?.options ?? [];
   if (options.length === 0) return null;
@@ -860,6 +889,14 @@ export function TeamAnalysisPage({ model }: { model: TeamAnalysisPageModel }) {
         ) : (
           <>
             <div className="mb-4">
+              <PlayerPentagonSection charts={seasonPentagons} />
+            </div>
+
+            <div className="mb-4">
+              <TeamPentagonSection chart={model.chartData.teamPentagon} />
+            </div>
+
+            <div className="mb-4">
               <Panel
                 title="선수 역량 매트릭스"
                 description="선택 시즌에서는 선수별 승패, 승률, APM, 종족 강점과 약점이 가장 중요한 판단 기준입니다."
@@ -876,10 +913,6 @@ export function TeamAnalysisPage({ model }: { model: TeamAnalysisPageModel }) {
 
             <div className="mb-4">
               <SeasonMatchRawTable model={model} />
-            </div>
-
-            <div>
-              <PlayerPentagonSection charts={seasonPentagons} />
             </div>
           </>
         )}

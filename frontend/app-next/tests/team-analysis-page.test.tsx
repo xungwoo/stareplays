@@ -117,6 +117,9 @@ describe("team analysis page", () => {
     expect(screen.queryByText(/평점 모델 원점수/i)).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: /^듀오 궁합$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: /승부 감각 오각형/i })).not.toBeInTheDocument();
-    expect(screen.getAllByTestId("player-radar-chart")).toHaveLength(2);
+    expect(screen.getAllByRole("heading", { name: /팀별 역량 오각형/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/A Team/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/B Team/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId("player-radar-chart")).toHaveLength(3);
   });
 });

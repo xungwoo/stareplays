@@ -177,5 +177,6 @@ export interface TeamAnalysisPageModel {
       winRate: number;
     }>;
     playerPentagons: TeamAnalysisPlayerPentagon[];
+    teamPentagon: TeamAnalysisPlayerPentagon | null;
   };
 }
