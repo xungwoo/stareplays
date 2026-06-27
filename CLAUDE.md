@@ -2,6 +2,10 @@
 
 이 파일은 Claude Code가 이 레포지토리에서 작업할 때 따르는 루트 지침입니다. Codex는 `AGENTS.md`, Claude는 이 파일을 주로 읽지만, 두 파일의 작업 사이클과 배포 규칙은 동일합니다.
 
+## 프로젝트 맥락 확인
+
+작업을 시작하기 전에 `AGENTS.md`의 “프로젝트 맥락 먼저 읽기”, “현재 시스템 구조”, “변경 영향 범위 판단”, “데이터/지표 가드레일”, “캐시와 빠른 운영 검증” 섹션을 함께 읽습니다. 이 레포는 단일 프런트가 아니라 Go API, Next 대시보드, replay analyzer worker, snapshot job, MCP connector가 함께 있는 운영 레포이므로, 변경 파일이 어떤 Railway service와 raw/API 계약에 영향을 주는지 먼저 판단합니다.
+
 ## 최우선 작업 사이클
 
 운영에 반영되는 모든 변경은 feature branch에서 작업한 뒤 `main`에 병합하고, `main` 기준으로만 배포합니다.
