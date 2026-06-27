@@ -20,6 +20,8 @@ type NormalizedPlayer = {
   eapm: number;
   cmdCount: number;
   effectiveCmdCount: number;
+  unitProduction: number;
+  resourceSpend: number;
 };
 
 type NormalizedMatch = {
@@ -43,6 +45,10 @@ type PlayerAccumulator = {
   commandTotal: number;
   effectiveCommandTotal: number;
   minuteTotal: number;
+  unitProductionTotal: number;
+  unitProductionGames: number;
+  resourceSpendTotal: number;
+  resourceSpendGames: number;
   races: Map<RaceCode, { games: number; wins: number; losses: number }>;
   partnerWins: Map<string, number>;
 };
@@ -92,15 +98,20 @@ function raceComposition(players: NormalizedPlayer[]): string {
   return players.map((player) => player.race).sort().join("");
 }
 
-function normalizeApiPlayer(player: ApiGamePlayer): NormalizedPlayer {
+function normalizeApiPlayer(player: ApiGamePlayer, game: ApiGameSummary): NormalizedPlayer {
+  const playerName = player.name?.trim() || "Unknown";
+  const analysis = game.season_analysis?.players?.[playerName];
+
   return {
-    name: player.name?.trim() || "Unknown",
+    name: playerName,
     race: getRaceLetter(player.race ?? "P"),
     isRandomSelected: player.is_random_selected === true,
     apm: toNumber(player.apm),
     eapm: toNumber(player.eapm),
     cmdCount: toNumber(player.cmd_count),
-    effectiveCmdCount: toNumber(player.effective_cmd_count)
+    effectiveCmdCount: toNumber(player.effective_cmd_count),
+    unitProduction: toNumber(analysis?.production),
+    resourceSpend: toNumber(analysis?.resource_spend)
   };
 }
 
@@ -116,7 +127,7 @@ function getApiTeams(game: ApiGameSummary): TeamSide[] {
   });
 
 	return Array.from(teams.entries()).map(([team, teamPlayers]) => ({
-		players: teamPlayers.map(normalizeApiPlayer).filter((player) => isTrackedPlayer(player.name)),
+		players: teamPlayers.map((player) => normalizeApiPlayer(player, game)).filter((player) => isTrackedPlayer(player.name)),
 		isWinner: team === winnerTeamNumber
 	}));
 }
@@ -146,7 +157,9 @@ function normalizeVaultPlayer(player: VaultPlayer): NormalizedPlayer {
     apm: player.apm,
     eapm: player.eapm,
     cmdCount: player.apm,
-    effectiveCmdCount: player.eapm
+    effectiveCmdCount: player.eapm,
+    unitProduction: player.production,
+    resourceSpend: 0
   };
 }
 
@@ -192,6 +205,10 @@ function getOrCreatePlayer(accumulators: Map<string, PlayerAccumulator>, player:
     commandTotal: 0,
     effectiveCommandTotal: 0,
     minuteTotal: 0,
+    unitProductionTotal: 0,
+    unitProductionGames: 0,
+    resourceSpendTotal: 0,
+    resourceSpendGames: 0,
     races: new Map(),
     partnerWins: new Map()
   };
@@ -210,6 +227,14 @@ function recordPlayer(accumulator: PlayerAccumulator, player: NormalizedPlayer, 
   accumulator.commandTotal += player.cmdCount;
   accumulator.effectiveCommandTotal += player.effectiveCmdCount;
   accumulator.minuteTotal += Math.max(gameLength / 60, 1);
+  if (player.unitProduction > 0) {
+    accumulator.unitProductionTotal += player.unitProduction;
+    accumulator.unitProductionGames += 1;
+  }
+  if (player.resourceSpend > 0) {
+    accumulator.resourceSpendTotal += player.resourceSpend;
+    accumulator.resourceSpendGames += 1;
+  }
 
   const race = accumulator.races.get(player.race) ?? { games: 0, wins: 0, losses: 0 };
   race.games += 1;
@@ -382,7 +407,8 @@ function feedbackGap(value: number, values: number[]): number {
 function buildTrainingFeedback(player: TeamAnalysisPlayer, peers: TeamAnalysisPlayer[]): string[] {
   const apmValues = peers.map((peer) => peer.averageApm);
   const eapmValues = peers.map((peer) => peer.averageEapm);
-  const effectiveCommandValues = peers.map((peer) => peer.effectiveCommandsPerMinute);
+  const productionValues = peers.map((peer) => peer.unitProduction);
+  const resourceValues = peers.map((peer) => peer.resourceSpend);
   const winRateValues = peers.map((peer) => peer.winRate);
   const candidates: TrainingFeedbackCandidate[] = [];
   const weakRace = player.raceStats.find((stat) => stat.race === player.worstRace);
@@ -396,16 +422,16 @@ function buildTrainingFeedback(player: TeamAnalysisPlayer, peers: TeamAnalysisPl
     text: `EAPM이 아쉽습니다. 손은 움직이는데 결과로 이어지는 명령이 부족할 수 있어서, 화면 전환 후 한 번에 정확히 찍는 연습을 추천합니다.`
   });
   candidates.push({
-    score: feedbackGap(player.effectiveCommandsPerMinute, effectiveCommandValues),
-    text: `분당 유효 명령이 낮은 편입니다. 초반 5분은 생산-정찰-부대지정을 한 바퀴 루틴으로 묶어 “손이 간 만큼 실제 명령이 남는” 연습이 좋습니다.`
+    score: feedbackGap(player.unitProduction, productionValues),
+    text: `유닛 생산량이 낮은 편입니다. 교전 직전에도 게이트, 해처리, 팩토리 큐가 비지 않도록 생산 단축키 루틴부터 고정하면 효과가 큽니다.`
   });
   candidates.push({
     score: Math.max(0, 80 - player.commandEfficiency),
     text: `명령 효율이 흔들립니다. 의미 없는 반복 클릭을 줄이고, 이동-생산-교전 명령을 짧고 선명하게 끊어 치는 훈련이 맞습니다.`
   });
   candidates.push({
-    score: Math.max(0, 78 - player.handEfficiency),
-    text: `손효율이 낮습니다. 반복 클릭보다 화면 전환 후 정확한 한 번의 명령을 늘리는 쪽이 체감 실력 상승에 더 빠릅니다.`
+    score: feedbackGap(player.resourceSpend, resourceValues),
+    text: `자원 소모량이 낮은 편입니다. 돈이 남는 타이밍을 줄이려면 생산 건물 추가, 업그레이드 예약, 멀티 타이밍을 체크리스트로 묶어보세요.`
   });
   candidates.push({
     score: feedbackGap(player.winRate, winRateValues),
@@ -476,8 +502,8 @@ function buildPlayers(matches: NormalizedMatch[]): TeamAnalysisPlayer[] {
       averageApm: round(accumulator.apmTotal / Math.max(accumulator.games, 1), 1),
       averageEapm: round(accumulator.eapmTotal / Math.max(accumulator.games, 1), 1),
       commandEfficiency: round((accumulator.effectiveCommandTotal / Math.max(accumulator.commandTotal, 1)) * 100, 1),
-      effectiveCommandsPerMinute: round(accumulator.effectiveCommandTotal / Math.max(accumulator.minuteTotal, 1), 1),
-      handEfficiency: round((accumulator.eapmTotal / Math.max(accumulator.apmTotal, 1)) * 100, 1),
+      unitProduction: round(accumulator.unitProductionTotal / Math.max(accumulator.unitProductionGames, 1), 1),
+      resourceSpend: round(accumulator.resourceSpendTotal / Math.max(accumulator.resourceSpendGames, 1), 1),
       apmRank: 0,
       bradleyTerry: round(1000 + (bradleyTerryScores.get(accumulator.name) ?? 0) * 180, 1),
       bradleyTerryRank: 0,
@@ -624,7 +650,8 @@ function buildPlayerPentagons(players: TeamAnalysisPlayer[]): TeamAnalysisPlayer
   const eapmValues = players.map((player) => player.averageEapm);
   const btValues = players.map((player) => player.bradleyTerry);
   const tsValues = players.map((player) => player.trueSkill);
-  const effectiveCommandValues = players.map((player) => player.effectiveCommandsPerMinute);
+  const productionValues = players.map((player) => player.unitProduction);
+  const resourceValues = players.map((player) => player.resourceSpend);
   const tones: TeamAnalysisPlayerPentagon["players"][number]["tone"][] = ["cyan", "emerald", "violet", "amber", "rose", "cyan"];
 
   return [
@@ -664,8 +691,8 @@ function buildPlayerPentagons(players: TeamAnalysisPlayer[]): TeamAnalysisPlayer
     },
     {
       title: "리플레이 피지컬 오각형",
-      description: "APM, EAPM, 명령 효율, 분당 유효명령, 손효율을 리플레이 수치로 비교합니다.",
-      axes: ["APM", "EAPM", "명령효율", "분당 유효명령", "손효율"],
+      description: "APM, EAPM, 명령 효율, 유닛 생산량, 자원 소모량을 리플레이 수치로 비교합니다.",
+      axes: ["APM", "EAPM", "명령효율", "유닛 생산량", "자원 소모량"],
       players: topPlayers.map((player, index) => ({
         name: player.name,
         tone: tones[index % tones.length],
@@ -674,8 +701,8 @@ function buildPlayerPentagons(players: TeamAnalysisPlayer[]): TeamAnalysisPlayer
           { label: "APM", value: normalizeMetricBand(player.averageApm, apmValues) },
           { label: "EAPM", value: normalizeMetricBand(player.averageEapm, eapmValues) },
           { label: "명령효율", value: player.commandEfficiency },
-          { label: "분당 유효명령", value: normalizeMetricBand(player.effectiveCommandsPerMinute, effectiveCommandValues) },
-          { label: "손효율", value: player.handEfficiency }
+          { label: "유닛 생산량", value: normalizeMetricBand(player.unitProduction, productionValues) },
+          { label: "자원 소모량", value: normalizeMetricBand(player.resourceSpend, resourceValues) }
         ]
       }))
     }
@@ -699,8 +726,8 @@ function buildInsights(players: TeamAnalysisPlayer[], lineups: TeamAnalysisLineu
   const randomReadyPlayer = [...randomPlayers].sort((left, right) => right.randomSelectedWinRate - left.randomSelectedWinRate || right.randomSelectedWins - left.randomSelectedWins || right.randomSelectedGames - left.randomSelectedGames)[0] ?? null;
   const randomRiskPlayer = [...randomPlayers].sort((left, right) => left.randomSelectedWinRate - right.randomSelectedWinRate || right.randomSelectedGames - left.randomSelectedGames || left.winRate - right.winRate)[0] ?? null;
   const bestRace = raceCompositions.find((composition) => composition.qualified) ?? raceCompositions[0] ?? null;
-  const handEfficiencyLeader = [...players].sort((left, right) => right.handEfficiency - left.handEfficiency || right.averageEapm - left.averageEapm)[0] ?? null;
-  const effectiveCommandLeader = [...players].sort((left, right) => right.effectiveCommandsPerMinute - left.effectiveCommandsPerMinute || right.commandEfficiency - left.commandEfficiency)[0] ?? null;
+  const productionLeader = [...players].sort((left, right) => right.unitProduction - left.unitProduction || right.averageEapm - left.averageEapm)[0] ?? null;
+  const resourceLeader = [...players].sort((left, right) => right.resourceSpend - left.resourceSpend || right.averageEapm - left.averageEapm)[0] ?? null;
   const retryLineup = [...lineups].filter((lineup) => lineup.games >= 2 && lineup.losses > 0).sort((left, right) => right.wins - left.wins || right.winRate - left.winRate)[0] ?? null;
   const coinflipDuo = [...duos].filter((duo) => duo.games >= 2 && duo.winRate >= 45 && duo.winRate <= 60).sort((left, right) => right.games - left.games || right.winRate - left.winRate)[0] ?? null;
 
@@ -759,21 +786,21 @@ function buildInsights(players: TeamAnalysisPlayer[], lineups: TeamAnalysisLineu
         tone: bestRace.qualified ? "emerald" : "amber"
       })
       : null,
-    handEfficiencyLeader
+    productionLeader
       ? makeInsightCard({
         id: "tempo-leader",
-        label: "손속도 품질",
-        title: `헛손질 적은 운영: ${displayPlayerName(handEfficiencyLeader.name)}`,
-        body: `APM ${handEfficiencyLeader.averageApm}, EAPM ${handEfficiencyLeader.averageEapm}, 손효율 ${formatPercentValue(handEfficiencyLeader.handEfficiency)}입니다. 바쁘기만 한 게 아니라 실제로 굴러가는 손입니다.`,
+        label: "생산 리듬",
+        title: `유닛 생산 리듬왕: ${displayPlayerName(productionLeader.name)}`,
+        body: `평균 유닛 생산량 ${productionLeader.unitProduction}입니다. build order 기반 생산 이벤트를 집계한 값이라 실제 병력 충원 리듬에 가깝습니다.`,
         tone: "cyan"
       })
       : null,
-    effectiveCommandLeader
+    resourceLeader
       ? makeInsightCard({
         id: "production-leader",
-        label: "유효 명령",
-        title: `분당 유효명령 밀도왕: ${displayPlayerName(effectiveCommandLeader.name)}`,
-        body: `분당 유효명령 ${effectiveCommandLeader.effectiveCommandsPerMinute}입니다. 이 값은 유닛 생산량이 아니라 리플레이 명령 중 실제로 남은 명령의 밀도입니다.`,
+        label: "자원 소모",
+        title: `자원 회전력 상위권: ${displayPlayerName(resourceLeader.name)}`,
+        body: `평균 자원 소모량 ${resourceLeader.resourceSpend}입니다. build order 비용표 기반 합산값이라 돈을 얼마나 꾸준히 굴렸는지 보는 보조 지표입니다.`,
         tone: "violet"
       })
       : null,

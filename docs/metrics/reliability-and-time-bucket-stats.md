@@ -11,8 +11,10 @@
 | 랜덤 선택 여부 | `Player.is_random_selected` | 팀 분석, 시즌 | 리플레이에서 자동 판별하지 않는다. CSV/시즌 룰 기반 수기 관리 값이므로 이 필드를 기준으로 쓴다. |
 | APM, EAPM | `Player.apm`, `Player.eapm` | 전체 | replay parser가 선수별로 저장한 값이다. 랭킹의 95P APM과 시즌 평균 APM은 서로 다른 집계다. |
 | 명령 효율 | `Player.effective_cmd_count / Player.cmd_count` | 팀 분석 | 유효 명령 비율이다. |
-| 분당 유효명령 | `Player.effective_cmd_count / game_length_minutes` | 팀 분석 | 유닛 생산량이 아니다. 기존 `생산능력` 명칭을 쓰면 안 된다. |
-| 손효율 | `Player.eapm / Player.apm` | 팀 분석 | 기존 `템포 안정성` 명칭 대신 사용한다. 반복 클릭 대비 유효 행동 비율에 가깝다. |
+| 유닛 생산량 | `GameDetail.compressed_build_orders` 기반 `season_analysis.production` | 팀 분석 | `train`, `unit_morph`, `building_morph` 중 유효 생산 이벤트를 집계한다. |
+| 자원 소모량 | `GameDetail.compressed_build_orders` 기반 `season_analysis.resource_spend` | 팀 분석 | build order 비용표 기반 합산값이다. 비용 미상 이벤트가 많으면 보조 지표로만 해석한다. |
+| 분당 유효명령 | `Player.effective_cmd_count / game_length_minutes` | 보조/미노출 | 유닛 생산량이 아니므로 피지컬 오각형에서 제외한다. |
+| 손효율 | `Player.eapm / Player.apm` | 보조/미노출 | EAPM/명령효율과 중복성이 높아 피지컬 오각형에서 제외한다. |
 | Bradley-Terry, TrueSkill | 경기 승패 파생 모델 | 팀 분석 | 원점수 단위가 다르므로 같은 차트에서는 순위 점수로 비교한다. |
 
 ## 조건부 사용 지표

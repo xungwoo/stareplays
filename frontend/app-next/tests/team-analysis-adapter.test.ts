@@ -10,6 +10,17 @@ const gamesResponse: ApiGamesListResponse = {
       winner_team: 1,
       game_length: 900,
       start_time: "2026-03-01T00:00:00Z",
+      season_analysis: {
+        status: "succeeded",
+        data_source: "detail_analysis",
+        players: {
+          "3x3_alpha": { production: 40, resource_spend: 4000 },
+          "3x3_bravo": { production: 34, resource_spend: 3600 },
+          "3x3_charlie": { production: 30, resource_spend: 3200 },
+          "3x3_delta": { production: 28, resource_spend: 3000 },
+          "3x3_echo": { production: 26, resource_spend: 2800 }
+        }
+      },
       edges: {
         players: [
           { name: "3x3_alpha", race: "P", team: 1, apm: 210, eapm: 170, cmd_count: 2100, effective_cmd_count: 1700 },
@@ -27,6 +38,18 @@ const gamesResponse: ApiGamesListResponse = {
       winner_team: 2,
       game_length: 840,
       start_time: "2026-03-02T00:00:00Z",
+      season_analysis: {
+        status: "succeeded",
+        data_source: "detail_analysis",
+        players: {
+          "3x3_alpha": { production: 44, resource_spend: 4200 },
+          "3x3_bravo": { production: 35, resource_spend: 3700 },
+          "3x3_delta": { production: 31, resource_spend: 3300 },
+          "3x3_charlie": { production: 38, resource_spend: 3900 },
+          "3x3_echo": { production: 27, resource_spend: 2900 },
+          "3x3_foxtrot": { production: 36, resource_spend: 3650 }
+        }
+      },
       edges: {
         players: [
           { name: "3x3_alpha", race: "P", team: 1, apm: 200, eapm: 160, cmd_count: 2000, effective_cmd_count: 1600 },
@@ -90,6 +113,8 @@ describe("team analysis adapter", () => {
       randomSelectedWins: 1,
       randomSelectedWinRate: 100,
       averageApm: 210,
+      unitProduction: 44,
+      resourceSpend: 4200,
       bestRace: "T"
     });
     expect(alpha?.raceStats).toEqual([
@@ -122,14 +147,16 @@ describe("team analysis adapter", () => {
       "리플레이 피지컬 오각형"
     ]);
     expect(model.chartData.playerPentagons[1]?.axes).toEqual(["프로토스", "저그", "테란", "랜덤", "전체 역량"]);
-    expect(model.chartData.playerPentagons[2]?.axes).toEqual(["APM", "EAPM", "명령효율", "분당 유효명령", "손효율"]);
-    expect(model.chartData.playerPentagons.flatMap((chart) => chart.axes)).toEqual(expect.not.arrayContaining(["생산능력", "템포안정"]));
+    expect(model.chartData.playerPentagons[2]?.axes).toEqual(["APM", "EAPM", "명령효율", "유닛 생산량", "자원 소모량"]);
+    expect(model.chartData.playerPentagons.flatMap((chart) => chart.axes)).toEqual(expect.not.arrayContaining(["생산능력", "템포안정", "분당 유효명령", "손효율"]));
     expect(model.chartData.playerPentagons.every((chart) => chart.players.length > 0)).toBe(true);
     expect(model.chartData.playerPentagons.flatMap((chart) => chart.players.flatMap((player) => player.axes)).every((axis) => axis.value >= 0 && axis.value <= 100)).toBe(true);
-    expect(model.players[0]).toHaveProperty("effectiveCommandsPerMinute");
-    expect(model.players[0]).toHaveProperty("handEfficiency");
+    expect(model.players[0]).toHaveProperty("unitProduction");
+    expect(model.players[0]).toHaveProperty("resourceSpend");
     expect(model.players[0]).not.toHaveProperty("productionAbility");
     expect(model.players[0]).not.toHaveProperty("tempoStability");
+    expect(model.players[0]).not.toHaveProperty("effectiveCommandsPerMinute");
+    expect(model.players[0]).not.toHaveProperty("handEfficiency");
     expect(model.insights.bestLineup?.title).toContain("최고 조합");
     expect(model.insights.worstLineup?.title).toContain("최악 조합");
     expect(model.insights.bestDuo?.title).toContain("최강 듀오");
