@@ -629,6 +629,12 @@ function normalizeMetricBand(value: number, values: number[], floor = 35, ceilin
   return round(floor + (normalized / 100) * (ceiling - floor), 1);
 }
 
+function normalizePositiveMetricBand(value: number, values: number[], floor = 35, ceiling = 96): number {
+  if (value <= 0 || values.every((candidate) => candidate <= 0)) return 0;
+
+  return normalizeMetricBand(value, values, floor, ceiling);
+}
+
 function randomSelectionScore(player: TeamAnalysisPlayer): number {
   if (player.randomSelectedGames <= 0) return 0;
   if (player.randomSelectedGames >= MIN_PLAYER_RACE_GAMES) return player.randomSelectedWinRate;
@@ -701,8 +707,8 @@ function buildPlayerPentagons(players: TeamAnalysisPlayer[]): TeamAnalysisPlayer
           { label: "APM", value: normalizeMetricBand(player.averageApm, apmValues) },
           { label: "EAPM", value: normalizeMetricBand(player.averageEapm, eapmValues) },
           { label: "명령효율", value: player.commandEfficiency },
-          { label: "유닛 생산량", value: normalizeMetricBand(player.unitProduction, productionValues) },
-          { label: "자원 소모량", value: normalizeMetricBand(player.resourceSpend, resourceValues) }
+          { label: "유닛 생산량", value: normalizePositiveMetricBand(player.unitProduction, productionValues) },
+          { label: "자원 소모량", value: normalizePositiveMetricBand(player.resourceSpend, resourceValues) }
         ]
       }))
     }

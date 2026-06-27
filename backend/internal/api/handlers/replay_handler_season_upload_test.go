@@ -1,12 +1,20 @@
 package handlers
 
 import (
+	"encoding/json"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/gofiber/fiber/v2"
 	"github.com/xungwoo/stareplays/ent"
+	"github.com/xungwoo/stareplays/ent/enttest"
+	"github.com/xungwoo/stareplays/ent/schema"
+	"github.com/xungwoo/stareplays/internal/database"
 	"github.com/xungwoo/stareplays/internal/parser"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 func TestProcessParsedReplayRejectsNonThreeVsThreePlayersBeforeDBWrite(t *testing.T) {
@@ -87,6 +95,78 @@ func TestBuildSeasonSummariesIncludesGameDataWhenRequested(t *testing.T) {
 	}
 	if !summaries[0].GamesData[0].Edges.Players[0].IsRandomSelected {
 		t.Fatalf("GamesData[0].Edges.Players[0].IsRandomSelected = false, want true")
+	}
+}
+
+func TestListGamesIncludesDetailDerivedSeasonAnalysis(t *testing.T) {
+	ctx := t.Context()
+	previousClient := database.Client
+	client := enttest.Open(t, "sqlite3", "file:list_games_season_analysis?mode=memory&cache=shared&_fk=1")
+	t.Cleanup(func() {
+		database.Client = previousClient
+		_ = client.Close()
+	})
+	database.Client = client
+
+	g := client.Game.Create().
+		SetHost("3x3_GG").
+		SetStartTime(time.Date(2026, 6, 27, 12, 0, 0, 0, time.UTC)).
+		SetMapName("Team Circuit").
+		SetGameLength(600).
+		SetPlayerCount(6).
+		SetWinnerTeam(1).
+		SaveX(ctx)
+	client.Player.Create().
+		SetGame(g).
+		SetName("3x3_GG").
+		SetRace("Protoss").
+		SetTeam(1).
+		SetPlayerID(0).
+		SaveX(ctx)
+	client.GameDetail.Create().
+		SetGame(g).
+		SetCompressedBuildOrders([]schema.PlayerBuildOrder{
+			{
+				PlayerName: "3x3_GG",
+				Events: []schema.BuildEvent{
+					{Frame: 120, EventType: "train", Unit: "Zealot", Count: 2, IsEffective: true},
+					{Frame: 240, EventType: "build", Unit: "Gateway", Count: 1, IsEffective: true},
+				},
+			},
+		}).
+		SaveX(ctx)
+
+	app := fiber.New()
+	app.Get("/games", ListGames)
+	req := httptest.NewRequest("GET", "/games?limit=1", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test returned error: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+
+	var body struct {
+		Games []gameResponseDTO `json:"games"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(body.Games) != 1 {
+		t.Fatalf("len(games) = %d, want 1", len(body.Games))
+	}
+	analysis := body.Games[0].SeasonAnalysis
+	if analysis == nil {
+		t.Fatalf("season_analysis is nil, want detail-derived metrics")
+	}
+	player := analysis.Players["3x3_GG"]
+	if player.Production != 2 {
+		t.Fatalf("production = %v, want 2", player.Production)
+	}
+	if player.ResourceSpend != 350 {
+		t.Fatalf("resource_spend = %v, want 350", player.ResourceSpend)
 	}
 }
 

@@ -1400,6 +1400,7 @@ func ListGames(c *fiber.Ctx) error {
 	}
 	games, err := gameQuery.
 		WithPlayers().
+		WithGameDetail().
 		Order(ent.Desc(game.FieldStartTime), ent.Desc(game.FieldCreatedAt), ent.Desc(game.FieldID)).
 		Limit(queryLimit).
 		Offset(offset).
@@ -1446,9 +1447,13 @@ func ListGames(c *fiber.Ctx) error {
 			"details": err.Error(),
 		})
 	}
+	gameDTOs := make([]gameResponseDTO, 0, len(games))
+	for _, g := range games {
+		gameDTOs = append(gameDTOs, buildGameResponseDTO(g))
+	}
 
 	return c.JSON(fiber.Map{
-		"games":                 games,
+		"games":                 gameDTOs,
 		"total":                 total,
 		"limit":                 limit,
 		"offset":                offset,
