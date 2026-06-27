@@ -46,6 +46,7 @@ type PlayerAccumulator = {
   effectiveCommandTotal: number;
   minuteTotal: number;
   unitProductionTotal: number;
+  unitProductionMinuteTotal: number;
   unitProductionGames: number;
   resourceSpendTotal: number;
   resourceSpendGames: number;
@@ -206,6 +207,7 @@ function getOrCreatePlayer(accumulators: Map<string, PlayerAccumulator>, player:
     effectiveCommandTotal: 0,
     minuteTotal: 0,
     unitProductionTotal: 0,
+    unitProductionMinuteTotal: 0,
     unitProductionGames: 0,
     resourceSpendTotal: 0,
     resourceSpendGames: 0,
@@ -226,9 +228,11 @@ function recordPlayer(accumulator: PlayerAccumulator, player: NormalizedPlayer, 
   accumulator.eapmTotal += player.eapm;
   accumulator.commandTotal += player.cmdCount;
   accumulator.effectiveCommandTotal += player.effectiveCmdCount;
-  accumulator.minuteTotal += Math.max(gameLength / 60, 1);
+  const gameMinutes = Math.max(gameLength / 60, 1);
+  accumulator.minuteTotal += gameMinutes;
   if (player.unitProduction > 0) {
     accumulator.unitProductionTotal += player.unitProduction;
+    accumulator.unitProductionMinuteTotal += gameMinutes;
     accumulator.unitProductionGames += 1;
   }
   if (player.resourceSpend > 0) {
@@ -423,7 +427,7 @@ function buildTrainingFeedback(player: TeamAnalysisPlayer, peers: TeamAnalysisPl
   });
   candidates.push({
     score: feedbackGap(player.unitProduction, productionValues),
-    text: `유닛 생산량이 낮은 편입니다. 교전 직전에도 게이트, 해처리, 팩토리 큐가 비지 않도록 생산 단축키 루틴부터 고정하면 효과가 큽니다.`
+    text: `분당 유닛생산이 낮은 편입니다. 교전 직전에도 게이트, 해처리, 팩토리 큐가 비지 않도록 생산 단축키 루틴부터 고정하면 효과가 큽니다.`
   });
   candidates.push({
     score: Math.max(0, 80 - player.commandEfficiency),
@@ -502,7 +506,7 @@ function buildPlayers(matches: NormalizedMatch[]): TeamAnalysisPlayer[] {
       averageApm: round(accumulator.apmTotal / Math.max(accumulator.games, 1), 1),
       averageEapm: round(accumulator.eapmTotal / Math.max(accumulator.games, 1), 1),
       commandEfficiency: round((accumulator.effectiveCommandTotal / Math.max(accumulator.commandTotal, 1)) * 100, 1),
-      unitProduction: round(accumulator.unitProductionTotal / Math.max(accumulator.unitProductionGames, 1), 1),
+      unitProduction: round(accumulator.unitProductionTotal / Math.max(accumulator.unitProductionMinuteTotal, 1), 2),
       resourceSpend: round(accumulator.resourceSpendTotal / Math.max(accumulator.resourceSpendGames, 1), 1),
       apmRank: 0,
       bradleyTerry: round(1000 + (bradleyTerryScores.get(accumulator.name) ?? 0) * 180, 1),
@@ -749,8 +753,8 @@ function buildPlayerPentagons(players: TeamAnalysisPlayer[]): TeamAnalysisPlayer
     },
     {
       title: "리플레이 피지컬 오각형",
-      description: "APM, EAPM, 명령 효율, 유닛 생산량, 자원 소모량을 리플레이 수치로 비교합니다.",
-      axes: ["APM", "EAPM", "명령효율", "유닛 생산량", "자원 소모량"],
+      description: "APM, EAPM, 명령 효율, 분당 유닛생산, 자원 소모량을 리플레이 수치로 비교합니다.",
+      axes: ["APM", "EAPM", "명령효율", "분당 생산", "자원 소모량"],
       players: topPlayers.map((player, index) => ({
         name: player.name,
         tone: tones[index % tones.length],
@@ -759,7 +763,7 @@ function buildPlayerPentagons(players: TeamAnalysisPlayer[]): TeamAnalysisPlayer
           { label: "APM", value: normalizeMetricBand(player.averageApm, apmValues) },
           { label: "EAPM", value: normalizeMetricBand(player.averageEapm, eapmValues) },
           { label: "명령효율", value: player.commandEfficiency },
-          { label: "유닛 생산량", value: normalizePositiveMetricBand(player.unitProduction, productionValues) },
+          { label: "분당 생산", value: normalizePositiveMetricBand(player.unitProduction, productionValues) },
           { label: "자원 소모량", value: normalizePositiveMetricBand(player.resourceSpend, resourceValues) }
         ]
       }))
@@ -893,7 +897,7 @@ function buildInsights(players: TeamAnalysisPlayer[], lineups: TeamAnalysisLineu
         id: "tempo-leader",
         label: "생산 리듬",
         title: `유닛 생산 리듬왕: ${displayPlayerName(productionLeader.name)}`,
-        body: `평균 유닛 생산량 ${productionLeader.unitProduction}입니다. build order 기반 생산 이벤트를 집계한 값이라 실제 병력 충원 리듬에 가깝습니다.`,
+        body: `분당 유닛생산 ${productionLeader.unitProduction}입니다. build order 기반 생산 이벤트를 경기 길이로 보정한 값이라 실제 병력 충원 리듬에 가깝습니다.`,
         tone: "cyan"
       })
       : null,

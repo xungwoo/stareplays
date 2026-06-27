@@ -139,7 +139,7 @@ describe("team analysis adapter", () => {
       randomSelectedWins: 1,
       randomSelectedWinRate: 100,
       averageApm: 210,
-      unitProduction: 44,
+      unitProduction: 3.14,
       resourceSpend: 4200,
       bestRace: "T"
     });
@@ -172,7 +172,7 @@ describe("team analysis adapter", () => {
     ]);
     expect(model.chartData.playerPentagons[0]?.axes).toEqual(["승률", "BT", "TrueSkill", "주종", "팀 적응력"]);
     expect(model.chartData.playerPentagons[1]?.axes).toEqual(["프로토스", "저그", "테란", "랜덤", "전체 역량"]);
-    expect(model.chartData.playerPentagons[2]?.axes).toEqual(["APM", "EAPM", "명령효율", "유닛 생산량", "자원 소모량"]);
+    expect(model.chartData.playerPentagons[2]?.axes).toEqual(["APM", "EAPM", "명령효율", "분당 생산", "자원 소모량"]);
     const racePentagonPlayers = model.chartData.playerPentagons[1]?.players ?? [];
     const alphaRaceAxes = racePentagonPlayers.find((player) => player.name === "3x3_alpha")?.axes ?? [];
     const deltaRaceAxes = racePentagonPlayers.find((player) => player.name === "3x3_delta")?.axes ?? [];
@@ -226,7 +226,7 @@ describe("team analysis adapter", () => {
     const model = createTeamAnalysisPageModel({ gamesResponse: noDetailResponse });
     const physicalAxes = model.chartData.playerPentagons
       .find((chart) => chart.title === "리플레이 피지컬 오각형")
-      ?.players.flatMap((player) => player.axes.filter((axis) => axis.label === "유닛 생산량" || axis.label === "자원 소모량"));
+      ?.players.flatMap((player) => player.axes.filter((axis) => axis.label === "분당 생산" || axis.label === "자원 소모량"));
 
     expect(physicalAxes?.every((axis) => axis.value === 0)).toBe(true);
   });

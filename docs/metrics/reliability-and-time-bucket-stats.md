@@ -11,7 +11,7 @@
 | 랜덤 선택 여부 | `Player.is_random_selected` | 팀 분석, 시즌 | 리플레이에서 자동 판별하지 않는다. CSV/시즌 룰 기반 수기 관리 값이므로 이 필드를 기준으로 쓴다. |
 | APM, EAPM | `Player.apm`, `Player.eapm` | 전체 | replay parser가 선수별로 저장한 값이다. 랭킹의 95P APM과 시즌 평균 APM은 서로 다른 집계다. |
 | 명령 효율 | `Player.effective_cmd_count / Player.cmd_count` | 팀 분석 | 유효 명령 비율이다. |
-| 유닛 생산량 | `GameDetail.compressed_build_orders` 기반 `season_analysis.production` | 팀 분석 | `train`, `unit_morph`, `building_morph` 중 유효 생산 이벤트를 집계한다. |
+| 분당 유닛생산 | `GameDetail.compressed_build_orders` 기반 `season_analysis.production / game_length_minutes` | 팀 분석 | `train`, `unit_morph`, `building_morph` 중 유효 생산 이벤트를 집계한 뒤 경기 길이로 보정한다. |
 | 자원 소모량 | `GameDetail.compressed_build_orders` 기반 `season_analysis.resource_spend` | 팀 분석 | build order 비용표 기반 합산값이다. 비용 미상 이벤트가 많으면 보조 지표로만 해석한다. |
 | 분당 유효명령 | `Player.effective_cmd_count / game_length_minutes` | 보조/미노출 | 유닛 생산량이 아니므로 피지컬 오각형에서 제외한다. |
 | 손효율 | `Player.eapm / Player.apm` | 보조/미노출 | EAPM/명령효율과 중복성이 높아 피지컬 오각형에서 제외한다. |
@@ -24,7 +24,7 @@
 | 지표 | 출처 | 사용 조건 |
 | --- | --- | --- |
 | APM timeline | `GameDetail.apm_timeline` | 개인/선수별 시간대 평균에 적합하다. 경기 업로드 후 집계 잡에서 재계산한다. |
-| 유닛 생산량 | `GameDetail.compressed_build_orders` 우선, 없으면 `build_orders` | `train`, `unit_morph`, `building_morph` 중 유효 이벤트만 사용한다. |
+| 분당 유닛생산 | `GameDetail.compressed_build_orders` 우선, 없으면 `build_orders` | `train`, `unit_morph`, `building_morph` 중 유효 이벤트만 사용하고 경기 길이로 보정한다. |
 | 자원 소모량 | `resource_spend` handler의 build event 비용 추정 | `unknown_cost_count` 비율을 같이 기록하고 커버리지가 낮으면 핵심 점수에서 제외한다. |
 | 테크 타이밍 | `tech_tree` handler의 tech/upgrade/prereq event | 상대적으로 빠른/느린 테크 성향 분석에 사용할 수 있다. 취소/비유효 이벤트는 별도 분리한다. |
 
@@ -66,6 +66,10 @@
 | `unit_production` | compressed build order production timeline | avg, p95, total, sample_count |
 | `resource_spend` | resource spend timeline | mineral_avg, gas_avg, total_avg, unknown_cost_rate |
 | `tech_timing` | tech tree events | first_tech_second, first_upgrade_second, percentile rank |
+
+## TODO 지표 후보
+
+- 경기당 평균 유닛생산: 총 경기 기여도 관점에서는 의미가 있으므로 별도 보조 지표로 검토한다. 현재 팀 분석의 피지컬 비교에는 경기 길이 편향을 줄이기 위해 `분당 유닛생산`을 사용한다.
 
 ## 화면 표기 원칙
 
