@@ -169,4 +169,35 @@ describe("team analysis adapter", () => {
     expect(model.insights.cards.every((card) => /[가-힣]/.test(`${card.title} ${card.body}`))).toBe(true);
     expect(model.insights.cards.some((card) => /꿀조합|특급 케미|비상벨|주사위/.test(`${card.title} ${card.body}`))).toBe(true);
   });
+
+  it("does not synthesize production and spend radar scores when detail metrics are missing", () => {
+    const noDetailResponse: ApiGamesListResponse = {
+      total: 1,
+      games: [
+        {
+          id: 10,
+          map_name: "No Detail",
+          winner_team: 1,
+          game_length: 600,
+          edges: {
+            players: [
+              { name: "3x3_alpha", race: "P", team: 1, apm: 100, eapm: 90, cmd_count: 1000, effective_cmd_count: 900 },
+              { name: "3x3_bravo", race: "T", team: 1, apm: 110, eapm: 95, cmd_count: 1100, effective_cmd_count: 950 },
+              { name: "3x3_charlie", race: "Z", team: 1, apm: 120, eapm: 100, cmd_count: 1200, effective_cmd_count: 1000 },
+              { name: "3x3_delta", race: "P", team: 2, apm: 130, eapm: 105, cmd_count: 1300, effective_cmd_count: 1050 },
+              { name: "3x3_echo", race: "T", team: 2, apm: 140, eapm: 110, cmd_count: 1400, effective_cmd_count: 1100 },
+              { name: "3x3_foxtrot", race: "Z", team: 2, apm: 150, eapm: 115, cmd_count: 1500, effective_cmd_count: 1150 }
+            ]
+          }
+        }
+      ]
+    };
+
+    const model = createTeamAnalysisPageModel({ gamesResponse: noDetailResponse });
+    const physicalAxes = model.chartData.playerPentagons
+      .find((chart) => chart.title === "리플레이 피지컬 오각형")
+      ?.players.flatMap((player) => player.axes.filter((axis) => axis.label === "유닛 생산량" || axis.label === "자원 소모량"));
+
+    expect(physicalAxes?.every((axis) => axis.value === 0)).toBe(true);
+  });
 });
