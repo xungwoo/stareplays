@@ -46,7 +46,7 @@ describe("team analysis page", () => {
     expect(screen.getAllByText(/종족 조합/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/^MVP$/i)).toBeInTheDocument();
     expect(screen.getByText(/^최강 조합$/i)).toBeInTheDocument();
-    expect(screen.queryByText(/^현재 팀 스코어$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^현재 팀 전적$/i)).not.toBeInTheDocument();
     expect(screen.getByText(/^최약 종족$/i)).toBeInTheDocument();
     expect(screen.queryByText(/^추적 조합$/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/^평점 모델$/i)).not.toBeInTheDocument();
@@ -96,6 +96,8 @@ describe("team analysis page", () => {
     expect(screen.getByRole("link", { name: "전체" })).toHaveAttribute("href", "/team-analysis?scope=all");
     expect(screen.getByRole("link", { name: "시즌8" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByText(/시즌8 기준으로 3x3 플레이어/i)).toBeInTheDocument();
+    expect(screen.getByText(/^현재 팀 전적$/i)).toBeInTheDocument();
+    expect(screen.queryByText(/^최강 조합$/i)).not.toBeInTheDocument();
     expect(screen.getByText(/선택 시즌 기준 종족 조합별 승률/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /선수 역량 매트릭스/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /평균 유닛생산 정렬/i })).toBeInTheDocument();

@@ -787,6 +787,22 @@ function buildStrongestLineupSummary(lineups: TeamAnalysisLineup[]): TeamAnalysi
   };
 }
 
+function buildCurrentTeamRecord(lineups: TeamAnalysisLineup[]): TeamAnalysisPageModel["summary"]["currentTeamRecord"] {
+  const [first, second] = [...lineups].sort((left, right) => right.wins - left.wins || right.games - left.games || right.winRate - left.winRate);
+
+  if (!first || !second) {
+    return {
+      value: "데이터 없음",
+      hint: "비교할 팀 전적 표본이 부족합니다"
+    };
+  }
+
+  return {
+    value: `${first.wins}승 vs ${second.wins}승`,
+    hint: `${displayLineupName(first.players)} ${first.wins}-${first.losses} / ${displayLineupName(second.players)} ${second.wins}-${second.losses}`
+  };
+}
+
 function buildWeakestRaceSummary(records: ReturnType<typeof buildSingleRaceRecords>): TeamAnalysisPageModel["summary"]["weakestRace"] {
   const weakest = [...records]
     .filter((record) => record.games > 0)
@@ -945,6 +961,7 @@ export function createTeamAnalysisPageModel({ gamesResponse }: { gamesResponse?:
   const topLineup = displayLineups[0]?.players.join(" + ") ?? "NO_DATA";
   const strongestComposition = raceCompositions.find((composition) => composition.qualified)?.composition ?? "표본 부족";
   const strongestLineup = buildStrongestLineupSummary(displayLineups);
+  const currentTeamRecord = buildCurrentTeamRecord(displayLineups);
   const weakestRace = buildWeakestRaceSummary(singleRaceRecords);
 
   return {
@@ -956,6 +973,7 @@ export function createTeamAnalysisPageModel({ gamesResponse }: { gamesResponse?:
       topLineup,
       strongestComposition,
       strongestLineup,
+      currentTeamRecord,
       weakestRace
     },
     players: displayPlayers,

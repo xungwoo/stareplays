@@ -792,9 +792,9 @@ export function TeamAnalysisPage({ model }: { model: TeamAnalysisPageModel }) {
           <MetricCard label="MVP" value={model.summary.topPlayer} hint="보수적 TrueSkill 기준 1위" icon={BrainCircuit} accent="emerald" />
           <MetricCard label="최강 종족" value={model.summary.strongestComposition} hint="최소 표본을 통과한 종족 조합만 반영" icon={Gauge} accent="amber" />
           <MetricCard
-            label="최강 조합"
-            value={<span className="block truncate text-lg leading-8">{model.summary.strongestLineup.value}</span>}
-            hint={model.summary.strongestLineup.hint}
+            label={isAllSeasons ? "최강 조합" : "현재 팀 전적"}
+            value={<span className="block truncate text-lg leading-8">{isAllSeasons ? model.summary.strongestLineup.value : model.summary.currentTeamRecord.value}</span>}
+            hint={isAllSeasons ? model.summary.strongestLineup.hint : model.summary.currentTeamRecord.hint}
             icon={Activity}
             accent="cyan"
           />

@@ -133,6 +133,10 @@ export interface TeamAnalysisPageModel {
       value: string;
       hint: string;
     };
+    currentTeamRecord: {
+      value: string;
+      hint: string;
+    };
     weakestRace: {
       race: RaceCode;
       value: string;

@@ -102,6 +102,8 @@ describe("team analysis adapter", () => {
     expect(model.summary.lineupsTracked).toBeGreaterThanOrEqual(4);
     expect(model.summary.strongestLineup.value).toContain("+");
     expect(model.summary.strongestLineup.hint).toMatch(/\d+-\d+/);
+    expect(model.summary.currentTeamRecord.value).toContain("승");
+    expect(model.summary.currentTeamRecord.hint).toMatch(/\d+-\d+/);
     expect(model.summary.weakestRace.race).toMatch(/P|T|Z/);
     expect(model.summary.weakestRace.value).toMatch(/프로토스|테란|저그/);
     expect(model.summary.weakestRace.hint).toMatch(/승률/);
