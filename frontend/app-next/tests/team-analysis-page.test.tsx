@@ -45,7 +45,8 @@ describe("team analysis page", () => {
     expect(screen.getAllByTestId("lineup-performance-row")[0]).toHaveClass("xl:grid-cols-[minmax(260px,1fr)_auto_auto]");
     expect(screen.getAllByText(/종족 조합/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/^MVP$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^현재 팀 스코어$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^최강 조합$/i)).toBeInTheDocument();
+    expect(screen.queryByText(/^현재 팀 스코어$/i)).not.toBeInTheDocument();
     expect(screen.getByText(/^최약 종족$/i)).toBeInTheDocument();
     expect(screen.queryByText(/^추적 조합$/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/^평점 모델$/i)).not.toBeInTheDocument();
@@ -104,7 +105,7 @@ describe("team analysis page", () => {
     expect(screen.queryByRole("button", { name: /^전적 정렬$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /BT 정렬/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /TrueSkill 정렬/i })).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /선수별 종족 전적/i })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /선수별 종족 전적/i })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /경기 전적 Raw/i })).toBeInTheDocument();
     expect(screen.getAllByText(/P|T|Z/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/\d+-\d+ \/ \d+\.\d%/i).length).toBeGreaterThan(0);

@@ -771,19 +771,19 @@ function lineupLabel(lineup: TeamAnalysisLineup | null | undefined): string {
   return lineup ? displayLineupName(lineup.players) : "데이터 없음";
 }
 
-function buildCurrentLineupScore(lineups: TeamAnalysisLineup[]): TeamAnalysisPageModel["summary"]["currentLineupScore"] {
-  const [first, second] = [...lineups].sort((left, right) => right.wins - left.wins || right.games - left.games || right.winRate - left.winRate);
+function buildStrongestLineupSummary(lineups: TeamAnalysisLineup[]): TeamAnalysisPageModel["summary"]["strongestLineup"] {
+  const strongest = [...lineups].sort((left, right) => right.winRate - left.winRate || right.wins - left.wins || right.games - left.games)[0];
 
-  if (!first || !second) {
+  if (!strongest) {
     return {
       value: "데이터 없음",
-      hint: "비교할 조합 표본이 부족합니다"
+      hint: "비교할 선수 조합 표본이 부족합니다"
     };
   }
 
   return {
-    value: `${first.wins}승 vs ${second.wins}승`,
-    hint: `${displayLineupName(first.players)} ${first.wins}-${first.losses} / ${displayLineupName(second.players)} ${second.wins}-${second.losses}`
+    value: displayLineupName(strongest.players),
+    hint: `${strongest.wins}-${strongest.losses}, 승률 ${formatPercentValue(strongest.winRate)} 기준 최강 선수 조합`
   };
 }
 
@@ -944,7 +944,7 @@ export function createTeamAnalysisPageModel({ gamesResponse }: { gamesResponse?:
   const topPlayer = displayPlayers[0]?.name ?? "NO_DATA";
   const topLineup = displayLineups[0]?.players.join(" + ") ?? "NO_DATA";
   const strongestComposition = raceCompositions.find((composition) => composition.qualified)?.composition ?? "표본 부족";
-  const currentLineupScore = buildCurrentLineupScore(displayLineups);
+  const strongestLineup = buildStrongestLineupSummary(displayLineups);
   const weakestRace = buildWeakestRaceSummary(singleRaceRecords);
 
   return {
@@ -955,7 +955,7 @@ export function createTeamAnalysisPageModel({ gamesResponse }: { gamesResponse?:
       topPlayer,
       topLineup,
       strongestComposition,
-      currentLineupScore,
+      strongestLineup,
       weakestRace
     },
     players: displayPlayers,

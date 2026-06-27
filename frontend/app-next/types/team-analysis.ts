@@ -129,7 +129,7 @@ export interface TeamAnalysisPageModel {
     topPlayer: string;
     topLineup: string;
     strongestComposition: string;
-    currentLineupScore: {
+    strongestLineup: {
       value: string;
       hint: string;
     };

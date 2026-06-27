@@ -639,54 +639,6 @@ function PlayerMatrix({ players, variant = "all" }: { players: TeamAnalysisPlaye
   );
 }
 
-function PlayerRaceRecordPanel({ players }: { players: TeamAnalysisPlayer[] }) {
-  return (
-    <Panel
-      title="선수별 종족 전적"
-      description="선택 시즌에서 각 선수가 어떤 종족으로 몇 승 몇 패를 기록했는지 봅니다."
-      accent="emerald"
-      help="랜덤 선택 여부는 수기 관리되는 is_random_selected와 별개로, 여기서는 실제 경기에서 기록된 최종 종족별 승패만 집계합니다."
-    >
-      <div className="overflow-hidden rounded-lg border border-slate-700/70">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-slate-950/80 text-xs uppercase text-slate-300">
-            <tr>
-              <th className="px-3 py-2 font-medium">선수</th>
-              {raceOrder.map((race) => (
-                <th key={race} className="px-3 py-2 font-medium">
-                  <span className="inline-flex items-center gap-1.5">
-                    <RaceBadge race={race} />
-                    <span>전적</span>
-                  </span>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-800">
-            {players.map((player) => (
-              <tr key={player.name} className="bg-slate-950/35">
-                <td className="px-3 py-2">
-                  <PlayerBadge name={player.name} />
-                </td>
-                {raceOrder.map((race) => {
-                  const stat = player.raceStats.find((candidate) => candidate.race === race);
-                  const label = stat ? `${stat.wins}-${stat.losses} / ${formatPercent(stat.winRate)}` : "0-0 / 0.0%";
-
-                  return (
-                    <td key={race} className="px-3 py-2">
-                      <Badge accent={stat && stat.games > 0 ? winRateTone(stat.winRate) : "amber"}>{label}</Badge>
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </Panel>
-  );
-}
-
 function MatchTeamCell({ players }: { players: TeamAnalysisPageModel["recentMatches"][number]["winnerTeam"] }) {
   return (
     <div className="flex flex-col gap-1.5">
@@ -840,9 +792,9 @@ export function TeamAnalysisPage({ model }: { model: TeamAnalysisPageModel }) {
           <MetricCard label="MVP" value={model.summary.topPlayer} hint="보수적 TrueSkill 기준 1위" icon={BrainCircuit} accent="emerald" />
           <MetricCard label="최강 종족" value={model.summary.strongestComposition} hint="최소 표본을 통과한 종족 조합만 반영" icon={Gauge} accent="amber" />
           <MetricCard
-            label="현재 팀 스코어"
-            value={<span className="block truncate text-lg leading-8">{model.summary.currentLineupScore.value}</span>}
-            hint={model.summary.currentLineupScore.hint}
+            label="최강 조합"
+            value={<span className="block truncate text-lg leading-8">{model.summary.strongestLineup.value}</span>}
+            hint={model.summary.strongestLineup.hint}
             icon={Activity}
             accent="cyan"
           />
@@ -917,8 +869,7 @@ export function TeamAnalysisPage({ model }: { model: TeamAnalysisPageModel }) {
               </Panel>
             </div>
 
-            <div className="mb-4 grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
-              <PlayerRaceRecordPanel players={model.players} />
+            <div className="mb-4">
               <LineupPerformancePanel model={model} />
             </div>
 
