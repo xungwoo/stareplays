@@ -121,8 +121,13 @@ describe("team analysis page", () => {
     expect(screen.getByText(/^현재 팀 전적$/i)).toBeInTheDocument();
     expect(screen.queryByText(/^최강 조합$/i)).not.toBeInTheDocument();
     expect(screen.getByText(/선택 시즌 기준 종족 조합별 승률/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^플레이어 누적 승률 추이$/i })).toBeInTheDocument();
+    expect(screen.getByTestId("season-player-winrate-trend-chart")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /^종족별 성적$/i })).toBeInTheDocument();
-    expect(screen.getByTestId("season-lineup-and-race-row")).toHaveClass("xl:grid-cols-2");
+    expect(screen.getByTestId("season-performance-grid")).toHaveClass("xl:grid-cols-[0.9fr_1.1fr]");
+    expect(screen.getByTestId("season-performance-left-stack")).toHaveClass("xl:col-span-1");
+    expect(screen.getByTestId("season-lineup-panel")).toHaveClass("xl:col-span-1");
+    expect(screen.getByTestId("season-lineup-panel")).toHaveClass("xl:row-span-2");
     expect(screen.getAllByTestId("season-race-record-row")).toHaveLength(3);
     expect(screen.getAllByTestId("lineup-performance-row")[0]).toHaveClass("xl:grid-cols-[minmax(76px,auto)_auto_minmax(92px,1fr)_auto]");
     expect(screen.getByRole("heading", { name: /선수 역량 매트릭스/i })).toBeInTheDocument();

@@ -34,6 +34,7 @@ const subtleSurfaceStyle = {
 };
 
 const chartColors = ["#67becf", "#9d8bcb", "#65be96", "#daa555", "#da7070", "#7da4d6"];
+const playerColorFallbacks = ["#f59e0b", "#a78bfa", "#fb923c", "#22d3ee", "#f87171", "#34d399"];
 const metricAccents = {
   cyan: {
     border: "#67becf",
@@ -786,6 +787,79 @@ function SeasonMatchRawTable({ model }: { model: TeamAnalysisPageModel }) {
   );
 }
 
+function buildPlayerWinRateTrend(model: TeamAnalysisPageModel) {
+  const playerNames = model.players.map((player) => player.name);
+  const records = new Map(playerNames.map((name) => [name, { wins: 0, games: 0 }]));
+  const chronologicalMatches = [...model.recentMatches].sort((left, right) => {
+    const leftTime = Date.parse(left.startTime);
+    const rightTime = Date.parse(right.startTime);
+    if (Number.isFinite(leftTime) && Number.isFinite(rightTime) && leftTime !== rightTime) return leftTime - rightTime;
+    return left.id - right.id;
+  });
+
+  return chronologicalMatches.map((match, index) => {
+    match.winnerTeam.forEach((player) => {
+      const record = records.get(player.name);
+      if (!record) return;
+      record.games += 1;
+      record.wins += 1;
+    });
+    match.loserTeam.forEach((player) => {
+      const record = records.get(player.name);
+      if (!record) return;
+      record.games += 1;
+    });
+
+    return {
+      label: `${index + 1}G`,
+      ...Object.fromEntries(playerNames.map((name) => {
+        const record = records.get(name);
+        return [name, record && record.games > 0 ? Number(((record.wins / record.games) * 100).toFixed(1)) : null];
+      }))
+    };
+  });
+}
+
+function SeasonPlayerWinRateTrend({ model }: { model: TeamAnalysisPageModel }) {
+  const rows = useMemo(() => buildPlayerWinRateTrend(model), [model]);
+  const colorByName = new Map(model.players.map((player, index) => [player.name, playerColorFallbacks[index % playerColorFallbacks.length]]));
+
+  return (
+    <Panel
+      title="플레이어 누적 승률 추이"
+      description="선택 시즌 경기를 시간순으로 누적해 선수별 승률 흐름을 봅니다."
+      accent="cyan"
+    >
+      <div className="h-[250px] w-full" data-testid="season-player-winrate-trend-chart">
+        <ResponsiveContainer minWidth={320} minHeight={250}>
+          <LineChart data={rows} margin={{ top: 10, right: 12, left: 0, bottom: 8 }}>
+            <CartesianGrid stroke="rgba(148,163,184,0.14)" vertical={false} />
+            <XAxis dataKey="label" tick={{ fill: "#94a3b8", fontSize: 11 }} axisLine={false} tickLine={false} />
+            <YAxis domain={[0, 100]} tick={{ fill: "#94a3b8", fontSize: 11 }} axisLine={false} tickLine={false} width={32} />
+            <Tooltip
+              cursor={{ stroke: "rgba(103,190,207,0.35)" }}
+              formatter={(value, name) => [`${value}%`, String(name)]}
+              contentStyle={{ backgroundColor: "#020617", border: "1px solid rgba(103,190,207,0.45)", borderRadius: 8, color: "#f8fafc" }}
+            />
+            {model.players.map((player, index) => (
+              <Line
+                key={player.name}
+                type="monotone"
+                dataKey={player.name}
+                stroke={colorByName.get(player.name) ?? playerColorFallbacks[index % playerColorFallbacks.length]}
+                strokeWidth={2}
+                dot={false}
+                activeDot={{ r: 4 }}
+                connectNulls
+              />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </Panel>
+  );
+}
+
 function LineupPerformancePanel({ model }: { model: TeamAnalysisPageModel }) {
   const isAllSeasons = model.scope?.isAllSeasons ?? true;
 
@@ -1013,9 +1087,14 @@ export function TeamAnalysisPage({ model }: { model: TeamAnalysisPageModel }) {
               </Panel>
             </div>
 
-            <div className="mb-4 grid gap-4 xl:grid-cols-2" data-testid="season-lineup-and-race-row">
-              <LineupPerformancePanel model={model} />
-              <RaceRecordPanel model={model} />
+            <div className="mb-4 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]" data-testid="season-performance-grid">
+              <div className="grid gap-4 xl:col-span-1" data-testid="season-performance-left-stack">
+                <SeasonPlayerWinRateTrend model={model} />
+                <RaceRecordPanel model={model} />
+              </div>
+              <div className="xl:col-span-1 xl:row-span-2" data-testid="season-lineup-panel">
+                <LineupPerformancePanel model={model} />
+              </div>
             </div>
 
             <div className="mb-4">
