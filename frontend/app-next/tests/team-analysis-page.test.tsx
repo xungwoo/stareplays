@@ -89,6 +89,15 @@ describe("team analysis page", () => {
     expect(screen.getByRole("link", { name: "시즌8" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByText(/시즌8 기준으로 3x3 플레이어/i)).toBeInTheDocument();
     expect(screen.getByText(/선택 시즌 기준 종족 조합별 승률/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /선수 역량 매트릭스/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /선수별 종족 전적/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /경기 전적 Raw/i })).toBeInTheDocument();
+    expect(screen.getAllByText(/P|T|Z/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/\d+-\d+ \/ \d+\.\d%/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole("columnheader", { name: /승리팀/i })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: /패배팀/i })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /핵심 인사이트/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/평점 모델 원점수/i)).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: /^듀오 궁합$/i })).not.toBeInTheDocument();
   });
 });

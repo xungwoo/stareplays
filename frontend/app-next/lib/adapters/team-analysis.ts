@@ -589,14 +589,35 @@ function buildDuos(matches: NormalizedMatch[]): TeamAnalysisDuo[] {
 
 function buildRecentMatches(matches: NormalizedMatch[]): TeamAnalysisRecentMatch[] {
   return [...matches]
-    .slice(-8)
     .reverse()
     .map((match) => ({
       id: match.id,
       map: match.map,
       winner: displayLineupName(sortNames(match.winner.map((player) => player.name))),
       loser: displayLineupName(sortNames(match.loser.map((player) => player.name))),
-      startTime: match.startTime
+      startTime: match.startTime,
+      winnerTeam: sortNames(match.winner.map((player) => player.name)).map((name) => {
+        const player = match.winner.find((candidate) => candidate.name === name);
+
+        return {
+          name: displayPlayerName(name),
+          race: player?.race ?? "P",
+          randomSelected: player?.isRandomSelected === true,
+          apm: player?.apm ?? 0,
+          eapm: player?.eapm ?? 0
+        };
+      }),
+      loserTeam: sortNames(match.loser.map((player) => player.name)).map((name) => {
+        const player = match.loser.find((candidate) => candidate.name === name);
+
+        return {
+          name: displayPlayerName(name),
+          race: player?.race ?? "P",
+          randomSelected: player?.isRandomSelected === true,
+          apm: player?.apm ?? 0,
+          eapm: player?.eapm ?? 0
+        };
+      })
     }));
 }
 

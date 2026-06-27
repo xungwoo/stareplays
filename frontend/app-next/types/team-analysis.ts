@@ -96,6 +96,20 @@ export interface TeamAnalysisRecentMatch {
   winner: string;
   loser: string;
   startTime: string;
+  winnerTeam: Array<{
+    name: string;
+    race: RaceCode;
+    randomSelected: boolean;
+    apm: number;
+    eapm: number;
+  }>;
+  loserTeam: Array<{
+    name: string;
+    race: RaceCode;
+    randomSelected: boolean;
+    apm: number;
+    eapm: number;
+  }>;
 }
 
 export interface TeamAnalysisPageModel {

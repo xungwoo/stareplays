@@ -15,9 +15,10 @@ import {
 } from "recharts";
 
 import { PlayerBadge, PlayerBadgeGroup } from "@/components/shared/player-badge";
-import { RaceCompositionBadges } from "@/components/shared/race-badge";
+import { RaceBadge, RaceCompositionBadges } from "@/components/shared/race-badge";
 import { MetricHelp } from "@/components/shared/metric-help";
 import type { TeamAnalysisInsightCard, TeamAnalysisPageModel, TeamAnalysisPlayer, TeamAnalysisPlayerPentagon } from "@/types/team-analysis";
+import type { RaceCode } from "@/types/common";
 
 const surfaceStyle = {
   background: "linear-gradient(180deg, rgba(30,41,59,0.94), rgba(25,34,52,0.9))",
@@ -69,6 +70,8 @@ type MetricAccent = keyof typeof metricAccents;
 function formatPercent(value: number) {
   return `${value.toFixed(1)}%`;
 }
+
+const raceOrder: RaceCode[] = ["P", "T", "Z"];
 
 function winRateTone(winRate: number): MetricAccent {
   if (winRate >= 70) return "emerald";
@@ -558,6 +561,108 @@ function PlayerMatrix({ players }: { players: TeamAnalysisPlayer[] }) {
   );
 }
 
+function PlayerRaceRecordPanel({ players }: { players: TeamAnalysisPlayer[] }) {
+  return (
+    <Panel
+      title="선수별 종족 전적"
+      description="선택 시즌에서 각 선수가 어떤 종족으로 몇 승 몇 패를 기록했는지 봅니다."
+      accent="emerald"
+      help="랜덤 선택 여부는 수기 관리되는 is_random_selected와 별개로, 여기서는 실제 경기에서 기록된 최종 종족별 승패만 집계합니다."
+    >
+      <div className="overflow-hidden rounded-lg border border-slate-700/70">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-slate-950/80 text-xs uppercase text-slate-300">
+            <tr>
+              <th className="px-3 py-2 font-medium">선수</th>
+              {raceOrder.map((race) => (
+                <th key={race} className="px-3 py-2 font-medium">
+                  <span className="inline-flex items-center gap-1.5">
+                    <RaceBadge race={race} />
+                    <span>전적</span>
+                  </span>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-800">
+            {players.map((player) => (
+              <tr key={player.name} className="bg-slate-950/35">
+                <td className="px-3 py-2">
+                  <PlayerBadge name={player.name} />
+                </td>
+                {raceOrder.map((race) => {
+                  const stat = player.raceStats.find((candidate) => candidate.race === race);
+                  const label = stat ? `${stat.wins}-${stat.losses} / ${formatPercent(stat.winRate)}` : "0-0 / 0.0%";
+
+                  return (
+                    <td key={race} className="px-3 py-2">
+                      <Badge accent={stat && stat.games > 0 ? winRateTone(stat.winRate) : "amber"}>{label}</Badge>
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Panel>
+  );
+}
+
+function MatchTeamCell({ players }: { players: TeamAnalysisPageModel["recentMatches"][number]["winnerTeam"] }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      {players.map((player) => (
+        <div key={`${player.name}-${player.race}`} className="flex items-center gap-2">
+          <RaceBadge race={player.race} randomSelected={player.randomSelected} />
+          <PlayerBadge name={player.name} compact />
+          <span className="text-[11px] text-slate-500">APM {player.apm}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SeasonMatchRawTable({ model }: { model: TeamAnalysisPageModel }) {
+  return (
+    <Panel
+      title="경기 전적 Raw"
+      description="선택 시즌에 포함된 경기별 승패, 맵, 팀 구성, 종족, APM을 그대로 확인합니다."
+      accent="cyan"
+      help="이 표는 분석 모델 결과가 아니라 업로드된 리플레이 목록에서 정규화한 경기 단위 원천 전적입니다."
+    >
+      <div className="overflow-x-auto rounded-lg border border-slate-700/70">
+        <table className="min-w-[980px] w-full text-left text-sm">
+          <thead className="bg-slate-950/80 text-xs uppercase text-slate-300">
+            <tr>
+              <th className="px-3 py-2 font-medium">게임</th>
+              <th className="px-3 py-2 font-medium">시간</th>
+              <th className="px-3 py-2 font-medium">맵</th>
+              <th className="px-3 py-2 font-medium">승리팀</th>
+              <th className="px-3 py-2 font-medium">패배팀</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-800">
+            {model.recentMatches.map((match) => (
+              <tr key={match.id} className="bg-slate-950/35 align-top transition-colors hover:bg-slate-800/70">
+                <td className="px-3 py-3 font-mono text-xs text-slate-300">#{match.id}</td>
+                <td className="px-3 py-3 text-xs text-slate-400">{match.startTime}</td>
+                <td className="px-3 py-3 text-xs text-slate-300">{match.map}</td>
+                <td className="px-3 py-3">
+                  <MatchTeamCell players={match.winnerTeam} />
+                </td>
+                <td className="px-3 py-3">
+                  <MatchTeamCell players={match.loserTeam} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Panel>
+  );
+}
+
 function LineupPerformancePanel({ model }: { model: TeamAnalysisPageModel }) {
   const isAllSeasons = model.scope?.isAllSeasons ?? true;
 
@@ -615,6 +720,7 @@ function LineupPerformancePanel({ model }: { model: TeamAnalysisPageModel }) {
 
 export function TeamAnalysisPage({ model }: { model: TeamAnalysisPageModel }) {
   const scopeLabel = model.scope?.isAllSeasons ? "전체 시즌" : model.scope?.selectedSeasonLabel ?? "최신 시즌";
+  const isAllSeasons = model.scope?.isAllSeasons ?? true;
 
   return (
     <div
@@ -651,47 +757,77 @@ export function TeamAnalysisPage({ model }: { model: TeamAnalysisPageModel }) {
           <MetricCard label="최강 종족" value={model.summary.strongestComposition} hint="최소 표본을 통과한 종족 조합만 반영" icon={Gauge} accent="amber" />
         </div>
 
-        <div className="mb-4">
-          <PlayerPentagonSection charts={model.chartData.playerPentagons} />
-        </div>
-
-        <div className="mb-4">
-          <Panel title="핵심 인사이트" description="BEST 조합, 최악의 조합, 랜덤 성향, 듀오 궁합을 해설형 카드로 요약합니다." accent="cyan">
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {model.insights.cards.map((card) => (
-                <InsightCard key={card.id} card={card} />
-              ))}
+        {isAllSeasons ? (
+          <>
+            <div className="mb-4">
+              <PlayerPentagonSection charts={model.chartData.playerPentagons} />
             </div>
-          </Panel>
-        </div>
 
-        <div className="mb-4 grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
-          <RatingChart model={model} />
-          <RaceCompositionChart model={model} />
-        </div>
-
-        <div className="mb-4 grid gap-4 xl:grid-cols-[1fr_0.9fr]">
-          <Panel
-            title="선수 역량 매트릭스"
-            description="선수별 승패, 승률, APM 순위, 종족 강점과 모델 순위를 비교합니다."
-            accent="cyan"
-            help="APM/EAPM과 effective command 필드는 replay parser가 선수별로 저장한 Player 지표만 사용합니다."
-          >
-            <PlayerMatrix players={model.players} />
-          </Panel>
-
-          <LineupPerformancePanel model={model} />
-        </div>
-
-        <div>
-          <Panel title="선수 강점 / 약점 카드" description="스카우팅과 조합 교체 판단에 필요한 선수별 요약 리포트입니다." accent="emerald">
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {model.players.slice(0, 6).map((player) => (
-                <PlayerInsightCard key={player.name} player={player} />
-              ))}
+            <div className="mb-4">
+              <Panel title="핵심 인사이트" description="BEST 조합, 최악의 조합, 랜덤 성향, 듀오 궁합을 해설형 카드로 요약합니다." accent="cyan">
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {model.insights.cards.map((card) => (
+                    <InsightCard key={card.id} card={card} />
+                  ))}
+                </div>
+              </Panel>
             </div>
-          </Panel>
-        </div>
+
+            <div className="mb-4 grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+              <RatingChart model={model} />
+              <RaceCompositionChart model={model} />
+            </div>
+
+            <div className="mb-4 grid gap-4 xl:grid-cols-[1fr_0.9fr]">
+              <Panel
+                title="선수 역량 매트릭스"
+                description="선수별 승패, 승률, APM 순위, 종족 강점과 모델 순위를 비교합니다."
+                accent="cyan"
+                help="APM/EAPM과 effective command 필드는 replay parser가 선수별로 저장한 Player 지표만 사용합니다."
+              >
+                <PlayerMatrix players={model.players} />
+              </Panel>
+
+              <LineupPerformancePanel model={model} />
+            </div>
+
+            <div>
+              <Panel title="선수 강점 / 약점 카드" description="스카우팅과 조합 교체 판단에 필요한 선수별 요약 리포트입니다." accent="emerald">
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {model.players.slice(0, 6).map((player) => (
+                    <PlayerInsightCard key={player.name} player={player} />
+                  ))}
+                </div>
+              </Panel>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="mb-4">
+              <Panel
+                title="선수 역량 매트릭스"
+                description="선택 시즌에서는 선수별 승패, 승률, APM, 종족 강점과 약점이 가장 중요한 판단 기준입니다."
+                accent="cyan"
+                help="APM/EAPM과 effective command 필드는 replay parser가 선수별로 저장한 Player 지표만 사용합니다."
+              >
+                <PlayerMatrix players={model.players} />
+              </Panel>
+            </div>
+
+            <div className="mb-4 grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+              <PlayerRaceRecordPanel players={model.players} />
+              <LineupPerformancePanel model={model} />
+            </div>
+
+            <div className="mb-4">
+              <SeasonMatchRawTable model={model} />
+            </div>
+
+            <div>
+              <PlayerPentagonSection charts={model.chartData.playerPentagons} />
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
