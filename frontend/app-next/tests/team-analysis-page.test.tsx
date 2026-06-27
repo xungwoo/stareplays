@@ -12,10 +12,11 @@ describe("team analysis page", () => {
     render(<TeamAnalysisPage model={model} />);
 
     expect(screen.getByRole("heading", { name: /3x3 팀 전적 인텔리전스/i })).toBeInTheDocument();
-    expect(screen.getByText(/평점 모델 순위 비교/i)).toBeInTheDocument();
+    expect(screen.getByText(/평점 모델 원점수/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Bradley-Terry/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/TrueSkill/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/100점은 해당 모델 1위/i)).toBeInTheDocument();
+    expect(screen.queryByText(/100점은 해당 모델 1위/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/5분위 점수로 바꾸지 않고 실제 모델 점수/i)).toBeInTheDocument();
     expect(screen.getByText(/핵심 인사이트/i)).toBeInTheDocument();
     expect(screen.getByText(/최고 조합/i)).toBeInTheDocument();
     expect(screen.getByText(/최악 조합/i)).toBeInTheDocument();
@@ -36,7 +37,11 @@ describe("team analysis page", () => {
     expect(screen.queryByText(/생산능력|템포안정|분당 유효명령|손효율/i)).not.toBeInTheDocument();
     expect(screen.getByText(/선수 역량 매트릭스/i)).toBeInTheDocument();
     expect(screen.getByText(/조합별 성적/i)).toBeInTheDocument();
+    expect(screen.getByText(/전체 시즌 기준 관측된 3인 조합/i)).toBeInTheDocument();
     expect(screen.getAllByText(/종족 조합/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/^MVP$/i)).toBeInTheDocument();
+    expect(screen.queryByText(/^추적 조합$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^평점 모델$/i)).not.toBeInTheDocument();
     expect(screen.getAllByText(/AI 훈련 피드백/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/훈련|연습|보강|다듬/i).length).toBeGreaterThan(0);
     expect(screen.queryByText(/최근 3x3 분석 입력/i)).not.toBeInTheDocument();
@@ -61,6 +66,29 @@ describe("team analysis page", () => {
     await user.click(screen.getByRole("button", { name: /선수 정렬/i }));
     const nameSortedRows = screen.getAllByTestId("team-analysis-player-row");
     expect(within(nameSortedRows[0] as HTMLElement).getByText("필균")).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: /^선수$/i })).toHaveAttribute("aria-sort", "descending");
+    expect(screen.getAllByRole("columnheader", { name: /^선수$/i }).find((header) => header.getAttribute("aria-sort") === "descending")).toBeTruthy();
+  });
+
+  it("renders season scope tabs and switches lineup panel to race compositions for a selected season", () => {
+    const model = {
+      ...createTeamAnalysisPageModel(),
+      scope: {
+        selectedSeasonLabel: "시즌8",
+        isAllSeasons: false,
+        options: [
+          { label: "전체", href: "/team-analysis?scope=all", selected: false },
+          { label: "시즌8", href: "/team-analysis?season_label=%EC%8B%9C%EC%A6%8C8", selected: true },
+          { label: "시즌7", href: "/team-analysis?season_label=%EC%8B%9C%EC%A6%8C7", selected: false }
+        ]
+      }
+    };
+
+    render(<TeamAnalysisPage model={model} />);
+
+    expect(screen.getByRole("link", { name: "전체" })).toHaveAttribute("href", "/team-analysis?scope=all");
+    expect(screen.getByRole("link", { name: "시즌8" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByText(/시즌8 기준으로 3x3 플레이어/i)).toBeInTheDocument();
+    expect(screen.getByText(/선택 시즌 기준 종족 조합별 승률/i)).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /^듀오 궁합$/i })).not.toBeInTheDocument();
   });
 });

@@ -99,6 +99,15 @@ export interface TeamAnalysisRecentMatch {
 }
 
 export interface TeamAnalysisPageModel {
+  scope?: {
+    selectedSeasonLabel: string | null;
+    isAllSeasons: boolean;
+    options: Array<{
+      label: string;
+      href: string;
+      selected: boolean;
+    }>;
+  };
   summary: {
     gamesAnalyzed: number;
     playersTracked: number;

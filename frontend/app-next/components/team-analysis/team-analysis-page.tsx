@@ -1,13 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Activity, ArrowDown, ArrowUp, ArrowUpDown, BarChart3, BrainCircuit, Gauge, Swords, Users } from "lucide-react";
+import { Activity, ArrowDown, ArrowUp, ArrowUpDown, BrainCircuit, Gauge, Swords, Users } from "lucide-react";
 import {
   Bar,
   BarChart,
   CartesianGrid,
   Cell,
-  Legend,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -302,36 +302,59 @@ function PlayerPentagonSection({ charts }: { charts: TeamAnalysisPlayerPentagon[
   );
 }
 
+function SeasonScopeSelector({ model }: { model: TeamAnalysisPageModel }) {
+  const options = model.scope?.options ?? [];
+  if (options.length === 0) return null;
+
+  return (
+    <nav aria-label="팀 분석 시즌 선택" className="flex flex-wrap gap-2">
+      {options.map((option) => (
+        <Link
+          key={option.href}
+          href={option.href}
+          className={`rounded-md border px-3 py-1.5 text-sm font-semibold transition ${
+            option.selected
+              ? "border-cyan-300/70 bg-cyan-300/15 text-cyan-50"
+              : "border-slate-700 bg-slate-950/40 text-slate-300 hover:border-cyan-300/50 hover:text-slate-50"
+          }`}
+          aria-current={option.selected ? "page" : undefined}
+        >
+          {option.label}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
 function RatingChart({ model }: { model: TeamAnalysisPageModel }) {
   return (
     <Panel
-      title="평점 모델 순위 비교"
-      description="Bradley-Terry와 TrueSkill은 점수 단위가 달라 100점은 해당 모델 1위인 순위 점수로 비교합니다."
+      title="평점 모델 원점수"
+      description="Bradley-Terry와 TrueSkill을 5분위 점수로 바꾸지 않고 실제 모델 점수로 표시합니다."
       accent="violet"
-      help="Bradley-Terry와 TrueSkill 원점수는 단위가 다르므로 같은 차트에서는 순위 기반 0-100 점수로만 비교합니다."
+      help="Bradley-Terry와 TrueSkill은 단위가 다르므로 같은 축에 섞지 않고, 각 모델의 실제 점수와 순위를 함께 봅니다."
     >
-      <div className="h-[320px] w-full">
-        <ResponsiveContainer minWidth={320} minHeight={320}>
-          <BarChart data={model.chartData.ratingComparison.slice(0, 8)}>
-            <CartesianGrid stroke="rgba(148,163,184,0.18)" vertical={false} />
-            <XAxis dataKey="name" tick={{ fill: "#cbd5e1", fontSize: 11 }} axisLine={false} tickLine={false} />
-            <YAxis domain={[0, 100]} tick={{ fill: "#cbd5e1", fontSize: 11 }} axisLine={false} tickLine={false} />
-            <Tooltip
-              cursor={{ fill: "rgba(167,139,250,0.12)" }}
-              formatter={(value, name, item) => {
-                const payload = item.payload as TeamAnalysisPageModel["chartData"]["ratingComparison"][number];
-                if (name === "Bradley-Terry 순위 점수") return [`${value}점 (#${payload.bradleyTerryRank}, 원점수 ${payload.bradleyTerry})`, name];
-                if (name === "TrueSkill 순위 점수") return [`${value}점 (#${payload.trueSkillRank}, 원점수 ${payload.trueSkill})`, name];
-
-                return [value, name];
-              }}
-              contentStyle={{ backgroundColor: "#020617", border: "1px solid rgba(167,139,250,0.45)", borderRadius: 8, color: "#f8fafc" }}
-            />
-            <Legend wrapperStyle={{ color: "#cbd5e1", fontSize: 12 }} />
-            <Bar dataKey="bradleyTerryRankScore" name="Bradley-Terry 순위 점수" fill="#22d3ee" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="trueSkillRankScore" name="TrueSkill 순위 점수" fill="#c084fc" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
+      <div className="overflow-hidden rounded-lg border border-slate-700/70">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-slate-950/80 text-xs uppercase text-slate-300">
+            <tr>
+              <th className="px-3 py-2 font-medium">선수</th>
+              <th className="px-3 py-2 font-medium">BT</th>
+              <th className="px-3 py-2 font-medium">TrueSkill</th>
+              <th className="px-3 py-2 font-medium">승률</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-800">
+            {model.chartData.ratingComparison.slice(0, 8).map((row) => (
+              <tr key={row.name} className="bg-slate-950/35">
+                <td className="px-3 py-2"><PlayerBadge name={row.name} /></td>
+                <td className="px-3 py-2 text-cyan-200">#{row.bradleyTerryRank} / {row.bradleyTerry}</td>
+                <td className="px-3 py-2 text-violet-200">#{row.trueSkillRank} / {row.trueSkill}</td>
+                <td className="px-3 py-2"><Badge accent={winRateTone(row.winRate)}>{formatPercent(row.winRate)}</Badge></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </Panel>
   );
@@ -446,6 +469,11 @@ function compareText(left: string, right: string, direction: SortDirection) {
   return direction === "asc" ? result : -result;
 }
 
+function extractPercentValue(value: string): number {
+  const match = value.match(/(\d+(?:\.\d+)?)%/);
+  return match ? Number(match[1]) : 0;
+}
+
 function comparePlayers(left: TeamAnalysisPlayer, right: TeamAnalysisPlayer, key: PlayerSortKey, direction: SortDirection) {
   switch (key) {
     case "name":
@@ -463,9 +491,9 @@ function comparePlayers(left: TeamAnalysisPlayer, right: TeamAnalysisPlayer, key
     case "trueSkill":
       return compareNumber(left.trueSkill, right.trueSkill, direction) || compareText(left.name, right.name, "asc");
     case "strength":
-      return compareText(left.strength, right.strength, direction) || compareText(left.name, right.name, "asc");
+      return compareNumber(extractPercentValue(left.strength), extractPercentValue(right.strength), direction) || compareText(left.name, right.name, "asc");
     case "weakness":
-      return compareText(left.weakness, right.weakness, direction) || compareText(left.name, right.name, "asc");
+      return compareNumber(extractPercentValue(left.weakness), extractPercentValue(right.weakness), direction) || compareText(left.name, right.name, "asc");
   }
 }
 
@@ -530,7 +558,64 @@ function PlayerMatrix({ players }: { players: TeamAnalysisPlayer[] }) {
   );
 }
 
+function LineupPerformancePanel({ model }: { model: TeamAnalysisPageModel }) {
+  const isAllSeasons = model.scope?.isAllSeasons ?? true;
+
+  return (
+    <Panel
+      title="조합별 성적"
+      description={isAllSeasons ? "전체 시즌 기준 관측된 3인 조합과 듀오 궁합입니다." : "선택 시즌 기준 종족 조합별 승률과 표본 수입니다."}
+      accent="amber"
+    >
+      {isAllSeasons ? (
+        <div className="space-y-3">
+          {model.lineups.slice(0, 7).map((lineup) => (
+            <div key={lineup.players.join("-")} className="rounded-lg p-3 transition-colors hover:bg-slate-800/70" style={subtleSurfaceStyle}>
+              <div className="flex items-start justify-between gap-3">
+                <PlayerBadgeGroup names={lineup.players} compact />
+                <RaceCompositionBadges composition={lineup.composition} />
+              </div>
+              <div className="mt-3 flex items-center justify-between text-xs text-slate-300">
+                <Badge accent={winRateTone(lineup.winRate)}>{lineup.wins}-{lineup.losses} / {formatPercent(lineup.winRate)}</Badge>
+                <span className="font-semibold text-slate-300">평균 APM {lineup.averageApm}</span>
+              </div>
+            </div>
+          ))}
+          <div className="pt-2">
+            <h3 className="mb-2 text-sm font-semibold text-slate-100">듀오 궁합</h3>
+            <div className="grid gap-2">
+              {model.insights.duos.slice(0, 5).map((duo) => (
+                <div key={duo.players.join("-")} className="flex items-center justify-between gap-3 rounded-md px-3 py-2 text-xs" style={subtleSurfaceStyle}>
+                  <PlayerBadgeGroup names={duo.players} compact />
+                  <Badge accent={winRateTone(duo.winRate)}>{duo.wins}-{duo.losses} / {formatPercent(duo.winRate)}</Badge>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="grid gap-2">
+          {model.raceCompositions.slice(0, 10).map((composition) => (
+            <div key={composition.composition} className="rounded-lg p-3" style={subtleSurfaceStyle}>
+              <div className="flex items-center justify-between gap-3">
+                <RaceCompositionBadges composition={composition.composition} />
+                <Badge accent={winRateTone(composition.winRate)}>{composition.wins}-{composition.losses} / {formatPercent(composition.winRate)}</Badge>
+              </div>
+              <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
+                <span>{composition.note}</span>
+                <span>{composition.games}경기</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Panel>
+  );
+}
+
 export function TeamAnalysisPage({ model }: { model: TeamAnalysisPageModel }) {
+  const scopeLabel = model.scope?.isAllSeasons ? "전체 시즌" : model.scope?.selectedSeasonLabel ?? "최신 시즌";
+
   return (
     <div
       className="min-h-screen px-4 py-5 text-slate-100 sm:px-6"
@@ -548,7 +633,7 @@ export function TeamAnalysisPage({ model }: { model: TeamAnalysisPageModel }) {
               </div>
               <h1 className="text-3xl font-semibold tracking-normal text-white">3x3 팀 전적 인텔리전스</h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-                3x3으로 시작하는 플레이어만 집계해 팀 매치업, 선수 강점과 약점, 종족별 승률, 조합 궁합, Bradley-Terry, TrueSkill을 한 화면에서 분석합니다.
+                {scopeLabel} 기준으로 3x3 플레이어의 팀 매치업, 선수 강점과 약점, 종족별 승률, 조합 궁합, Bradley-Terry, TrueSkill을 분석합니다.
               </p>
             </div>
             <div className="grid min-w-[320px] grid-cols-2 gap-3">
@@ -556,13 +641,14 @@ export function TeamAnalysisPage({ model }: { model: TeamAnalysisPageModel }) {
               <MetricCard label="선수" value={String(model.summary.playersTracked)} hint="3x3 접두어 플레이어" icon={Users} accent="emerald" />
             </div>
           </div>
+          <div className="mt-4 border-t border-slate-700/70 pt-4">
+            <SeasonScopeSelector model={model} />
+          </div>
         </section>
 
-        <div className="mb-4 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-          <MetricCard label="추적 조합" value={String(model.summary.lineupsTracked)} hint={model.summary.topLineup} icon={BarChart3} accent="violet" />
-          <MetricCard label="최고 선수" value={model.summary.topPlayer} hint="보수적 TrueSkill 기준 1위" icon={BrainCircuit} accent="emerald" />
+        <div className="mb-4 grid gap-3 md:grid-cols-2">
+          <MetricCard label="MVP" value={model.summary.topPlayer} hint="보수적 TrueSkill 기준 1위" icon={BrainCircuit} accent="emerald" />
           <MetricCard label="최강 종족" value={model.summary.strongestComposition} hint="최소 표본을 통과한 종족 조합만 반영" icon={Gauge} accent="amber" />
-          <MetricCard label="평점 모델" value="BT + TS" hint="Bradley-Terry와 TrueSkill 병행" icon={Activity} accent="rose" />
         </div>
 
         <div className="mb-4">
@@ -594,33 +680,7 @@ export function TeamAnalysisPage({ model }: { model: TeamAnalysisPageModel }) {
             <PlayerMatrix players={model.players} />
           </Panel>
 
-          <Panel title="조합별 성적" description="관측된 3인 조합과 듀오 궁합을 승률 기준으로 정렬합니다." accent="amber">
-            <div className="space-y-3">
-              {model.lineups.slice(0, 7).map((lineup) => (
-                <div key={lineup.players.join("-")} className="rounded-lg p-3 transition-colors hover:bg-slate-800/70" style={subtleSurfaceStyle}>
-                  <div className="flex items-start justify-between gap-3">
-                    <PlayerBadgeGroup names={lineup.players} compact />
-                    <RaceCompositionBadges composition={lineup.composition} />
-                  </div>
-                  <div className="mt-3 flex items-center justify-between text-xs text-slate-300">
-                    <Badge accent={winRateTone(lineup.winRate)}>{lineup.wins}-{lineup.losses} / {formatPercent(lineup.winRate)}</Badge>
-                    <span className="font-semibold text-slate-300">평균 APM {lineup.averageApm}</span>
-                  </div>
-                </div>
-              ))}
-              <div className="pt-2">
-                <h3 className="mb-2 text-sm font-semibold text-slate-100">듀오 궁합</h3>
-                <div className="grid gap-2">
-                  {model.insights.duos.slice(0, 5).map((duo) => (
-                    <div key={duo.players.join("-")} className="flex items-center justify-between gap-3 rounded-md px-3 py-2 text-xs" style={subtleSurfaceStyle}>
-                      <PlayerBadgeGroup names={duo.players} compact />
-                      <Badge accent={winRateTone(duo.winRate)}>{duo.wins}-{duo.losses} / {formatPercent(duo.winRate)}</Badge>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </Panel>
+          <LineupPerformancePanel model={model} />
         </div>
 
         <div>
