@@ -811,7 +811,7 @@ function buildWeakestRaceSummary(records: ReturnType<typeof buildSingleRaceRecor
   return {
     race: weakest.race,
     value: `${raceLabel(weakest.race)} ${formatPercentValue(weakest.winRate)}`,
-    hint: `${weakest.wins}-${weakest.losses}, ${weakest.games}경기 기준 단일 종족 승률`
+    hint: `${weakest.wins}-${weakest.losses}, ${weakest.games}회 출전 기준 단일 종족 승률`
   };
 }
 

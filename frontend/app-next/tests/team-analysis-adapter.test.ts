@@ -125,7 +125,7 @@ describe("team analysis adapter", () => {
     expect(model.summary.currentTeamRecord.hint).toMatch(/\d+-\d+/);
     expect(model.summary.weakestRace.race).toMatch(/P|T|Z/);
     expect(model.summary.weakestRace.value).toMatch(/프로토스|테란|저그/);
-    expect(model.summary.weakestRace.hint).toMatch(/승률/);
+    expect(model.summary.weakestRace.hint).toMatch(/회 출전 기준 단일 종족 승률/);
     expect(model.players.map((player) => player.name)).not.toContain("guest_foxtrot");
     expect(model.players.map((player) => player.name)).not.toContain("solo_alpha");
 
