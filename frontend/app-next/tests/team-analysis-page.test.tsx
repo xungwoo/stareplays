@@ -98,8 +98,10 @@ describe("team analysis page", () => {
   });
 
   it("renders the selected-season team-analysis contract with current team record and raw match details", () => {
+    const baseModel = createTeamAnalysisPageModel();
     const model = {
-      ...createTeamAnalysisPageModel(),
+      ...baseModel,
+      recentMatches: [...baseModel.recentMatches].sort((left, right) => left.startTime.localeCompare(right.startTime)),
       scope: {
         selectedSeasonLabel: "시즌8",
         isAllSeasons: false,
@@ -119,6 +121,10 @@ describe("team analysis page", () => {
     expect(screen.getByText(/^현재 팀 전적$/i)).toBeInTheDocument();
     expect(screen.queryByText(/^최강 조합$/i)).not.toBeInTheDocument();
     expect(screen.getByText(/선택 시즌 기준 종족 조합별 승률/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^종족별 성적$/i })).toBeInTheDocument();
+    expect(screen.getByTestId("season-lineup-and-race-row")).toHaveClass("xl:grid-cols-2");
+    expect(screen.getAllByTestId("season-race-record-row")).toHaveLength(3);
+    expect(screen.getAllByTestId("lineup-performance-row")[0]).toHaveClass("xl:grid-cols-[minmax(76px,auto)_auto_minmax(92px,1fr)_auto]");
     expect(screen.getByRole("heading", { name: /선수 역량 매트릭스/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /분당 유닛생산 정렬/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /P전적 정렬/i })).toBeInTheDocument();
@@ -143,8 +149,14 @@ describe("team analysis page", () => {
     expect(screen.getAllByText(/Loser Team/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText((_, element) => /\+\d+\.\d%/.test(element?.textContent ?? "")).length).toBeGreaterThan(0);
     expect(screen.queryByText(/A Team|B Team/i)).not.toBeInTheDocument();
+    expect(screen.getByTestId("season-radar-row")).toHaveClass("items-stretch");
+    expect(screen.getByTestId("team-pentagon-panel")).toHaveClass("h-full");
+    expect(screen.getByTestId("player-pentagon-panel")).toHaveClass("h-full");
     const selectedSeasonRadars = screen.getAllByTestId("player-radar-chart");
     expect(selectedSeasonRadars).toHaveLength(3);
     expect(selectedSeasonRadars[0]).toHaveAccessibleName("팀별 평균 피지컬 오각형");
+    const rawRows = screen.getAllByTestId("season-raw-match-row");
+    const rawTimes = rawRows.map((row) => within(row).getByTestId("season-raw-match-time").textContent ?? "");
+    expect(rawTimes).toEqual([...rawTimes].sort((left, right) => Date.parse(right) - Date.parse(left)));
   });
 });

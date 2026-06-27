@@ -164,18 +164,22 @@ function Panel({
   description,
   accent = "cyan",
   help,
+  className = "",
+  testId,
   children
 }: {
   title: string;
   description: string;
   accent?: MetricAccent;
   help?: string;
+  className?: string;
+  testId?: string;
   children: React.ReactNode;
 }) {
   const tone = metricAccents[accent];
 
   return (
-    <section className="rounded-lg p-4" style={{ ...surfaceStyle, borderColor: `${tone.border}3d` }}>
+    <section className={`rounded-lg p-4 ${className}`} data-testid={testId} style={{ ...surfaceStyle, borderColor: `${tone.border}3d` }}>
       <div className="mb-3 flex items-start justify-between gap-4">
         <div>
           <div className="mb-2 h-1 w-12 rounded-full" style={{ backgroundColor: tone.border }} />
@@ -309,6 +313,8 @@ function TeamPentagonSection({ chart }: { chart: TeamAnalysisPlayerPentagon | nu
       description="선택 시즌의 승리팀과 패배팀을 묶어 팀원 평균 피지컬을 비교합니다."
       accent="cyan"
       help="각 축에서 높은 팀을 80점으로 두고 다른 팀은 원천 평균 비율만큼 낮춰 표시합니다. 승패 라벨이 아니라 실제 평균 수치 기반 비교입니다."
+      className="h-full"
+      testId="team-pentagon-panel"
     >
       <PentagonChart chart={chart} selectedPlayerName={null} showInlineLegend />
     </Panel>
@@ -327,6 +333,8 @@ function PlayerPentagonSection({ charts, columns = 3 }: { charts: TeamAnalysisPl
       description="승부 감각, 종족 역량, 리플레이 피지컬을 0-100 비교형 지표로 압축했습니다."
       accent="violet"
       help="분당 유닛생산과 자원 소모량은 GameDetail build order 기반 season_analysis 값입니다. 생산은 경기 길이로 보정했고, 값이 있는 경기만 평균에 포함하므로 보조 지표로 해석합니다."
+      className="h-full"
+      testId="player-pentagon-panel"
     >
       <div className="mb-3 grid grid-cols-3 gap-1.5 sm:grid-cols-7">
         <button
@@ -732,6 +740,13 @@ function MatchTeamCell({ players }: { players: TeamAnalysisPageModel["recentMatc
 }
 
 function SeasonMatchRawTable({ model }: { model: TeamAnalysisPageModel }) {
+  const sortedMatches = [...model.recentMatches].sort((left, right) => {
+    const leftTime = Date.parse(left.startTime);
+    const rightTime = Date.parse(right.startTime);
+    if (Number.isFinite(leftTime) && Number.isFinite(rightTime) && leftTime !== rightTime) return rightTime - leftTime;
+    return right.id - left.id;
+  });
+
   return (
     <Panel
       title="경기 전적 Raw"
@@ -751,10 +766,10 @@ function SeasonMatchRawTable({ model }: { model: TeamAnalysisPageModel }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
-            {model.recentMatches.map((match) => (
-              <tr key={match.id} className="bg-slate-950/35 align-top transition-colors hover:bg-slate-800/70">
+            {sortedMatches.map((match) => (
+              <tr key={match.id} data-testid="season-raw-match-row" className="bg-slate-950/35 align-top transition-colors hover:bg-slate-800/70">
                 <td className="px-3 py-3 font-mono text-xs text-slate-300">#{match.id}</td>
-                <td className="px-3 py-3 text-xs text-slate-400">{match.startTime}</td>
+                <td className="px-3 py-3 text-xs text-slate-400" data-testid="season-raw-match-time">{match.startTime}</td>
                 <td className="px-3 py-3 text-xs text-slate-300">{match.map}</td>
                 <td className="px-3 py-3">
                   <MatchTeamCell players={match.winnerTeam} />
@@ -803,19 +818,49 @@ function LineupPerformancePanel({ model }: { model: TeamAnalysisPageModel }) {
       ) : (
         <div className="grid gap-2">
           {model.raceCompositions.slice(0, 10).map((composition) => (
-            <div key={composition.composition} className="rounded-lg p-3" style={subtleSurfaceStyle}>
-              <div className="flex items-center justify-between gap-3">
-                <RaceCompositionBadges composition={composition.composition} />
-                <Badge accent={winRateTone(composition.winRate)}>{composition.wins}-{composition.losses} / {formatPercent(composition.winRate)}</Badge>
-              </div>
-              <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
-                <span>{composition.note}</span>
-                <span>{composition.games}경기</span>
-              </div>
+            <div
+              key={composition.composition}
+              data-testid="lineup-performance-row"
+              className="grid items-center gap-2 rounded-lg p-3 text-xs transition-colors hover:bg-slate-800/70 xl:grid-cols-[minmax(76px,auto)_auto_minmax(92px,1fr)_auto]"
+              style={subtleSurfaceStyle}
+            >
+              <RaceCompositionBadges composition={composition.composition} />
+              <Badge accent={winRateTone(composition.winRate)}>{composition.wins}-{composition.losses} / {formatPercent(composition.winRate)}</Badge>
+              <span className="min-w-0 truncate text-slate-400">{composition.note}</span>
+              <span className="justify-self-start font-semibold text-slate-300 xl:justify-self-end">{composition.games}경기</span>
             </div>
           ))}
         </div>
       )}
+    </Panel>
+  );
+}
+
+function RaceRecordPanel({ model }: { model: TeamAnalysisPageModel }) {
+  return (
+    <Panel
+      title="종족별 성적"
+      description="선택 시즌의 P/T/Z 단일 종족 출전 슬롯 기준 승패와 승률입니다."
+      accent="emerald"
+    >
+      <div className="grid gap-2">
+        {raceOrder.map((race) => {
+          const record = model.raceRecords.find((candidate) => candidate.race === race) ?? { race, games: 0, wins: 0, losses: 0, winRate: 0 };
+
+          return (
+            <div
+              key={race}
+              data-testid="season-race-record-row"
+              className="grid items-center gap-2 rounded-lg p-3 text-xs transition-colors hover:bg-slate-800/70 xl:grid-cols-[auto_auto_1fr]"
+              style={subtleSurfaceStyle}
+            >
+              <RaceBadge race={race} />
+              <Badge accent={winRateTone(record.winRate)}>{record.wins}-{record.losses} / {formatPercent(record.winRate)}</Badge>
+              <span className="justify-self-start font-semibold text-slate-300 xl:justify-self-end">{record.games}회 출전</span>
+            </div>
+          );
+        })}
+      </div>
     </Panel>
   );
 }
@@ -948,7 +993,7 @@ export function TeamAnalysisPage({ model }: { model: TeamAnalysisPageModel }) {
           </>
         ) : (
           <>
-            <div className="mb-4 grid gap-4 xl:grid-cols-3">
+            <div className="mb-4 grid items-stretch gap-4 xl:grid-cols-3" data-testid="season-radar-row">
               <div className="xl:col-span-1">
                 <TeamPentagonSection chart={model.chartData.teamPentagon} />
               </div>
@@ -968,8 +1013,9 @@ export function TeamAnalysisPage({ model }: { model: TeamAnalysisPageModel }) {
               </Panel>
             </div>
 
-            <div className="mb-4">
+            <div className="mb-4 grid gap-4 xl:grid-cols-2" data-testid="season-lineup-and-race-row">
               <LineupPerformancePanel model={model} />
+              <RaceRecordPanel model={model} />
             </div>
 
             <div className="mb-4">

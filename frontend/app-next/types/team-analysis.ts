@@ -114,6 +114,14 @@ export interface TeamAnalysisRecentMatch {
   }>;
 }
 
+export interface TeamAnalysisRaceRecord {
+  race: RaceCode;
+  games: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+}
+
 export interface TeamAnalysisPageModel {
   scope?: {
     selectedSeasonLabel: string | null;
@@ -148,6 +156,7 @@ export interface TeamAnalysisPageModel {
   players: TeamAnalysisPlayer[];
   lineups: TeamAnalysisLineup[];
   raceCompositions: TeamAnalysisRaceComposition[];
+  raceRecords: TeamAnalysisRaceRecord[];
   recentMatches: TeamAnalysisRecentMatch[];
   insights: {
     bestLineup: TeamAnalysisInsightCard | null;

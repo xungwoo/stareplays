@@ -1102,6 +1102,7 @@ export function createTeamAnalysisPageModel({ gamesResponse }: { gamesResponse?:
     players: displayPlayers,
     lineups: displayLineups,
     raceCompositions,
+    raceRecords: singleRaceRecords,
     recentMatches: buildRecentMatches(matches),
     insights,
     chartData: {
