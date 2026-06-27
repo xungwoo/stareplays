@@ -74,7 +74,7 @@ export function createTeamAnalysisRawPayload({
       promptContext: [
         "이 데이터는 StarCraft 3x3 팀 경기 raw snapshot과 파생 분석입니다.",
         "선수명은 한국어 표시명을 우선 사용합니다.",
-        "답변할 때 표본 경기 수, 승률, 조합, 종족, APM/EAPM, 분당 유효명령, 손효율 근거를 함께 제시하세요.",
+        "답변할 때 표본 경기 수, 승률, 조합, 종족, APM/EAPM, 유닛 생산량, 자원 소모량 근거를 함께 제시하세요.",
         "player.isRandomSelected는 해당 선수가 랜덤을 선택했는지 나타냅니다. 실제 종족 통계와 선택 룰을 혼동하지 마세요.",
         "Bradley-Terry와 TrueSkill은 절대 단위가 다르므로 순위나 상대 비교로 해석하세요."
       ].join("\n"),
@@ -106,7 +106,7 @@ export function createTeamAnalysisRawPayload({
         "랜덤 선택 표본이 있는 선수들의 성과를 비교해줘.",
         "승률은 낮지만 개선 가능성이 큰 선수를 찾아줘.",
         "종족 조합 기준으로 가장 안정적인 운영 패턴을 설명해줘.",
-        "APM/EAPM/분당 유효명령/손효율 지표와 실제 승률이 어긋나는 선수를 분석해줘.",
+        "APM/EAPM/유닛 생산량/자원 소모량 지표와 실제 승률이 어긋나는 선수를 분석해줘.",
         "특정 선수와 가장 잘 맞는 파트너 조합을 추천해줘."
       ]
     }

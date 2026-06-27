@@ -257,7 +257,7 @@ function PlayerPentagonSection({ charts }: { charts: TeamAnalysisPlayerPentagon[
       title="선수 역량 오각형"
       description="승부 감각, 종족 역량, 리플레이 피지컬을 0-100 비교형 지표로 압축했습니다."
       accent="violet"
-      help="분당 유효명령은 effective_cmd_count를 경기 시간으로 나눈 값이며 유닛 생산량이 아닙니다. 손효율은 EAPM/APM 비율입니다."
+      help="유닛 생산량과 자원 소모량은 GameDetail build order 기반 season_analysis 값입니다. 값이 있는 경기만 평균에 포함하므로 보조 지표로 해석합니다."
     >
       <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-7">
         <button

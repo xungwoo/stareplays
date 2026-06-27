@@ -32,8 +32,8 @@ describe("team analysis page", () => {
     await user.click(screen.getByRole("button", { name: new RegExp(`${focusedRadarPlayer} 선택`, "i") }));
     expect(screen.getAllByTestId("player-radar-polygon")).toHaveLength(3);
     expect(screen.getAllByText(/프로토스/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/분당 유효명령|손효율/i).length).toBeGreaterThan(0);
-    expect(screen.queryByText(/생산능력|템포안정/i)).not.toBeInTheDocument();
+    expect(screen.getAllByText(/유닛 생산량|자원 소모량/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/생산능력|템포안정|분당 유효명령|손효율/i)).not.toBeInTheDocument();
     expect(screen.getByText(/선수 역량 매트릭스/i)).toBeInTheDocument();
     expect(screen.getByText(/조합별 성적/i)).toBeInTheDocument();
     expect(screen.getAllByText(/종족 조합/i).length).toBeGreaterThan(0);
