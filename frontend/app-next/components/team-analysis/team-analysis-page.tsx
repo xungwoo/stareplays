@@ -860,7 +860,7 @@ function SeasonPlayerWinRateTrend({ model }: { model: TeamAnalysisPageModel }) {
   );
 }
 
-function LineupPerformancePanel({ model }: { model: TeamAnalysisPageModel }) {
+function LineupPerformancePanel({ model, className = "" }: { model: TeamAnalysisPageModel; className?: string }) {
   const isAllSeasons = model.scope?.isAllSeasons ?? true;
 
   return (
@@ -868,6 +868,7 @@ function LineupPerformancePanel({ model }: { model: TeamAnalysisPageModel }) {
       title="조합별 성적"
       description={isAllSeasons ? "전체 시즌 기준 관측된 3인 조합 기록입니다." : "선택 시즌 기준 종족 조합별 승률과 표본 수입니다."}
       accent="amber"
+      className={className}
     >
       {isAllSeasons ? (
         <div className="space-y-3">
@@ -1024,6 +1025,10 @@ export function TeamAnalysisPage({ model }: { model: TeamAnalysisPageModel }) {
               <PlayerPentagonSection charts={model.chartData.playerPentagons} />
             </div>
 
+            <div className="mb-4" data-testid="all-season-player-winrate-trend">
+              <SeasonPlayerWinRateTrend model={model} />
+            </div>
+
             <div className="mb-4 grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
               <RatingChart model={model} />
               <RaceCompositionChart model={model} />
@@ -1093,7 +1098,7 @@ export function TeamAnalysisPage({ model }: { model: TeamAnalysisPageModel }) {
                 <RaceRecordPanel model={model} />
               </div>
               <div className="xl:col-span-1 xl:row-span-2" data-testid="season-lineup-panel">
-                <LineupPerformancePanel model={model} />
+                <LineupPerformancePanel model={model} className="h-full" />
               </div>
             </div>
 

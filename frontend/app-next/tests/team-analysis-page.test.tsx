@@ -29,6 +29,9 @@ describe("team analysis page", () => {
     expect(screen.getByRole("heading", { name: /리플레이 피지컬 오각형/i })).toBeInTheDocument();
     expect(screen.getAllByTestId("player-radar-chart")[0]).toHaveClass("h-[230px]");
     expect(screen.getByRole("button", { name: /전체 선수 보기/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^플레이어 누적 승률 추이$/i })).toBeInTheDocument();
+    expect(screen.getByTestId("all-season-player-winrate-trend")).toHaveClass("mb-4");
+    expect(screen.getByTestId("season-player-winrate-trend-chart")).toBeInTheDocument();
     expect(screen.getAllByTestId("player-radar-polygon").length).toBe(
       model.chartData.playerPentagons.reduce((total, chart) => total + chart.players.length, 0)
     );
@@ -60,6 +63,7 @@ describe("team analysis page", () => {
     expect(screen.queryByText(/최근 3x3 분석 입력/i)).not.toBeInTheDocument();
 
     const playerPentagonHeading = screen.getByRole("heading", { name: /선수 역량 오각형/i });
+    const trendHeading = screen.getByRole("heading", { name: /^플레이어 누적 승률 추이$/i });
     const ratingHeading = screen.getByRole("heading", { name: /평점 모델 원점수/i });
     const matrixHeading = screen.getByRole("heading", { name: /선수 역량 매트릭스/i });
     const lineupHeading = screen.getByRole("heading", { name: /조합별 성적/i });
@@ -67,7 +71,8 @@ describe("team analysis page", () => {
     const insightHeading = screen.getByRole("heading", { name: /핵심 인사이트/i });
     const playerInsightHeading = screen.getByRole("heading", { name: /선수 강점 \/ 약점 카드/i });
 
-    expect(playerPentagonHeading.compareDocumentPosition(ratingHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(playerPentagonHeading.compareDocumentPosition(trendHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(trendHeading.compareDocumentPosition(ratingHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(ratingHeading.compareDocumentPosition(matrixHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(matrixHeading.compareDocumentPosition(lineupHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(lineupHeading.compareDocumentPosition(duoHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -128,6 +133,7 @@ describe("team analysis page", () => {
     expect(screen.getByTestId("season-performance-left-stack")).toHaveClass("xl:col-span-1");
     expect(screen.getByTestId("season-lineup-panel")).toHaveClass("xl:col-span-1");
     expect(screen.getByTestId("season-lineup-panel")).toHaveClass("xl:row-span-2");
+    expect(screen.getByTestId("season-lineup-panel").firstElementChild).toHaveClass("h-full");
     expect(screen.getAllByTestId("season-race-record-row")).toHaveLength(3);
     expect(screen.getAllByTestId("lineup-performance-row")[0]).toHaveClass("xl:grid-cols-[minmax(76px,auto)_auto_minmax(92px,1fr)_auto]");
     expect(screen.getByRole("heading", { name: /선수 역량 매트릭스/i })).toBeInTheDocument();
