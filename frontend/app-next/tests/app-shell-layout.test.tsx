@@ -11,6 +11,7 @@ describe("app header", () => {
     expect(screen.getByRole("link", { name: /dashboard/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /replay vault/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /team analysis/i })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /seasons/i })).not.toBeInTheDocument();
     expect(screen.getByText(/current_user/i)).toBeInTheDocument();
 
     const header = container.querySelector("header");
@@ -18,7 +19,7 @@ describe("app header", () => {
     const activeNav = screen.getByRole("link", { name: /dashboard/i });
     const currentUserChip = screen.getByText(/neo_user/i).closest("div, span");
 
-    expect(header).toHaveClass("flex", "items-center", "justify-between", "px-6", "py-0");
+    expect(header).toHaveClass("flex", "items-center", "justify-between", "px-3", "sm:px-6", "py-0");
     expect(header).not.toHaveClass("max-w-[1400px]");
     expect(header).toHaveStyle({
       backgroundColor: "rgba(18,24,38,0.96)",
@@ -51,6 +52,7 @@ describe("app header", () => {
     expect(screen.getByRole("link", { name: /replay vault/i })).toHaveAttribute("href", "/vault?currentUser=query-user");
     expect(screen.getByRole("link", { name: /team analysis/i })).toHaveAttribute("href", "/team-analysis?currentUser=query-user");
     expect(screen.getByRole("link", { name: /rankings/i })).toHaveAttribute("href", "/rankings?currentUser=query-user");
+    expect(screen.queryByRole("link", { name: /seasons/i })).not.toBeInTheDocument();
 
     globalThis.__TEST_SEARCH_PARAMS__ = "";
     rerender(<AppHeader currentUser="fallback-user" />);
