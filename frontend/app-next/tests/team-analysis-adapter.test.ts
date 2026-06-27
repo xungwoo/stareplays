@@ -179,6 +179,11 @@ describe("team analysis adapter", () => {
     expect(model.chartData.teamPentagon?.axes).toEqual(expect.not.arrayContaining(["토스", "저그", "테란"]));
     expect(model.chartData.teamPentagon?.players[0]?.axes.map((axis) => axis.value)).not.toEqual([100, 100, 100, 100, 100]);
     expect(model.chartData.teamPentagon?.players[1]?.axes.map((axis) => axis.value)).not.toEqual([0, 0, 0, 0, 0]);
+    const teamApmScores = model.chartData.teamPentagon?.players.map((team) => team.axes.find((axis) => axis.label === "APM")?.value ?? 0) ?? [];
+    const rawWinnerApmAverage = (190 + 150 + 175 + 220 + 155 + 180) / 6;
+    const rawLoserApmAverage = (200 + 170 + 165 + 165 + 170 + 150) / 6;
+    expect(teamApmScores[0] / teamApmScores[1]).toBeCloseTo(rawWinnerApmAverage / rawLoserApmAverage, 1);
+    expect(Math.abs(teamApmScores[0] - teamApmScores[1])).toBeLessThan(5);
     const racePentagonPlayers = model.chartData.playerPentagons[1]?.players ?? [];
     const alphaRaceAxes = racePentagonPlayers.find((player) => player.name === "3x3_alpha")?.axes ?? [];
     const deltaRaceAxes = racePentagonPlayers.find((player) => player.name === "3x3_delta")?.axes ?? [];
