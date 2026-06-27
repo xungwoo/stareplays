@@ -136,10 +136,8 @@ describe("team analysis adapter", () => {
     expect(model.raceCompositions.some((row) => row.composition === "PTZ")).toBe(true);
     expect(model.chartData.ratingComparison[0]).toHaveProperty("bradleyTerry");
     expect(model.chartData.ratingComparison[0]).toHaveProperty("trueSkill");
-    expect(model.chartData.ratingComparison[0]).toHaveProperty("bradleyTerryRankScore");
-    expect(model.chartData.ratingComparison[0]).toHaveProperty("trueSkillRankScore");
-    expect(model.chartData.ratingComparison.every((row) => row.bradleyTerryRankScore >= 0 && row.bradleyTerryRankScore <= 100)).toBe(true);
-    expect(model.chartData.ratingComparison.every((row) => row.trueSkillRankScore >= 0 && row.trueSkillRankScore <= 100)).toBe(true);
+    expect(model.chartData.ratingComparison[0]).not.toHaveProperty("bradleyTerryRankScore");
+    expect(model.chartData.ratingComparison[0]).not.toHaveProperty("trueSkillRankScore");
     expect(model.chartData.playerPentagons).toHaveLength(3);
     expect(model.chartData.playerPentagons.map((chart) => chart.title)).toEqual([
       "승부 감각 오각형",

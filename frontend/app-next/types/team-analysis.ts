@@ -136,8 +136,6 @@ export interface TeamAnalysisPageModel {
       trueSkill: number;
       bradleyTerryRank: number;
       trueSkillRank: number;
-      bradleyTerryRankScore: number;
-      trueSkillRankScore: number;
       winRate: number;
       averageApm: number;
     }>;

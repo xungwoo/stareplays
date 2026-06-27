@@ -604,12 +604,6 @@ function formatPercentValue(value: number): string {
   return `${value.toFixed(1)}%`;
 }
 
-function rankScore(rank: number, total: number): number {
-  if (total <= 1) return 100;
-
-  return round(((total - rank) / (total - 1)) * 100, 1);
-}
-
 function normalizeMetric(value: number, values: number[]): number {
   const finiteValues = values.filter((candidate) => Number.isFinite(candidate));
   const min = Math.min(...finiteValues);
@@ -885,8 +879,6 @@ export function createTeamAnalysisPageModel({ gamesResponse }: { gamesResponse?:
         trueSkill: player.trueSkill,
         bradleyTerryRank: player.bradleyTerryRank,
         trueSkillRank: player.trueSkillRank,
-        bradleyTerryRankScore: rankScore(player.bradleyTerryRank, players.length),
-        trueSkillRankScore: rankScore(player.trueSkillRank, players.length),
         winRate: player.winRate,
         averageApm: player.averageApm
       })),
