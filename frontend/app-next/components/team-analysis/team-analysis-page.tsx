@@ -16,6 +16,7 @@ import {
 
 import { PlayerBadge, PlayerBadgeGroup } from "@/components/shared/player-badge";
 import { RaceCompositionBadges } from "@/components/shared/race-badge";
+import { MetricHelp } from "@/components/shared/metric-help";
 import type { TeamAnalysisInsightCard, TeamAnalysisPageModel, TeamAnalysisPlayer, TeamAnalysisPlayerPentagon } from "@/types/team-analysis";
 
 const surfaceStyle = {
@@ -157,11 +158,13 @@ function Panel({
   title,
   description,
   accent = "cyan",
+  help,
   children
 }: {
   title: string;
   description: string;
   accent?: MetricAccent;
+  help?: string;
   children: React.ReactNode;
 }) {
   const tone = metricAccents[accent];
@@ -171,7 +174,10 @@ function Panel({
       <div className="mb-3 flex items-start justify-between gap-4">
         <div>
           <div className="mb-2 h-1 w-12 rounded-full" style={{ backgroundColor: tone.border }} />
-          <h2 className="text-base font-semibold text-slate-50">{title}</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-base font-semibold text-slate-50">{title}</h2>
+            {help ? <MetricHelp label={title} description={help} /> : null}
+          </div>
           <p className="mt-1 text-sm text-slate-400">{description}</p>
         </div>
       </div>
@@ -247,7 +253,12 @@ function PlayerPentagonSection({ charts }: { charts: TeamAnalysisPlayerPentagon[
   if (charts.length === 0) return null;
 
   return (
-    <Panel title="선수 역량 오각형" description="승부 감각, 종족 역량, 리플레이 피지컬을 0-100 비교형 지표로 압축했습니다." accent="violet">
+    <Panel
+      title="선수 역량 오각형"
+      description="승부 감각, 종족 역량, 리플레이 피지컬을 0-100 비교형 지표로 압축했습니다."
+      accent="violet"
+      help="분당 유효명령은 effective_cmd_count를 경기 시간으로 나눈 값이며 유닛 생산량이 아닙니다. 손효율은 EAPM/APM 비율입니다."
+    >
       <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-7">
         <button
           type="button"
@@ -293,7 +304,12 @@ function PlayerPentagonSection({ charts }: { charts: TeamAnalysisPlayerPentagon[
 
 function RatingChart({ model }: { model: TeamAnalysisPageModel }) {
   return (
-    <Panel title="평점 모델 순위 비교" description="Bradley-Terry와 TrueSkill은 점수 단위가 달라 100점은 해당 모델 1위인 순위 점수로 비교합니다." accent="violet">
+    <Panel
+      title="평점 모델 순위 비교"
+      description="Bradley-Terry와 TrueSkill은 점수 단위가 달라 100점은 해당 모델 1위인 순위 점수로 비교합니다."
+      accent="violet"
+      help="Bradley-Terry와 TrueSkill 원점수는 단위가 다르므로 같은 차트에서는 순위 기반 0-100 점수로만 비교합니다."
+    >
       <div className="h-[320px] w-full">
         <ResponsiveContainer minWidth={320} minHeight={320}>
           <BarChart data={model.chartData.ratingComparison.slice(0, 8)}>
@@ -323,7 +339,12 @@ function RatingChart({ model }: { model: TeamAnalysisPageModel }) {
 
 function RaceCompositionChart({ model }: { model: TeamAnalysisPageModel }) {
   return (
-    <Panel title="종족 조합" description="3인 종족 조합별 승률과 표본 수를 비교합니다." accent="emerald">
+    <Panel
+      title="종족 조합"
+      description="3인 종족 조합별 승률과 표본 수를 비교합니다."
+      accent="emerald"
+      help="표본 기준을 통과하지 못한 조합은 최강 조합 판단에서 제외하고 참고 기록으로만 봅니다."
+    >
       <div className="h-[320px] w-full">
         <ResponsiveContainer minWidth={320} minHeight={320}>
           <BarChart data={model.chartData.raceComposition.slice(0, 8)} layout="vertical" margin={{ left: 16 }}>
@@ -564,7 +585,12 @@ export function TeamAnalysisPage({ model }: { model: TeamAnalysisPageModel }) {
         </div>
 
         <div className="mb-4 grid gap-4 xl:grid-cols-[1fr_0.9fr]">
-          <Panel title="선수 역량 매트릭스" description="선수별 승패, 승률, APM 순위, 종족 강점과 모델 순위를 비교합니다." accent="cyan">
+          <Panel
+            title="선수 역량 매트릭스"
+            description="선수별 승패, 승률, APM 순위, 종족 강점과 모델 순위를 비교합니다."
+            accent="cyan"
+            help="APM/EAPM과 effective command 필드는 replay parser가 선수별로 저장한 Player 지표만 사용합니다."
+          >
             <PlayerMatrix players={model.players} />
           </Panel>
 

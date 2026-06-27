@@ -15,6 +15,7 @@ import {
 
 import { PlayerBadge } from "@/components/shared/player-badge";
 import { RaceBadge } from "@/components/shared/race-badge";
+import { MetricHelp } from "@/components/shared/metric-help";
 import type { SeasonAnalysisPageModel, SeasonGameRecordPlayer } from "@/lib/adapters/season-analysis";
 
 function formatPercent(value: number) {
@@ -161,23 +162,29 @@ function TrendChart({
   );
 }
 
+function HeaderWithHelp({ label, help }: { label: string; help: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span>{label}</span>
+      <MetricHelp label={label} description={help} />
+    </span>
+  );
+}
+
 function PlayerStandings({ model }: { model: SeasonAnalysisPageModel }) {
   return (
-    <Panel title="플레이어별 누적 전적" description="선수별 승패, 승률, 평균 APM/EAPM과 분석 지표를 누적 기준으로 봅니다.">
+    <Panel title="플레이어별 누적 전적" description="선수별 승패, 승률, 평균 APM/EAPM과 안정 지표 기반 MVP 점수를 봅니다.">
       <div className="overflow-hidden rounded-lg border border-slate-700/80">
-        <table className="w-full min-w-[900px] text-left text-sm">
+        <table className="w-full min-w-[760px] text-left text-sm">
           <thead className="bg-slate-950 text-xs uppercase text-slate-400">
             <tr>
               <th className="px-3 py-3">선수</th>
               <th className="px-3 py-3">경기</th>
               <th className="px-3 py-3">승패</th>
-              <th className="px-3 py-3">승률</th>
-              <th className="px-3 py-3">APM</th>
-              <th className="px-3 py-3">EAPM</th>
-              <th className="px-3 py-3">생산</th>
-              <th className="px-3 py-3">자원</th>
-              <th className="px-3 py-3">테크</th>
-              <th className="px-3 py-3">MVP</th>
+              <th className="px-3 py-3"><HeaderWithHelp label="승률" help="선택 시즌 범위의 공식 3x3 경기 승수 / 경기 수입니다." /></th>
+              <th className="px-3 py-3"><HeaderWithHelp label="APM" help="Player.apm 필드의 경기별 평균입니다. 랭킹의 95P APM과는 다른 시즌 범위 평균입니다." /></th>
+              <th className="px-3 py-3"><HeaderWithHelp label="EAPM" help="Player.eapm 필드의 경기별 평균입니다." /></th>
+              <th className="px-3 py-3"><HeaderWithHelp label="MVP" help="승률, 승수, 평균 EAPM, 평균 APM만 반영한 안정 지표 점수입니다. analyzer 보조 지표는 반영하지 않습니다." /></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
@@ -189,9 +196,6 @@ function PlayerStandings({ model }: { model: SeasonAnalysisPageModel }) {
                 <td className="px-3 py-3 font-semibold text-cyan-100">{formatPercent(player.winRate)}</td>
                 <td className="px-3 py-3 text-slate-300">{player.averageApm}</td>
                 <td className="px-3 py-3 text-slate-300">{player.averageEapm}</td>
-                <td className="px-3 py-3 text-slate-300">{player.production.toFixed(1)}</td>
-                <td className="px-3 py-3 text-slate-300">{player.resourceSpend.toFixed(1)}</td>
-                <td className="px-3 py-3 text-slate-300">{player.techAndUpgrades.toFixed(1)}</td>
                 <td className="px-3 py-3 font-semibold text-cyan-100">{player.mvpScore.toFixed(1)}</td>
               </tr>
             ))}

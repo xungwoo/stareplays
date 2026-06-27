@@ -21,8 +21,8 @@ export interface TeamAnalysisPlayer {
   averageApm: number;
   averageEapm: number;
   commandEfficiency: number;
-  productionAbility: number;
-  tempoStability: number;
+  effectiveCommandsPerMinute: number;
+  handEfficiency: number;
   apmRank: number;
   bradleyTerry: number;
   bradleyTerryRank: number;
