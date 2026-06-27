@@ -773,51 +773,64 @@ function buildPlayerPentagons(players: TeamAnalysisPlayer[]): TeamAnalysisPlayer
 
 function buildTeamPentagon(matches: NormalizedMatch[]): TeamAnalysisPlayerPentagon | null {
   type TeamAccumulator = {
-    games: number;
+    playerAppearances: number;
     apmTotal: number;
+    eapmTotal: number;
+    commandTotal: number;
+    effectiveCommandTotal: number;
     productionTotal: number;
-    productionMinuteTotal: number;
-    races: Map<RaceCode, { games: number; wins: number; losses: number }>;
+    productionPlayerMinuteTotal: number;
+    resourceSpendTotal: number;
+    resourceSpendGames: number;
   };
 
   const winnerTeam: TeamAccumulator = {
-    games: 0,
+    playerAppearances: 0,
     apmTotal: 0,
+    eapmTotal: 0,
+    commandTotal: 0,
+    effectiveCommandTotal: 0,
     productionTotal: 0,
-    productionMinuteTotal: 0,
-    races: new Map()
+    productionPlayerMinuteTotal: 0,
+    resourceSpendTotal: 0,
+    resourceSpendGames: 0
   };
   const loserTeam: TeamAccumulator = {
-    games: 0,
+    playerAppearances: 0,
     apmTotal: 0,
+    eapmTotal: 0,
+    commandTotal: 0,
+    effectiveCommandTotal: 0,
     productionTotal: 0,
-    productionMinuteTotal: 0,
-    races: new Map()
+    productionPlayerMinuteTotal: 0,
+    resourceSpendTotal: 0,
+    resourceSpendGames: 0
   };
 
-  const recordSide = (team: TeamAccumulator, players: NormalizedPlayer[], won: boolean, gameLength: number) => {
+  const recordSide = (team: TeamAccumulator, players: NormalizedPlayer[], gameLength: number) => {
     const gameMinutes = Math.max(gameLength / 60, 1);
-    const productionTotal = players.reduce((sum, player) => sum + Math.max(player.unitProduction, 0), 0);
-
-    team.games += 1;
-    team.apmTotal += players.reduce((sum, player) => sum + player.apm, 0) / Math.max(players.length, 1);
-    if (productionTotal > 0) {
-      team.productionTotal += productionTotal;
-      team.productionMinuteTotal += gameMinutes;
-    }
 
     for (const player of players) {
-      const race = team.races.get(player.race) ?? { games: 0, wins: 0, losses: 0 };
-      race.games += 1;
-      race.wins += won ? 1 : 0;
-      race.losses += won ? 0 : 1;
-      team.races.set(player.race, race);
+      team.playerAppearances += 1;
+      team.apmTotal += player.apm;
+      team.eapmTotal += player.eapm;
+      team.commandTotal += player.cmdCount;
+      team.effectiveCommandTotal += player.effectiveCmdCount;
+
+      if (player.unitProduction > 0) {
+        team.productionTotal += player.unitProduction;
+        team.productionPlayerMinuteTotal += gameMinutes;
+      }
+      if (player.resourceSpend > 0) {
+        team.resourceSpendTotal += player.resourceSpend;
+        team.resourceSpendGames += 1;
+      }
     }
   };
 
   for (const match of matches) {
-    recordSide(winnerTeam, match.winner, true, match.gameLength);
-    recordSide(loserTeam, match.loser, false, match.gameLength);
+    recordSide(winnerTeam, match.winner, match.gameLength);
+    recordSide(loserTeam, match.loser, match.gameLength);
   }
 
   const teams = [
@@ -833,24 +846,26 @@ function buildTeamPentagon(matches: NormalizedMatch[]): TeamAnalysisPlayerPentag
       tone: "rose" as const,
       color: "#fb7185"
     }
-  ].filter((team) => team.games > 0);
+  ].filter((team) => team.playerAppearances > 0);
 
   if (teams.length < 2) return null;
 
-  const apmValues = teams.map((team) => round(team.apmTotal / Math.max(team.games, 1), 1));
-  const productionValues = teams.map((team) => round(team.productionTotal / Math.max(team.productionMinuteTotal, 1), 2));
-  const raceScore = (team: TeamAccumulator, race: RaceCode) => {
-    const record = team.races.get(race);
-    return record && record.games > 0 ? winRate(record.wins, record.games) : 50;
-  };
+  const apmValues = teams.map((team) => round(team.apmTotal / Math.max(team.playerAppearances, 1), 1));
+  const eapmValues = teams.map((team) => round(team.eapmTotal / Math.max(team.playerAppearances, 1), 1));
+  const commandEfficiencyValues = teams.map((team) => round((team.effectiveCommandTotal / Math.max(team.commandTotal, 1)) * 100, 1));
+  const productionValues = teams.map((team) => round(team.productionTotal / Math.max(team.productionPlayerMinuteTotal, 1), 2));
+  const resourceValues = teams.map((team) => round(team.resourceSpendTotal / Math.max(team.resourceSpendGames, 1), 1));
 
   return {
-    title: "팀별 역량 오각형",
-    description: "선택 시즌의 승리팀과 패배팀을 묶어 APM, 분당 유닛생산, 종족별 승률을 비교합니다.",
-    axes: ["APM", "분당 생산", "토스", "저그", "테란"],
+    title: "팀별 평균 피지컬 오각형",
+    description: "선택 시즌의 승리팀과 패배팀을 묶어 팀원 평균 APM, EAPM, 명령효율, 분당 유닛생산, 자원 소모량을 비교합니다.",
+    axes: ["APM", "EAPM", "명령효율", "분당 생산", "자원 소모량"],
     players: teams.map((team, index) => {
       const apm = apmValues[index] ?? 0;
+      const eapm = eapmValues[index] ?? 0;
+      const commandEfficiency = commandEfficiencyValues[index] ?? 0;
       const production = productionValues[index] ?? 0;
+      const resourceSpend = resourceValues[index] ?? 0;
 
       return {
         name: team.name,
@@ -858,10 +873,10 @@ function buildTeamPentagon(matches: NormalizedMatch[]): TeamAnalysisPlayerPentag
         color: team.color,
         axes: [
           { label: "APM", value: normalizeMetricBand(apm, apmValues) },
+          { label: "EAPM", value: normalizeMetricBand(eapm, eapmValues) },
+          { label: "명령효율", value: commandEfficiency },
           { label: "분당 생산", value: normalizePositiveMetricBand(production, productionValues) },
-          { label: "토스", value: raceScore(team, "P") },
-          { label: "저그", value: raceScore(team, "Z") },
-          { label: "테란", value: raceScore(team, "T") }
+          { label: "자원 소모량", value: normalizePositiveMetricBand(resourceSpend, resourceValues) }
         ]
       };
     })

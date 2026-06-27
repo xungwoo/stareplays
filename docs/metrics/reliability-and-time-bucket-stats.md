@@ -15,6 +15,7 @@
 | 자원 소모량 | `GameDetail.compressed_build_orders` 기반 `season_analysis.resource_spend` | 팀 분석 | build order 비용표 기반 합산값이다. 비용 미상 이벤트가 많으면 보조 지표로만 해석한다. |
 | 분당 유효명령 | `Player.effective_cmd_count / game_length_minutes` | 보조/미노출 | 유닛 생산량이 아니므로 피지컬 오각형에서 제외한다. |
 | 손효율 | `Player.eapm / Player.apm` | 보조/미노출 | EAPM/명령효율과 중복성이 높아 피지컬 오각형에서 제외한다. |
+| 테크 전환 속도 | `GameDetail.compressed_build_orders` tech 이벤트 | TODO | APM/EAPM 중복을 줄일 수 있는 피지컬 대체 축 후보. tech 이벤트 커버리지와 기준 건물/업그레이드 매핑을 검증한 뒤 핵심 오각형에 추가한다. |
 | Bradley-Terry, TrueSkill | 경기 승패 파생 모델 | 팀 분석 | 원점수 단위가 다르므로 같은 차트에서는 순위 점수로 비교한다. |
 
 ## 조건부 사용 지표
