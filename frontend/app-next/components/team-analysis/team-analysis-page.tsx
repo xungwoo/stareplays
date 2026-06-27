@@ -812,6 +812,7 @@ export function TeamAnalysisPage({ model }: { model: TeamAnalysisPageModel }) {
           />
         </div>
 
+        {/* 전체 시즌과 개별 시즌은 같은 라우트 안의 별도 뷰 계약이다. 변경 전 docs/team-analysis-view-contract.md를 함께 갱신한다. */}
         {isAllSeasons ? (
           <>
             <div className="mb-4">

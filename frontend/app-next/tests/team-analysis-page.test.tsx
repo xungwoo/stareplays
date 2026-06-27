@@ -5,7 +5,7 @@ import { TeamAnalysisPage } from "@/components/team-analysis/team-analysis-page"
 import { createTeamAnalysisPageModel } from "@/lib/adapters/team-analysis";
 
 describe("team analysis page", () => {
-  it("renders a new shadcn and Tremor inspired team matchup dashboard", async () => {
+  it("renders the all-season team-analysis contract with long-term model and lineup insights", async () => {
     const model = createTeamAnalysisPageModel();
     const user = userEvent.setup();
 
@@ -77,7 +77,7 @@ describe("team analysis page", () => {
     expect(screen.getAllByRole("columnheader", { name: /^선수$/i }).find((header) => header.getAttribute("aria-sort") === "descending")).toBeTruthy();
   });
 
-  it("renders season scope tabs and switches lineup panel to race compositions for a selected season", () => {
+  it("renders the selected-season team-analysis contract with current team record and raw match details", () => {
     const model = {
       ...createTeamAnalysisPageModel(),
       scope: {
