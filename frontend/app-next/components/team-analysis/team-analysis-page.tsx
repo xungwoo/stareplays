@@ -205,6 +205,27 @@ function PentagonChart({ chart, selectedPlayerName, showInlineLegend = false }: 
   const axes = chart.axes.length > 0 ? chart.axes : chart.players[0]?.axes.map((axis) => axis.label) ?? [];
   const gridLevels = [20, 40, 60, 80, 100];
   const visiblePlayers = selectedPlayerName ? chart.players.filter((player) => player.name === selectedPlayerName) : chart.players;
+  const teamDiffRows = showInlineLegend && chart.players.length === 2
+    ? axes.map((axis) => {
+        const left = chart.players[0]?.axes.find((candidate) => candidate.label === axis);
+        const right = chart.players[1]?.axes.find((candidate) => candidate.label === axis);
+        if (left?.rawValue == null || right?.rawValue == null) return null;
+        const leftValue = left.rawValue;
+        const rightValue = right.rawValue;
+        const winner = leftValue >= rightValue ? chart.players[0] : chart.players[1];
+        const winnerValue = Math.max(leftValue, rightValue);
+        const loserValue = Math.min(leftValue, rightValue);
+        const diffPercent = winnerValue > 0 ? ((winnerValue - loserValue) / winnerValue) * 100 : 0;
+
+        return {
+          axis,
+          winner,
+          diffPercent,
+          left,
+          right
+        };
+      }).filter((row): row is NonNullable<typeof row> => row != null)
+    : [];
 
   return (
     <article className="rounded-lg p-3" style={subtleSurfaceStyle}>
@@ -261,6 +282,20 @@ function PentagonChart({ chart, selectedPlayerName, showInlineLegend = false }: 
             );
           })}
       </svg>
+      {teamDiffRows.length > 0 ? (
+        <div className="mt-2 grid gap-1.5 text-[11px] text-slate-300 sm:grid-cols-2">
+          {teamDiffRows.map((row) => (
+            <div key={row.axis} className="flex min-w-0 items-center justify-between gap-2 rounded border border-slate-700/70 bg-slate-950/25 px-2 py-1">
+              <span className="truncate font-semibold text-slate-200">{row.axis}</span>
+              <span className="truncate text-right">
+                <span style={{ color: row.winner.color }}>{row.winner.name}</span>
+                <span className="text-slate-500"> +</span>
+                <span>{row.diffPercent.toFixed(1)}%</span>
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : null}
     </article>
   );
 }

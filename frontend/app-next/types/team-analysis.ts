@@ -76,6 +76,8 @@ export interface TeamAnalysisPlayerPentagon {
     axes: Array<{
       label: string;
       value: number;
+      rawValue?: number;
+      displayValue?: string;
     }>;
   }>;
 }

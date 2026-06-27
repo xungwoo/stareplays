@@ -121,6 +121,7 @@ describe("team analysis page", () => {
     expect(screen.getByRole("heading", { name: /리플레이 피지컬 오각형/i })).toBeInTheDocument();
     expect(screen.getAllByText(/Winner Team/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Loser Team/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText((_, element) => /\+\d+\.\d%/.test(element?.textContent ?? "")).length).toBeGreaterThan(0);
     expect(screen.queryByText(/A Team|B Team/i)).not.toBeInTheDocument();
     const selectedSeasonRadars = screen.getAllByTestId("player-radar-chart");
     expect(selectedSeasonRadars).toHaveLength(3);
