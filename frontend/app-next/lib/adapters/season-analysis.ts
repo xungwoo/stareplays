@@ -117,15 +117,10 @@ type NormalizedGame = {
 };
 
 const mvpWeights = {
-  winRate: 0.35,
-  wins: 0.2,
-  averageEapm: 0.15,
-  averageApm: 0.05,
-  production: 0.1,
-  resourceSpend: 0.04,
-  workerPeak: 0.04,
-  kills: 0.04,
-  techAndUpgrades: 0.03
+  winRate: 0.45,
+  wins: 0.25,
+  averageEapm: 0.2,
+  averageApm: 0.1
 };
 
 function toNumber(value: unknown, fallback = 0) {

@@ -122,8 +122,14 @@ describe("team analysis adapter", () => {
       "리플레이 피지컬 오각형"
     ]);
     expect(model.chartData.playerPentagons[1]?.axes).toEqual(["프로토스", "저그", "테란", "랜덤", "전체 역량"]);
+    expect(model.chartData.playerPentagons[2]?.axes).toEqual(["APM", "EAPM", "명령효율", "분당 유효명령", "손효율"]);
+    expect(model.chartData.playerPentagons.flatMap((chart) => chart.axes)).toEqual(expect.not.arrayContaining(["생산능력", "템포안정"]));
     expect(model.chartData.playerPentagons.every((chart) => chart.players.length > 0)).toBe(true);
     expect(model.chartData.playerPentagons.flatMap((chart) => chart.players.flatMap((player) => player.axes)).every((axis) => axis.value >= 0 && axis.value <= 100)).toBe(true);
+    expect(model.players[0]).toHaveProperty("effectiveCommandsPerMinute");
+    expect(model.players[0]).toHaveProperty("handEfficiency");
+    expect(model.players[0]).not.toHaveProperty("productionAbility");
+    expect(model.players[0]).not.toHaveProperty("tempoStability");
     expect(model.insights.bestLineup?.title).toContain("최고 조합");
     expect(model.insights.worstLineup?.title).toContain("최악 조합");
     expect(model.insights.bestDuo?.title).toContain("최강 듀오");

@@ -149,4 +149,55 @@ describe("season analysis adapter", () => {
     expect(model.gameRecords).toHaveLength(0);
     expect(model.playerStandings.find((player) => player.name === "성우")).toBeUndefined();
   });
+
+  it("calculates season MVP from stable match outcomes and player APM fields, not analyzer-only extras", () => {
+    const inflatedAnalyzerResponse: ApiSeasonsResponse = {
+      seasons: [
+        {
+          season_label: "시즌MVP",
+          season_no: 99,
+          games: 1,
+          wins_by_team: { "1": 1, "2": 0 },
+          games_data: [
+            {
+              id: 99,
+              season_label: "시즌MVP",
+              season_no: 99,
+              start_time: "2026-03-01T00:00:00Z",
+              map_name: "MVP Check",
+              game_length: 600,
+              winner_team: 1,
+              season_analysis: {
+                status: "succeeded",
+                data_source: "replay_analyzer",
+                players: {
+                  "3x3_GG": { production: 1, resource_spend: 1, worker_peak: 1, kills: 1, tech_and_upgrades: 1 },
+                  "3x3_mh": { production: 1, resource_spend: 1, worker_peak: 1, kills: 1, tech_and_upgrades: 1 },
+                  "3x3_syntax": { production: 1, resource_spend: 1, worker_peak: 1, kills: 1, tech_and_upgrades: 1 },
+                  "3x3_pil": { production: 9999, resource_spend: 9999, worker_peak: 9999, kills: 9999, tech_and_upgrades: 9999 },
+                  "3x3_smwoo": { production: 9999, resource_spend: 9999, worker_peak: 9999, kills: 9999, tech_and_upgrades: 9999 },
+                  "3x3_Kiyong": { production: 9999, resource_spend: 9999, worker_peak: 9999, kills: 9999, tech_and_upgrades: 9999 }
+                }
+              },
+              edges: {
+                players: [
+                  { name: "3x3_GG", race: "P", team: 1, apm: 210, eapm: 180 },
+                  { name: "3x3_mh", race: "T", team: 1, apm: 205, eapm: 175 },
+                  { name: "3x3_syntax", race: "Z", team: 1, apm: 200, eapm: 170 },
+                  { name: "3x3_pil", race: "P", team: 2, apm: 100, eapm: 80 },
+                  { name: "3x3_smwoo", race: "T", team: 2, apm: 95, eapm: 75 },
+                  { name: "3x3_Kiyong", race: "Z", team: 2, apm: 90, eapm: 70 }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    };
+
+    const model = createSeasonAnalysisPageModel({ seasonsResponse: inflatedAnalyzerResponse });
+
+    expect(model.summary.mvp).toBe("성우");
+    expect(model.playerStandings.slice(0, 3).map((player) => player.name)).toEqual(["성우", "민혁", "명진"]);
+  });
 });
