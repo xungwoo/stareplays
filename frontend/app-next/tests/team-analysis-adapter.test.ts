@@ -175,7 +175,7 @@ describe("team analysis adapter", () => {
     expect(model.chartData.playerPentagons[2]?.axes).toEqual(["APM", "EAPM", "명령효율", "분당 생산", "자원 소모량"]);
     expect(model.chartData.teamPentagon?.title).toBe("팀별 역량 오각형");
     expect(model.chartData.teamPentagon?.axes).toEqual(["APM", "분당 생산", "토스", "저그", "테란"]);
-    expect(model.chartData.teamPentagon?.players.map((team) => team.name)).toEqual(["A Team", "B Team"]);
+    expect(model.chartData.teamPentagon?.players.map((team) => team.name)).toEqual(["Winner Team", "Loser Team"]);
     const racePentagonPlayers = model.chartData.playerPentagons[1]?.players ?? [];
     const alphaRaceAxes = racePentagonPlayers.find((player) => player.name === "3x3_alpha")?.axes ?? [];
     const deltaRaceAxes = racePentagonPlayers.find((player) => player.name === "3x3_delta")?.axes ?? [];

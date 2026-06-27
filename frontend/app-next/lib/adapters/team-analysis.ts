@@ -773,37 +773,33 @@ function buildPlayerPentagons(players: TeamAnalysisPlayer[]): TeamAnalysisPlayer
 
 function buildTeamPentagon(matches: NormalizedMatch[]): TeamAnalysisPlayerPentagon | null {
   type TeamAccumulator = {
-    key: string;
-    players: string[];
     games: number;
-    wins: number;
-    losses: number;
     apmTotal: number;
     productionTotal: number;
     productionMinuteTotal: number;
     races: Map<RaceCode, { games: number; wins: number; losses: number }>;
   };
 
-  const teams = new Map<string, TeamAccumulator>();
-  const recordSide = (players: NormalizedPlayer[], won: boolean, gameLength: number) => {
-    const key = lineupKey(players);
-    const team = teams.get(key) ?? {
-      key,
-      players: sortNames(players.map((player) => player.name)),
-      games: 0,
-      wins: 0,
-      losses: 0,
-      apmTotal: 0,
-      productionTotal: 0,
-      productionMinuteTotal: 0,
-      races: new Map()
-    };
+  const winnerTeam: TeamAccumulator = {
+    games: 0,
+    apmTotal: 0,
+    productionTotal: 0,
+    productionMinuteTotal: 0,
+    races: new Map()
+  };
+  const loserTeam: TeamAccumulator = {
+    games: 0,
+    apmTotal: 0,
+    productionTotal: 0,
+    productionMinuteTotal: 0,
+    races: new Map()
+  };
+
+  const recordSide = (team: TeamAccumulator, players: NormalizedPlayer[], won: boolean, gameLength: number) => {
     const gameMinutes = Math.max(gameLength / 60, 1);
     const productionTotal = players.reduce((sum, player) => sum + Math.max(player.unitProduction, 0), 0);
 
     team.games += 1;
-    team.wins += won ? 1 : 0;
-    team.losses += won ? 0 : 1;
     team.apmTotal += players.reduce((sum, player) => sum + player.apm, 0) / Math.max(players.length, 1);
     if (productionTotal > 0) {
       team.productionTotal += productionTotal;
@@ -817,22 +813,32 @@ function buildTeamPentagon(matches: NormalizedMatch[]): TeamAnalysisPlayerPentag
       race.losses += won ? 0 : 1;
       team.races.set(player.race, race);
     }
-    teams.set(key, team);
   };
 
   for (const match of matches) {
-    recordSide(match.winner, true, match.gameLength);
-    recordSide(match.loser, false, match.gameLength);
+    recordSide(winnerTeam, match.winner, true, match.gameLength);
+    recordSide(loserTeam, match.loser, false, match.gameLength);
   }
 
-  const topTeams = Array.from(teams.values())
-    .sort((left, right) => right.games - left.games || right.wins - left.wins || left.key.localeCompare(right.key))
-    .slice(0, 2);
+  const teams = [
+    {
+      ...winnerTeam,
+      name: "Winner Team",
+      tone: "cyan" as const,
+      color: "#22d3ee"
+    },
+    {
+      ...loserTeam,
+      name: "Loser Team",
+      tone: "rose" as const,
+      color: "#fb7185"
+    }
+  ].filter((team) => team.games > 0);
 
-  if (topTeams.length < 2) return null;
+  if (teams.length < 2) return null;
 
-  const apmValues = topTeams.map((team) => round(team.apmTotal / Math.max(team.games, 1), 1));
-  const productionValues = topTeams.map((team) => round(team.productionTotal / Math.max(team.productionMinuteTotal, 1), 2));
+  const apmValues = teams.map((team) => round(team.apmTotal / Math.max(team.games, 1), 1));
+  const productionValues = teams.map((team) => round(team.productionTotal / Math.max(team.productionMinuteTotal, 1), 2));
   const raceScore = (team: TeamAccumulator, race: RaceCode) => {
     const record = team.races.get(race);
     return record && record.games > 0 ? winRate(record.wins, record.games) : 50;
@@ -840,16 +846,16 @@ function buildTeamPentagon(matches: NormalizedMatch[]): TeamAnalysisPlayerPentag
 
   return {
     title: "팀별 역량 오각형",
-    description: "선택 시즌에서 가장 많이 등장한 두 팀을 A Team vs B Team으로 놓고 APM, 분당 유닛생산, 종족별 승률을 비교합니다.",
+    description: "선택 시즌의 승리팀과 패배팀을 묶어 APM, 분당 유닛생산, 종족별 승률을 비교합니다.",
     axes: ["APM", "분당 생산", "토스", "저그", "테란"],
-    players: topTeams.map((team, index) => {
+    players: teams.map((team, index) => {
       const apm = apmValues[index] ?? 0;
       const production = productionValues[index] ?? 0;
 
       return {
-        name: index === 0 ? "A Team" : "B Team",
-        tone: index === 0 ? "cyan" : "rose",
-        color: index === 0 ? "#22d3ee" : "#fb7185",
+        name: team.name,
+        tone: team.tone,
+        color: team.color,
         axes: [
           { label: "APM", value: normalizeMetricBand(apm, apmValues) },
           { label: "분당 생산", value: normalizePositiveMetricBand(production, productionValues) },

@@ -201,7 +201,7 @@ function pentagonPoint(index: number, value: number, radius = 72, center = 86) {
   };
 }
 
-function PentagonChart({ chart, selectedPlayerName }: { chart: TeamAnalysisPlayerPentagon; selectedPlayerName: string | null }) {
+function PentagonChart({ chart, selectedPlayerName, showInlineLegend = false }: { chart: TeamAnalysisPlayerPentagon; selectedPlayerName: string | null; showInlineLegend?: boolean }) {
   const axes = chart.axes.length > 0 ? chart.axes : chart.players[0]?.axes.map((axis) => axis.label) ?? [];
   const gridLevels = [20, 40, 60, 80, 100];
   const visiblePlayers = selectedPlayerName ? chart.players.filter((player) => player.name === selectedPlayerName) : chart.players;
@@ -212,6 +212,20 @@ function PentagonChart({ chart, selectedPlayerName }: { chart: TeamAnalysisPlaye
         <h3 className="text-sm font-semibold text-slate-50">{chart.title}</h3>
         <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-400">{chart.description}</p>
       </div>
+      {showInlineLegend ? (
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {chart.players.map((player) => (
+            <span
+              key={player.name}
+              className="inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[11px] font-semibold"
+              style={{ borderColor: `${player.color}99`, backgroundColor: `${player.color}18`, color: player.color }}
+            >
+              <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: player.color }} />
+              {player.name}
+            </span>
+          ))}
+        </div>
+      ) : null}
       <svg viewBox="0 0 172 172" role="img" aria-label={chart.title} data-testid="player-radar-chart" className="h-[230px] w-full">
           {gridLevels.map((level) => {
             const points = axes.map((_, index) => pentagonPoint(index, level)).map((point) => `${point.x},${point.y}`).join(" ");
@@ -251,24 +265,24 @@ function PentagonChart({ chart, selectedPlayerName }: { chart: TeamAnalysisPlaye
   );
 }
 
-function PlayerPentagonSection({ charts }: { charts: TeamAnalysisPlayerPentagon[] }) {
+function PlayerPentagonSection({ charts, leadingChart }: { charts: TeamAnalysisPlayerPentagon[]; leadingChart?: TeamAnalysisPlayerPentagon | null }) {
   const [selectedPlayerName, setSelectedPlayerName] = useState<string | null>(null);
   const legendPlayers = charts[0]?.players ?? [];
 
-  if (charts.length === 0) return null;
+  if (charts.length === 0 && !leadingChart) return null;
 
   return (
     <Panel
       title="선수 역량 오각형"
-      description="승부 감각, 종족 역량, 리플레이 피지컬을 0-100 비교형 지표로 압축했습니다."
+      description={leadingChart ? "팀 비교, 종족 역량, 리플레이 피지컬을 0-100 비교형 지표로 압축했습니다." : "승부 감각, 종족 역량, 리플레이 피지컬을 0-100 비교형 지표로 압축했습니다."}
       accent="violet"
       help="분당 유닛생산과 자원 소모량은 GameDetail build order 기반 season_analysis 값입니다. 생산은 경기 길이로 보정했고, 값이 있는 경기만 평균에 포함하므로 보조 지표로 해석합니다."
     >
-      <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-7">
+      <div className="mb-3 grid grid-cols-3 gap-1.5 sm:grid-cols-7">
         <button
           type="button"
           onClick={() => setSelectedPlayerName(null)}
-          className={`inline-flex min-w-0 items-center justify-center rounded-md border px-2 py-1.5 text-xs font-semibold transition ${
+          className={`inline-flex min-w-0 items-center justify-center rounded-md border px-1.5 py-1 text-[11px] font-semibold transition ${
             selectedPlayerName === null
               ? "border-violet-300/70 bg-violet-300/15 text-violet-50"
               : "border-slate-700 bg-slate-950/40 text-slate-300 hover:border-violet-300/40"
@@ -285,7 +299,7 @@ function PlayerPentagonSection({ charts }: { charts: TeamAnalysisPlayerPentagon[
               type="button"
               onClick={() => setSelectedPlayerName(player.name)}
               aria-label={`${player.name} 선택`}
-              className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-semibold transition hover:bg-slate-900/70"
+              className="inline-flex min-w-0 items-center justify-center gap-1 rounded-md border px-1.5 py-1 text-[11px] font-semibold transition hover:bg-slate-900/70"
               style={{
                 backgroundColor: active ? `${player.color}22` : "rgba(2,6,23,0.38)",
                 borderColor: active ? `${player.color}cc` : "rgba(51,65,85,0.9)",
@@ -299,38 +313,10 @@ function PlayerPentagonSection({ charts }: { charts: TeamAnalysisPlayerPentagon[
         })}
       </div>
       <div className="grid gap-3 xl:grid-cols-3">
+        {leadingChart ? <PentagonChart chart={leadingChart} selectedPlayerName={null} showInlineLegend /> : null}
         {charts.map((chart) => (
           <PentagonChart key={chart.title} chart={chart} selectedPlayerName={selectedPlayerName} />
         ))}
-      </div>
-    </Panel>
-  );
-}
-
-function TeamPentagonSection({ chart }: { chart: TeamAnalysisPlayerPentagon | null }) {
-  if (!chart) return null;
-
-  return (
-    <Panel
-      title="팀별 역량 오각형"
-      description="선택 시즌의 주요 두 팀을 A Team vs B Team으로 비교합니다."
-      accent="cyan"
-      help="A/B Team은 선택 시즌에서 가장 많이 등장한 두 3인 조합입니다. APM과 분당 생산은 팀 평균/총합을 경기 길이로 보정하고, P/T/Z는 해당 팀 선수들의 종족별 승률입니다."
-    >
-      <div className="mb-3 flex flex-wrap gap-2">
-        {chart.players.map((team) => (
-          <span
-            key={team.name}
-            className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-semibold"
-            style={{ borderColor: `${team.color}99`, backgroundColor: `${team.color}18`, color: team.color }}
-          >
-            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: team.color }} />
-            {team.name}
-          </span>
-        ))}
-      </div>
-      <div className="max-w-[520px]">
-        <PentagonChart chart={chart} selectedPlayerName={null} />
       </div>
     </Panel>
   );
@@ -889,11 +875,7 @@ export function TeamAnalysisPage({ model }: { model: TeamAnalysisPageModel }) {
         ) : (
           <>
             <div className="mb-4">
-              <PlayerPentagonSection charts={seasonPentagons} />
-            </div>
-
-            <div className="mb-4">
-              <TeamPentagonSection chart={model.chartData.teamPentagon} />
+              <PlayerPentagonSection charts={seasonPentagons} leadingChart={model.chartData.teamPentagon} />
             </div>
 
             <div className="mb-4">
